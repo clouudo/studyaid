@@ -5,7 +5,7 @@ require_once 'autoloader.php';
 require_once 'app/config/paths.php';
 
 // A simple router
-$url = isset($_GET['url']) ? $_GET['url'] : 'auth/login';
+$url = isset($_GET['url']) ? $_GET['url'] : 'auth/home';
 $url = rtrim($url, '/');
 $url = filter_var($url, FILTER_SANITIZE_URL);
 $url = explode('/', $url);

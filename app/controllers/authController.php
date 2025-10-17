@@ -18,6 +18,10 @@ class AuthController
         require_once 'app/views/authView/login.php';
     }
 
+    public function home(){
+        require_once 'app/views/authView/home.php';
+    }
+
     public function login()
     {
         if (isset($_SESSION['user_id'])) {
