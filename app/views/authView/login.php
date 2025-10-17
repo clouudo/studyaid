@@ -25,9 +25,10 @@
                                 <label for="password" class="form-label">Password</label>
                                 <input type="password" class="form-control" id="password" name="password" required>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">Login</button>
-                        </form>
-                    </div>
+                    <button type="submit" class="btn btn-primary btn-block w-100">Login</button>
+                </form>
+                <p class="text-center mt-3">Don't have an account? <a href="index.php?url=auth/register">Register here</a></p>
+            </div>
                     <div class="card-footer text-center">
                         <small>&copy; 2025 StudyAid</small>
                     </div>

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Controllers;
+
 class UserController {
 
     public function dashboard() {
