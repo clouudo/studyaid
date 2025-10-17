@@ -3,5 +3,8 @@
 namespace App\Controllers;
 
 class LmController {
-    // Add your methods here
+    public function uploadDocument()
+    {
+        require_once 'app\views\learningView\newDocument.php';
+    }
 }
