@@ -1,6 +1,8 @@
 <?php
+session_start();
 
 require_once 'autoloader.php';
+require_once 'app/config/paths.php';
 
 // A simple router
 $url = isset($_GET['url']) ? $_GET['url'] : 'auth/login';

@@ -4,8 +4,14 @@ namespace App\Controllers;
 
 class UserController {
 
+        
+
     public function dashboard() {
-        // Here you can load data for the dashboard and pass it to the view
+        if(!isset($_SESSION['user_id'])) {
+            header('Location: ' . LOGIN);
+            return;
+        }
+        // If the user is logged in, load the dashboard view
         require_once 'app/views/dashboardView.php';
     }
 }

@@ -4,27 +4,37 @@ namespace App\Controllers;
 
 use App\Models\AuthModel;
 
-class AuthController {
+class AuthController
+{
+    private $authModel;
 
-    public function showLoginForm() {
+    public function __construct()
+    {
+        $this->authModel = new AuthModel();
+    }
+
+    public function showLoginForm()
+    {
         require_once 'app/views/authView/login.php';
     }
 
-    public function login() {
+    public function login()
+    {
+        if (isset($_SESSION['user_id'])) {
+            header('Location: ' . DASHBOARD);
+            return;
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = $_POST['email'];
             $password = $_POST['password'];
 
-            $authModel = new AuthModel();
-            $user = $authModel->authenticate($email, $password);
+            $user = $this->authModel->authenticate($email, $password);
 
             if ($user) {
-                // Start a session and redirect to the dashboard
-                session_start();
                 $_SESSION['user_id'] = $user['id'];
-                header('Location: index.php?url=user/dashboard');
+                header('Location: ' . DASHBOARD);
             } else {
-                // Show an error message
                 $error = "Invalid email or password";
                 require_once 'app/views/authView/login.php';
             }
@@ -33,24 +43,19 @@ class AuthController {
         }
     }
 
-    public function logout() {
-        session_start();
+    public function logout()
+    {
         session_destroy();
-        header('Location: index.php?url=auth/login');
+        header('Location: ' . LOGIN);
     }
 
-    public function register() {
+    public function register()
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $username = $_POST['username'];
             $email = $_POST['email'];
             $password = $_POST['password'];
             $confirmPassword = $_POST['confirm_password'];
-
-            if(empty($username)){
-                $error = "Username is required";
-                require_once 'app/views/authView/register.php';
-                return;
-            }
 
             if ($password !== $confirmPassword) {
                 $error = "Passwords do not match";
@@ -58,16 +63,15 @@ class AuthController {
                 return;
             }
 
-            $authModel = new AuthModel();
-            if ($authModel->getUserByEmail($email)) {
+            if ($this->authModel->getUserByEmail($email)) {
                 $error = "Email already registered";
                 require_once 'app/views/authView/register.php';
                 return;
             }
 
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            if ($authModel->registerUser($email, $hashedPassword, $username)) {
-                header('Location: index.php?url=auth/login');
+            if ($this->authModel->registerUser($email, $hashedPassword, $username)) {
+                header('Location: ' . LOGIN);
             } else {
                 $error = "Registration failed. Please try again.";
                 require_once 'app/views/authView/register.php';

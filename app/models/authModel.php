@@ -24,12 +24,32 @@ class AuthModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    public function getUserIdByEmail($email){
+        $conn = $this->db->connect();
+
+        $query = "SELECT userID FROM user WHERE email = :email";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['userID'] : null;
+    }
+
+    public function addSession($email){
+        $id = $this->getUserIdByEmail($email);
+        if($id != null){
+            $_SESSION['user_id'] = $id;
+        }
+    }
+
     public function authenticate($email, $password) {
         $user = $this->getUserByEmail($email);
         if($user != null){
             error_log("User fetched: " . print_r($user, true));
             if(password_verify($password, $user['password'])) {
             error_log("Authentication successful for user: " . $user['email']);
+            $this-> addSession($email);
             return [
                 'id' => $user['userID'],
                 'email' => $user['email']
