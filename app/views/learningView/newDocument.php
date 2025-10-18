@@ -13,14 +13,14 @@
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4">Create New Document</h3>
-                <form>
+                <form action="index.php?url=lm/uploadDocument" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="documentName" class="form-label">Document Name</label>
-                        <input type="text" class="form-control" id="documentName" placeholder="Enter document name">
+                        <input type="text" class="form-control" id="documentName" name="documentName" placeholder="Enter document name">
                     </div>
                     <div class="mb-3">
                         <label for="folderSelect" class="form-label">Add to Folder</label>
-                        <select class="form-select" id="folderSelect">
+                        <select class="form-select" id="folderSelect" name="folderSelect">
                             <option selected>Choose...</option>
                             <option value="1">Folder 1</option>
                             <option value="2">Folder 2</option>
@@ -29,11 +29,14 @@
                     </div>
                     <div class="mb-3">
                         <label for="dragDropArea" class="form-label">Drag and Drop Document</label>
-                        <div id="dragDropArea" class="border rounded p-5 text-center bg-light" style="min-height: 200px;">
+                        <div id="dragDropArea" class="border rounded p-5 text-center bg-light d-flex flex-column justify-content-center align-items-center" style="min-height: 500px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
                             Drag and drop your files here or click to upload
+                            <input type="file" id="documentFile" name="document" style="display: none;">
+                            <p class="mt-3">Or</p>
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('documentFile').click();">Browse Files</button>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
                     <button type="button" class="btn btn-secondary">Cancel</button>
                 </form>
             </div>
