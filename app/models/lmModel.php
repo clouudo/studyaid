@@ -32,12 +32,12 @@ class LmModel
         return $gscObjectName;
     }
 
-    public function uploadFileToGCS($fileContent, $objectName, $userId)
+    public function uploadFileToGCS($fileContent, $objectName, $userId, $file)
     {
-        $fileExtension = pathinfo($objectName, PATHINFO_EXTENSION);
+        $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $uniqueFileName = $this->generateUniqueFileName($fileExtension, $userId);
         $bucket = $this->storage->bucket($this->bucketName);
-        $object = $bucket->upload($fileContent, [
+        $bucket->upload($fileContent, [
             'name' => $uniqueFileName
         ]);
 
@@ -58,18 +58,6 @@ class LmModel
         $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    public function getUserDocumentFromGCS($userId)
-    {
-        $bucket = $this->storage->bucket($this->bucketName);
-        $prefix = 'user_upload/' . $userId . '/';
-        $objects = $bucket->objects(['prefix' => $prefix]);
-        $fileList = [];
-        foreach ($objects as $object) {
-            $fileList[] = $object->name();
-        }
-        return $fileList;
     }
 
     public function getDocumentContent($fileID, $userId)
@@ -111,5 +99,37 @@ class LmModel
                 'content' => $object->downloadAsString()
             ];
         }
+    }
+
+    public function deleteDocument($fileID, $userId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT filePath FROM file WHERE fileID = :fileID AND userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':fileID', $fileID);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        $fileData = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$fileData) {
+            throw new \Exception("File not found or access denied.");
+        }
+
+        $gscObjectName = $fileData['filePath'];
+
+        // Delete from GCS
+        $bucket = $this->storage->bucket($this->bucketName);
+        $object = $bucket->object($gscObjectName);
+
+        if ($object->exists()) {
+            $object->delete();
+        }
+
+        // Delete from database
+        $deleteQuery = "DELETE FROM file WHERE fileID = :fileID AND userID = :userID";
+        $deleteStmt = $conn->prepare($deleteQuery);
+        $deleteStmt->bindParam(':fileID', $fileID);
+        $deleteStmt->bindParam(':userID', $userId);
+        return $deleteStmt->execute();
     }
 }

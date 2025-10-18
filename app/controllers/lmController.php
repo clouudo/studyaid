@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\LmModel;
-use Error;
 
 class LmController
 {
@@ -32,13 +31,12 @@ class LmController
 
             $file = $_FILES['document'];
             $uploadedFileName = $file['name']; // Original name with extension
-            $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
 
             $documentNameFromPost = $_POST['documentName'] ?? '';
 
             if (!empty($documentNameFromPost)) {
                 // User provided a custom name, append original extension
-                $originalFileName = $documentNameFromPost . '.' . $fileExtension;
+                $originalFileName = $documentNameFromPost;
             } else {
                 // Use the original uploaded file name
                 $originalFileName = $uploadedFileName;
@@ -48,7 +46,7 @@ class LmController
 
             if ($fileContent !== false) {
                 try {
-                    $this->lmModel->uploadFileToGCS($fileContent, $originalFileName, $userId);
+                    $this->lmModel->uploadFileToGCS($fileContent, $originalFileName, $userId, $file);
                     $message = "File '{$originalFileName}' uploaded successfully to Google Cloud Storage.";
                     $messageType = 'success';
                 } catch (\Exception $e) {
@@ -88,14 +86,12 @@ class LmController
 
         if (isset($_GET['fileID'])) {
             $fileID = $_GET['fileID'];
-            error_log("Requested fileID: " . $fileID);
             try {
                 $documentData = $this->lmModel->getDocumentContent($fileID, $_SESSION['user_id']);
                 // Pass documentData to the view
                 require_once 'app/views/learningView/displayDocument.php';
             } catch (\Exception $e) {
                 // Handle error, e.g., document not found or access denied
-                echo "<div class=\"alert alert-danger\">Error: " . $e->getMessage() . "</div>";
                 // Redirect or show an error page
                 header('Location: index.php?url=lm/allDocument');
                 exit();
@@ -105,5 +101,31 @@ class LmController
             header('Location: index.php?url=lm/allDocument');
             exit();
         }
+    }
+
+    public function deleteDocument(){
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: index.php?url=auth/home');
+            exit();
+        }
+
+        if (isset($_GET['fileID'])) {
+            $fileID = $_GET['fileID'];
+            try {
+                if ($this->lmModel->deleteDocument($fileID, $_SESSION['user_id'])) {
+                    $_SESSION['message'] = "Document deleted successfully.";
+                } else {
+                    $_SESSION['error'] = "Failed to delete document.";
+                }
+            } catch (\Exception $e) {
+                $_SESSION['error'] = "Error: " . $e->getMessage();
+            }
+        }
+        header('Location: index.php?url=lm/allDocument');
+        exit();
     }
 }
