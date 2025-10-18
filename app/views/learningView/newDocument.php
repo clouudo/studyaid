@@ -12,7 +12,7 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
-                <h3 class="mb-4">Create New Document</h3>
+                <h3 class="mb-4">Upload Document</h3>
                 <form action="index.php?url=lm/uploadDocument" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="documentName" class="form-label">Document Name</label>
@@ -29,7 +29,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="dragDropArea" class="form-label">Drag and Drop Document</label>
-                        <div id="dragDropArea" class="border rounded p-5 text-center bg-light d-flex flex-column justify-content-center align-items-center" style="min-height: 500px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
+                        <div id="dragDropArea" class="border rounded p-5 text-center bg-light d-flex flex-column justify-content-center align-items-center" style="min-height: 550px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
                             Drag and drop your files here or click to upload
                             <input type="file" id="documentFile" name="document" style="display: none;">
                             <p class="mt-3">Or</p>
