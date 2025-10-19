@@ -17,7 +17,6 @@ class LmController
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
 
-            //Must have a file to upload
             if (!isset($_FILES['document']) || $_FILES['document']['error'] !== UPLOAD_ERR_OK) {
                 echo "<div class=\"alert alert-danger\">Missing Information. Please try again.</div>";
                 require_once 'app\views\learningView\newDocument.php';
@@ -30,25 +29,23 @@ class LmController
             }
 
             $file = $_FILES['document'];
-            $uploadedFileName = $file['name']; // Original name with extension
+            $uploadedFileName = $file['name'];
+            $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
+            error_log("File array: " . print_r($file, true));
+            $tmpName = $file['tmp_name'];
 
             $documentNameFromPost = $_POST['documentName'] ?? '';
+            $originalFileName = !empty($documentNameFromPost) ? $documentNameFromPost : $uploadedFileName;
 
-            if (!empty($documentNameFromPost)) {
-                // User provided a custom name, append original extension
-                $originalFileName = $documentNameFromPost;
-            } else {
-                // Use the original uploaded file name
-                $originalFileName = $uploadedFileName;
-            }
+            $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
 
-            $fileContent = file_get_contents($file['tmp_name']);
+            $fileContent = file_get_contents($tmpName);
 
             if ($fileContent !== false) {
                 try {
-                    $this->lmModel->uploadFileToGCS($fileContent, $originalFileName, $userId, $file);
-                    $message = "File '{$originalFileName}' uploaded successfully to Google Cloud Storage.";
-                    $messageType = 'success';
+                    $newFileID = $this->lmModel->uploadFileToGCS($fileContent, $originalFileName, $userId, $file, $extractedText);
+                    header('Location: index.php?url=lm/displayDocument&fileID=' . $newFileID);
+                    exit();
                 } catch (\Exception $e) {
                     $message = "Error uploading file: " . $e->getMessage();
                     $messageType = 'danger';

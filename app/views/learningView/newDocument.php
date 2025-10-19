@@ -31,7 +31,7 @@
                         <label for="dragDropArea" class="form-label">Drag and Drop Document</label>
                         <div id="dragDropArea" class="border rounded p-5 text-center bg-light d-flex flex-column justify-content-center align-items-center" style="min-height: 550px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
                             <span id="fileNameDisplay">Drag and drop your files here or click to upload</span>
-                            <input type="file" id="documentFile" name="document" style="display: none;">
+                            <input type="file" id="documentFile" name="document" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx">
                             <p class="mt-3">Or</p>
                             <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('documentFile').click();">Browse Files</button>
                         </div>

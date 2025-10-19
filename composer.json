@@ -1,5 +1,7 @@
 {
     "require": {
-        "google/cloud-storage": "^1.48"
+        "google/cloud-storage": "^1.48",
+        "smalot/pdfparser": "^2.12",
+        "phpoffice/phpword": "^1.3"
     }
 }

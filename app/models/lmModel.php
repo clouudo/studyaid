@@ -24,6 +24,40 @@ class LmModel
         $this->bucketName = $config['bucket_name'];
     }
 
+    public function extractTextFromFile($tmpName, $fileExtension)
+    {
+        $extractedText = '';
+        switch (strtolower($fileExtension)) {
+            case 'txt':
+                $extractedText = file_get_contents($tmpName);
+                break;
+            case 'pdf':
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($tmpName);
+                $extractedText = $pdf->getText();
+                break;
+            case 'doc':
+            case 'docx':
+                $phpWord = \PhpOffice\PhpWord\IOFactory::load($tmpName);
+                $htmlWriter = new \PhpOffice\PhpWord\Writer\HTML($phpWord);
+                $html = $htmlWriter->getContent();
+
+                // Remove style block
+                $html = preg_replace('/<style.*?>(.*?)<\/style>/is', '', $html);
+
+                // Convert HTML to plain text, preserving line breaks
+                $html = str_replace('</p>', "</p>\n", $html);
+                $html = str_replace('<br />', "\n", $html);
+                $extractedText = strip_tags($html);
+                break;
+        }
+
+        // Replace 2 or more newlines with a single newline and trim whitespace
+        $extractedText = preg_replace('/\n{2,}/', "\n", trim($extractedText));
+
+        return $extractedText;
+    }
+
     public function generateUniqueFileName($fileExtension, $userId)
     {
         $uuid = Uuid::uuid4()->toString();
@@ -32,7 +66,7 @@ class LmModel
         return $gscObjectName;
     }
 
-    public function uploadFileToGCS($fileContent, $objectName, $userId, $file)
+    public function uploadFileToGCS($fileContent, $objectName, $userId, $file, $extractedText)
     {
         $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $uniqueFileName = $this->generateUniqueFileName($fileExtension, $userId);
@@ -41,14 +75,16 @@ class LmModel
             'name' => $uniqueFileName
         ]);
 
-        $conn = $this->db->connect();
-        $query = "INSERT INTO file (userID, name, fileType, filePath) VALUES (:userID, :objectName, :fileExtension, :uniqueFileName)";
+    $conn = $this->db->connect();
+        $query = "INSERT INTO file (userID, name, fileType, filePath, extracted_text) VALUES (:userID, :objectName, :fileExtension, :uniqueFileName, :extractedText)";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':userID', $userId);
         $stmt->bindParam(':objectName', $objectName);
         $stmt->bindParam(':fileExtension', $fileExtension);
         $stmt->bindParam(':uniqueFileName', $uniqueFileName);
-        return $stmt->execute();
+        $stmt->bindParam(':extractedText', $extractedText);
+        $stmt->execute();
+        return $conn->lastInsertId();
     }
 
     public function listUserFiles($userId){
@@ -63,7 +99,7 @@ class LmModel
     public function getDocumentContent($fileID, $userId)
     {
         $conn = $this->db->connect();
-        $query = "SELECT filePath, fileType FROM file WHERE fileID = :fileID AND userID = :userID";
+        $query = "SELECT filePath, fileType, extracted_text FROM file WHERE fileID = :fileID AND userID = :userID";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':fileID', $fileID);
         $stmt->bindParam(':userID', $userId);
@@ -76,6 +112,7 @@ class LmModel
 
         $gscObjectName = $fileData['filePath'];
         $fileType = $fileData['fileType'];
+        $extractedText = $fileData['extracted_text'];
 
         $bucket = $this->storage->bucket($this->bucketName);
         $object = $bucket->object($gscObjectName);
@@ -87,16 +124,16 @@ class LmModel
         $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
 
         if (in_array(strtolower($fileType), $imageExtensions)) {
-            // For images, return the public URL
             return [
                 'type' => 'image',
-                'content' => $object->signedUrl(new \DateTime('+1 hour')) // Signed URL for temporary access
+                'content' => $object->signedUrl(new \DateTime('+1 hour')),
+                'extracted_text' => $extractedText
             ];
         } else {
-            // For other file types, download as string
             return [
                 'type' => 'text',
-                'content' => $object->downloadAsString()
+                'content' => $object->downloadAsString(),
+                'extracted_text' => $extractedText
             ];
         }
     }

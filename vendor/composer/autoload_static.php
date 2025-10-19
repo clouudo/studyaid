@@ -11,9 +11,14 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'e39a8b23c42d4e1452234d762b03835a' => __DIR__ . '/..' . '/ramsey/uuid/src/functions.php',
+        '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
     );
 
     public static $prefixLengthsPsr4 = array (
+        'S' => 
+        array (
+            'Symfony\\Polyfill\\Mbstring\\' => 26,
+        ),
         'R' => 
         array (
             'Rize\\' => 5,
@@ -26,6 +31,8 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
             'Psr\\Http\\Message\\' => 17,
             'Psr\\Http\\Client\\' => 16,
             'Psr\\Cache\\' => 10,
+            'PhpOffice\\PhpWord\\' => 18,
+            'PhpOffice\\Math\\' => 15,
         ),
         'M' => 
         array (
@@ -71,6 +78,10 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
     );
 
     public static $prefixDirsPsr4 = array (
+        'Symfony\\Polyfill\\Mbstring\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
+        ),
         'Rize\\' => 
         array (
             0 => __DIR__ . '/..' . '/rize/uri-template/src/Rize',
@@ -99,6 +110,14 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         'Psr\\Cache\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/cache/src',
+        ),
+        'PhpOffice\\PhpWord\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord',
+        ),
+        'PhpOffice\\Math\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/math/src/Math',
         ),
         'Monolog\\' => 
         array (
@@ -218,6 +237,16 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         ),
     );
 
+    public static $prefixesPsr0 = array (
+        'S' => 
+        array (
+            'Smalot\\PdfParser\\' => 
+            array (
+                0 => __DIR__ . '/..' . '/smalot/pdfparser/src',
+            ),
+        ),
+    );
+
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'GPBMetadata\\GrpcGcp' => __DIR__ . '/..' . '/google/grpc-gcp/src/generated/GPBMetadata/GrpcGcp.php',
@@ -233,6 +262,7 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInit27552009b83b40e557cfcb9647b15f68::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInit27552009b83b40e557cfcb9647b15f68::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit27552009b83b40e557cfcb9647b15f68::$prefixesPsr0;
             $loader->classMap = ComposerStaticInit27552009b83b40e557cfcb9647b15f68::$classMap;
 
         }, null, ClassLoader::class);

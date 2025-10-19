@@ -63,6 +63,7 @@ U2_04: The system shall maintain a user session upon successful login.
 ## Behavior Expectation
 You are an expert in coding. You will use the most effective and efficient coding method known. 
 No uncessary structures, use the most simplistic and comprehensive coding stucture and manner.
+Always review the code first, before modifying the code.
 
 ## Programming Language
 PHP for backend
