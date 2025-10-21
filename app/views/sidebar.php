@@ -33,7 +33,7 @@ function isActive($link_url, $current_url) {
       </a>
     </li>
     <li>
-      <a href="index.php?url=lm/uploadDocument" class="nav-link <?php echo isActive('index.php?url=lm/uploadDocument', $current_url); ?> text-dark">
+      <a href="index.php?url=lm/newDocument" class="nav-link <?php echo isActive('index.php?url=lm/newDocument', $current_url); ?> text-dark">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#speedometer2"></use>
         </svg>

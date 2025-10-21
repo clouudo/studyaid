@@ -12,12 +12,44 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
+                <?php
+                if (isset($_SESSION['message'])):
+                ?>
+                    <div class="alert alert-success" role="alert">
+                        <?php echo $_SESSION['message']; ?>
+                    </div>
+                <?php 
+                    unset($_SESSION['message']);
+                endif;
+
+                if (isset($_SESSION['error'])):
+                ?>
+                    <div class="alert alert-danger" role="alert">
+                        <?php echo $_SESSION['error']; ?>
+                    </div>
+                <?php
+                    unset($_SESSION['error']);
+                endif;
+                ?>
                 <h3 class="mb-4">Create New Folder</h3>
                 <form action="index.php?url=lm/createFolder" method="POST">
                     <div class="mb-3">
-                        <label for="folderName" class="form-label">Folder Name</label>
+                    <label for="folderName" class="form-label">Folder Name</label>
                         <input type="text" class="form-control" id="folderName" name="folderName" placeholder="Enter folder name" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="parentFolderId" class="form-label">Add to folder</label>
+                        <select class="form-select" id="parentFolderId" name="parentFolderId">
+                            <option value="">No Parent Folder</option>
+                            <?php if (!empty($folders)): ?>
+                                <?php foreach ($folders as $folder): ?>
+                                    <option value="<?php echo htmlspecialchars($folder['folderID']); ?>">
+                                        <?php echo htmlspecialchars($folder['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>  
                     <button type="submit" class="btn btn-primary">Create Folder</button>
                     <button type="button" class="btn btn-secondary" onclick="window.history.back();">Cancel</button>
                 </form>

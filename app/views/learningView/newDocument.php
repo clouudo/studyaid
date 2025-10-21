@@ -12,6 +12,25 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
+                <?php
+                if (isset($_SESSION['message'])):
+                ?>
+                    <div class="alert alert-success" role="alert">
+                        <?php echo $_SESSION['message']; ?>
+                    </div>
+                <?php 
+                    unset($_SESSION['message']);
+                endif;
+
+                if (isset($_SESSION['error'])):
+                ?>
+                    <div class="alert alert-danger" role="alert">
+                        <?php echo $_SESSION['error']; ?>
+                    </div>
+                <?php
+                    unset($_SESSION['error']);
+                endif;
+                ?>
                 <h3 class="mb-4">Upload Document</h3>
                 <form action="index.php?url=lm/uploadDocument" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
@@ -22,9 +41,13 @@
                         <label for="folderSelect" class="form-label">Add to Folder</label>
                         <select class="form-select" id="folderSelect" name="folderSelect">
                             <option value="">Choose...</option>
-                            <option value="1">Folder 1</option>
-                            <option value="2">Folder 2</option>
-                            <option value="3">Folder 3</option>
+                            <?php if (!empty($folders)): ?>
+                                <?php foreach ($folders as $folder): ?>
+                                    <option value="<?php echo htmlspecialchars($folder['folderID']); ?>">
+                                        <?php echo htmlspecialchars($folder['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </select>
                     </div>
                     <div class="mb-3">

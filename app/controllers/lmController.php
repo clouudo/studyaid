@@ -120,10 +120,6 @@ class LmController
     }
 
     public function deleteDocument(){
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if (!isset($_SESSION['user_id'])) {
             header('Location: index.php?url=auth/home');
             exit();
@@ -146,17 +142,25 @@ class LmController
     }
 
     public function newFolder(){
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: index.php?url=auth/home');
+            exit();
+        }
+        $folders = $this->lmModel->getFoldersAndFiles($_SESSION['user_id'])['folders']; // Get only folders
         require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
 
     public function createFolder(){
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
 
         if (!isset($_SESSION['user_id'])) {
             header('Location: index.php?url=auth/home');
             exit();
+        }
+
+        if(isset($_POST['folderSelect'])){
+            $parentFolderId = $_POST['folderSelect'];
+        } else {
+            $parentFolderId = null;
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folderName'])) {
@@ -183,10 +187,6 @@ class LmController
     }
 
     public function deleteFolder(){
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if (!isset($_SESSION['user_id'])) {
             header('Location: index.php?url=auth/home');
             exit();
@@ -216,6 +216,7 @@ class LmController
 
         $userId = $_SESSION['user_id'];
         $folders = $this->lmModel->getFoldersAndFiles($userId)['folders']; // Get only folders
+        error_log("Folders fetched: " . print_r($folders, true));
 
         require_once __DIR__ . '/../views/learningView/newDocument.php';
     }

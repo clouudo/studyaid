@@ -70,7 +70,12 @@ class LmModel
         $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $uniqueFileName = $this->generateUniqueFileName($fileExtension);
 
-        // Ensure $folderId is treated as null if it's 0 or empty string from form
+        // Ensure $folderId is truly null if it's 0 or empty string from form
+        if (empty($folderId) || $folderId == 0) {
+            $folderId = null;
+        }
+
+        $logicalFolderPath = '';
         if ($folderId !== null) {
             $logicalFolderPath = $this->getLogicalFolderPath($folderId);
         }

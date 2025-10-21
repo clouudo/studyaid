@@ -9,7 +9,7 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'C:\xampp\htdocs\studyaid\app\views\sidebar.php'; ?>
+        <?php include 'sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <div class="row justify-content-center">

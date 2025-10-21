@@ -13,14 +13,10 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app/views/sidebar.php'; ?>
+        <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <?php
-                if (session_status() == PHP_SESSION_NONE) {
-                    session_start();
-                }
-
                 if (isset($_SESSION['message'])):
                 ?>
                     <div class="alert alert-success" role="alert">
@@ -42,17 +38,15 @@
 
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="index.php?url=lm/displayFolder.php">Home</a></li>
+                        <li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials">Home</a></li>
                         <?php
-                        // Assuming $currentFolderPath is an array of {id, name} for breadcrumbs
-                        // Example: [['id' => 1, 'name' => 'Folder A'], ['id' => 2, 'name' => 'Subfolder B']]
                         if (isset($currentFolderPath) && is_array($currentFolderPath)) {
                             foreach ($currentFolderPath as $pathItem) {
-                                echo '<li class="breadcrumb-item"><a href="index.php?url=lm/displayFolder.php&folder_id=' . $pathItem['id'] . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
+                                echo '<li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials&folder_id=' . htmlspecialchars($pathItem['id']) . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
                             }
                         }
                         ?>
-                        <li class="breadcrumb-item active" aria-current="page">Current Folder</li>
+                        <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($currentFolderName ?? 'Home'); ?></li>
                     </ol>
                 </nav>
 
@@ -68,7 +62,7 @@
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>
                         <?php foreach ($fileList['folders'] as $folder): ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayFolder&folder_id=<?php echo $folder['folderID'] ?>">
+                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayLearningMaterials&folder_id=<?php echo $folder['folderID'] ?>">
                                     <i class="bi bi-folder-fill me-2"></i>
                                     <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
                                 </a>
