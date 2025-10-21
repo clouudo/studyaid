@@ -58,50 +58,78 @@ class LmModel
         return $extractedText;
     }
 
-    public function generateUniqueFileName($fileExtension, $userId)
+    public function generateUniqueFileName($fileExtension)
     {
         $uuid = Uuid::uuid4()->toString();
         $uniqueFileName = $uuid . '.' . $fileExtension;
-        $gscObjectName = 'user_upload/' . $userId . '/' . $uniqueFileName;
-        return $gscObjectName;
+        return $uniqueFileName;
     }
 
-    public function uploadFileToGCS($fileContent, $objectName, $userId, $file, $extractedText)
+    public function uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText)
     {
         $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $uniqueFileName = $this->generateUniqueFileName($fileExtension, $userId);
+        $uniqueFileName = $this->generateUniqueFileName($fileExtension);
+
+        // Ensure $folderId is treated as null if it's 0 or empty string from form
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
         $bucket = $this->storage->bucket($this->bucketName);
         $bucket->upload($fileContent, [
-            'name' => $uniqueFileName
+            'name' => $gcsObjectName
         ]);
 
-    $conn = $this->db->connect();
-        $query = "INSERT INTO file (userID, name, fileType, filePath, extracted_text) VALUES (:userID, :objectName, :fileExtension, :uniqueFileName, :extractedText)";
+        $conn = $this->db->connect();
+        $query = "INSERT INTO file (userID, folderID, name, fileType, filePath, extracted_text) VALUES (:userID, :folderID, :name, :fileType, :filePath, :extractedText)";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':userID', $userId);
-        $stmt->bindParam(':objectName', $objectName);
-        $stmt->bindParam(':fileExtension', $fileExtension);
-        $stmt->bindParam(':uniqueFileName', $uniqueFileName);
+        // Explicitly bind folderID as NULL if it's null, otherwise as INT
+        $stmt->bindParam(':folderID', $folderId, $folderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+        $stmt->bindParam(':name', $file['name']);
+        $stmt->bindParam(':fileType', $fileExtension);
+        $stmt->bindParam(':filePath', $gcsObjectName);
         $stmt->bindParam(':extractedText', $extractedText);
         $stmt->execute();
         return $conn->lastInsertId();
     }
 
-    public function listUserFiles($userId){
+    public function getFoldersAndFiles($userId, $parentId = null)
+    {
         $conn = $this->db->connect();
-        $query = "SELECT * FROM file WHERE userID = :userID";
-        $stmt = $conn->prepare($query);
-        $stmt->bindParam(':userID', $userId);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $results = ['folders' => [], 'files' => []];
+
+        // Get folders
+        $folderQuery = "SELECT folderID, name, parentFolderId FROM folder WHERE userID = :userID AND parentFolderId " . ($parentId === null ? "IS NULL" : "= :parentFolderId");
+        $folderStmt = $conn->prepare($folderQuery);
+        $folderStmt->bindParam(':userID', $userId);
+        if ($parentId !== null) {
+            $folderStmt->bindParam(':parentFolderId', $parentId);
+        }
+        $folderStmt->execute();
+        $results['folders'] = $folderStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Get files
+        $fileQuery = "SELECT fileID, name, fileType FROM file WHERE userID = :userID AND folderID " . ($parentId === null ? "IS NULL" : "= :folderID");
+        $fileStmt = $conn->prepare($fileQuery);
+        $fileStmt->bindParam(':userID', $userId);
+        if ($parentId !== null) {
+            $fileStmt->bindParam(':folderID', $parentId);
+        }
+        $fileStmt->execute();
+        $results['files'] = $fileStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return $results;
     }
 
-    public function getDocumentContent($fileID, $userId)
+    public function getDocumentContent($fileId, $userId)
     {
         $conn = $this->db->connect();
         $query = "SELECT filePath, fileType, extracted_text FROM file WHERE fileID = :fileID AND userID = :userID";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(':fileID', $fileID);
+        $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         $fileData = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -110,12 +138,12 @@ class LmModel
             throw new \Exception("File not found or access denied.");
         }
 
-        $gscObjectName = $fileData['filePath'];
+        $gcsObjectName = $fileData['filePath'];
         $fileType = $fileData['fileType'];
         $extractedText = $fileData['extracted_text'];
 
         $bucket = $this->storage->bucket($this->bucketName);
-        $object = $bucket->object($gscObjectName);
+        $object = $bucket->object($gcsObjectName);
 
         if (!$object->exists()) {
             throw new \Exception("File not found in Google Cloud Storage.");
@@ -126,7 +154,7 @@ class LmModel
         if (in_array(strtolower($fileType), $imageExtensions)) {
             return [
                 'type' => 'image',
-                'content' => $object->signedUrl(new \DateTime('+1 hour')),
+                'content' => $object->signedUrl(new \DateTime('+1 hour'), ['version' => 'v4']),
                 'extracted_text' => $extractedText
             ];
         } else {
@@ -138,12 +166,12 @@ class LmModel
         }
     }
 
-    public function deleteDocument($fileID, $userId)
+    public function deleteDocument($fileId, $userId)
     {
         $conn = $this->db->connect();
         $query = "SELECT filePath FROM file WHERE fileID = :fileID AND userID = :userID";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(':fileID', $fileID);
+        $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         $fileData = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -152,11 +180,11 @@ class LmModel
             throw new \Exception("File not found or access denied.");
         }
 
-        $gscObjectName = $fileData['filePath'];
+        $gcsObjectName = $fileData['filePath'];
 
         // Delete from GCS
         $bucket = $this->storage->bucket($this->bucketName);
-        $object = $bucket->object($gscObjectName);
+        $object = $bucket->object($gcsObjectName);
 
         if ($object->exists()) {
             $object->delete();
@@ -165,8 +193,73 @@ class LmModel
         // Delete from database
         $deleteQuery = "DELETE FROM file WHERE fileID = :fileID AND userID = :userID";
         $deleteStmt = $conn->prepare($deleteQuery);
-        $deleteStmt->bindParam(':fileID', $fileID);
+        $deleteStmt->bindParam(':fileID', $fileId);
         $deleteStmt->bindParam(':userID', $userId);
         return $deleteStmt->execute();
+    }
+
+    public function getFolderInfo($folderId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':folderID', $folderId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function deleteFolder($folderId, $userId)
+    {
+        $conn = $this->db->connect();
+        // First, check if the folder belongs to the user
+        $checkQuery = "SELECT folderID FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $checkStmt = $conn->prepare($checkQuery);
+        $checkStmt->bindParam(':folderID', $folderId);
+        $checkStmt->bindParam(':userID', $userId);
+        $checkStmt->execute();
+        if (!$checkStmt->fetch()) {
+            throw new \Exception("Folder not found or access denied.");
+        }
+
+        // Delete the folder
+        $deleteQuery = "DELETE FROM folder WHERE folderID = :folderID";
+        $deleteStmt = $conn->prepare($deleteQuery);
+        $deleteStmt->bindParam(':folderID', $folderId);
+        return $deleteStmt->execute();
+    }
+
+    public function createFolder($userId, $folderName, $parentFolderId = null)
+    {
+        $conn = $this->db->connect();
+        $query = "INSERT INTO folder (userID, parentFolderId, name) VALUES (:userID, :parentFolderId, :name)";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->bindParam(':parentFolderId', $parentFolderId);
+        $stmt->bindParam(':name', $folderName);
+        $stmt->execute();
+        return $conn->lastInsertId();
+    }
+
+    public function getLogicalFolderPath($folderId)
+    {
+        $conn = $this->db->connect();
+        $path = [];
+        $currentFolderId = $folderId;
+
+        while ($currentFolderId !== null) {
+            $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID";
+            $stmt = $conn->prepare($query);
+            $stmt->bindParam(':folderID', $currentFolderId);
+            $stmt->execute();
+            $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($folder) {
+                array_unshift($path, $folder['name']); // Add to the beginning of the array
+                $currentFolderId = $folder['parentFolderId'];
+            } else {
+                $currentFolderId = null; // Folder not found, stop
+            }
+        }
+        return implode('/', $path) . '/'; // Return path like "RootFolder/SubFolder/TargetFolder/"
     }
 }

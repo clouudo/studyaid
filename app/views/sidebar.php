@@ -41,19 +41,19 @@ function isActive($link_url, $current_url) {
       </a>
     </li>
     <li>
-      <a href="index.php?url=lm/allDocument" class="nav-link <?php echo isActive('index.php?url=lm/allDocument', $current_url); ?> text-dark">
-        <svg class="bi me-2" width="16" height="16">
-          <use xlink:href="#speedometer2"></use>
-        </svg>
-        All Documents
-      </a>
-    </li>
-    <li>
-      <a href="#" class="nav-link text-dark">
+      <a href="index.php?url=lm/newFolder" class="nav-link <?php echo isActive('index.php?url=lm/newFolder', $current_url); ?> text-dark">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#table"></use>
         </svg>
         New Folder
+      </a>
+    </li>
+     <li>
+      <a href="index.php?url=lm/displayLearningMaterials" class="nav-link <?php echo isActive('index.php?url=lm/displayLearningMaterials', $current_url); ?> text-dark">
+        <svg class="bi me-2" width="16" height="16">
+          <use xlink:href="#speedometer2"></use>
+        </svg>
+        All Documents
       </a>
     </li>
   </ul>

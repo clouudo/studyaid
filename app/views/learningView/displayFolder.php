@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Documents - StudyAid</title>
+    <title><?php echo htmlspecialchars($currentFolderName ?? 'Folder'); ?> - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../../public/css/style.css">
@@ -42,22 +42,22 @@
 
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="index.php?url=lm/displayFolder.php">Home</a></li>
+                        <li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials">Home</a></li>
                         <?php
                         // Assuming $currentFolderPath is an array of {id, name} for breadcrumbs
                         // Example: [['id' => 1, 'name' => 'Folder A'], ['id' => 2, 'name' => 'Subfolder B']]
                         if (isset($currentFolderPath) && is_array($currentFolderPath)) {
                             foreach ($currentFolderPath as $pathItem) {
-                                echo '<li class="breadcrumb-item"><a href="index.php?url=lm/displayFolder.php&folder_id=' . $pathItem['id'] . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
+                                echo '<li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials&folder_id=' . $pathItem['id'] . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
                             }
                         }
                         ?>
-                        <li class="breadcrumb-item active" aria-current="page">Current Folder</li>
+                        <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($currentFolderName ?? 'Current Folder'); ?></li>
                     </ol>
                 </nav>
 
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="mb-0">All Documents</h3>
+                    <h3 class="mb-0"><?php echo htmlspecialchars($currentFolderName ?? 'Current Folder'); ?> Contents</h3>
                     <div>
                         <a href="index.php?url=lm/newFolder" class="btn btn-primary me-2">New Folder</a>
                         <a href="index.php?url=lm/newDocument" class="btn btn-success">Upload File</a>
@@ -68,7 +68,7 @@
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>
                         <?php foreach ($fileList['folders'] as $folder): ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayFolder&folder_id=<?php echo $folder['folderID'] ?>">
+                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayLearningMaterials&folder_id=<?php echo $folder['folderID'] ?>">
                                     <i class="bi bi-folder-fill me-2"></i>
                                     <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
                                 </a>

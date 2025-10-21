@@ -21,7 +21,7 @@
                     <div class="mb-3">
                         <label for="folderSelect" class="form-label">Add to Folder</label>
                         <select class="form-select" id="folderSelect" name="folderSelect">
-                            <option selected>Choose...</option>
+                            <option value="">Choose...</option>
                             <option value="1">Folder 1</option>
                             <option value="2">Folder 2</option>
                             <option value="3">Folder 3</option>
