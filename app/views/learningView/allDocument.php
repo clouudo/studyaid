@@ -66,7 +66,7 @@
                                         Actions
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
-                                        <li><a class="dropdown-item" href="#">Rename</a></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#renameWindow">Rename</a></li>
                                         <li><a class="dropdown-item" href="index.php?url=lm/deleteFolder&folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
@@ -119,6 +119,34 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 </body>
+
+<div class="container mt-5">
+    <div class="modal fade" id="renameWindow" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Rename Folder</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="exampleInput" class="form-label">Folder Name</label>
+                        <input type="text" class="form-control" id="newFolderName" placeholder="Enter text here...">
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Changes</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
 
 </html>
 <?php ob_end_flush(); ?>
