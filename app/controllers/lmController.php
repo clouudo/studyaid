@@ -48,7 +48,7 @@ class LmController
 
             if ($fileContent !== false) {
                 try {
-                    $newFileID = $this->lmModel->uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText);
+                    $newFileID = $this->lmModel->uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName);
                     $_SESSION['message'] = "File uploaded successfully!";
                     header('Location: index.php?url=lm/displayDocument&fileID=' . $newFileID);
                     exit();
@@ -216,7 +216,6 @@ class LmController
 
         $userId = $_SESSION['user_id'];
         $folders = $this->lmModel->getFoldersAndFiles($userId)['folders']; // Get only folders
-        error_log("Folders fetched: " . print_r($folders, true));
 
         require_once __DIR__ . '/../views/learningView/newDocument.php';
     }

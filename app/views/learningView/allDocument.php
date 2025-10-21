@@ -22,7 +22,7 @@
                     <div class="alert alert-success" role="alert">
                         <?php echo $_SESSION['message']; ?>
                     </div>
-                <?php 
+                <?php
                     unset($_SESSION['message']);
                 endif;
 
@@ -49,14 +49,9 @@
                         <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($currentFolderName ?? 'Home'); ?></li>
                     </ol>
                 </nav>
-
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="mb-0">All Documents</h3>
-                    <div>
-                        <a href="index.php?url=lm/newFolder" class="btn btn-primary me-2">New Folder</a>
-                        <a href="index.php?url=lm/newDocument" class="btn btn-success">Upload File</a>
-                    </div>
-                </div>
+                <?php if (!empty($currentFolderName)): ?>
+                    <h5 class="mb-4"><?php echo htmlspecialchars($currentFolderName); ?></h5>
+                <?php endif; ?>
 
                 <div class="list-group">
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>

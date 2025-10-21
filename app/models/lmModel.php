@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Config\Database;
+use Error;
 use Google\Cloud\Storage\StorageClient;
 use Ramsey\Uuid\Uuid;
 
@@ -65,7 +66,7 @@ class LmModel
         return $uniqueFileName;
     }
 
-    public function uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText)
+    public function uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName = null)
     {
         $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $uniqueFileName = $this->generateUniqueFileName($fileExtension);
@@ -81,6 +82,7 @@ class LmModel
         }
 
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+        $fileName =  !empty($originalFileName) ? $originalFileName : $file['name'];
 
         $bucket = $this->storage->bucket($this->bucketName);
         $bucket->upload($fileContent, [
@@ -93,7 +95,7 @@ class LmModel
         $stmt->bindParam(':userID', $userId);
         // Explicitly bind folderID as NULL if it's null, otherwise as INT
         $stmt->bindParam(':folderID', $folderId, $folderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
-        $stmt->bindParam(':name', $file['name']);
+        $stmt->bindParam(':name', $fileName);
         $stmt->bindParam(':fileType', $fileExtension);
         $stmt->bindParam(':filePath', $gcsObjectName);
         $stmt->bindParam(':extractedText', $extractedText);
@@ -226,6 +228,21 @@ class LmModel
             throw new \Exception("Folder not found or access denied.");
         }
 
+        //GCS Delete Folder
+        $bucket = $this->storage->bucket($this->bucketName);
+        $logicalFolderPath = $this->getLogicalFolderPath($folderId);
+
+        error_log("Folder ID to delete: " . $folderId);
+        error_log("Logical folder path: " . $logicalFolderPath);
+
+        $prefix = 'user_upload/' . $userId . '/content/' . $logicalFolderPath;
+        
+        $objects = $bucket->objects(['prefix' => $prefix]);
+        // Delete all objects under the folder
+        foreach($objects as $obj){
+            $obj->delete();
+        }
+
         // Delete the folder
         $deleteQuery = "DELETE FROM folder WHERE folderID = :folderID";
         $deleteStmt = $conn->prepare($deleteQuery);
@@ -235,6 +252,31 @@ class LmModel
 
     public function createFolder($userId, $folderName, $parentFolderId = null)
     {
+        $bucket = $this->storage->bucket($this->bucketName);
+
+        if ($parentFolderId == null) {
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderName . '/';
+
+            if(!$bucket->object($gcsFolderName)->exists()) {
+                $bucket->upload('', ['name' => $gcsFolderName]);
+            }
+        }
+
+        if($parentFolderId != null) {
+            $parentFolderInfo = $this->getFolderInfo($parentFolderId);
+            error_log("Parent Folder Info: " . print_r($parentFolderInfo, true));
+            if (!$parentFolderInfo) {
+                throw new \Exception("Parent folder not found or access denied.");
+            }
+
+            $logicalPath = $this->getLogicalFolderPath($parentFolderId);
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $logicalPath . $folderName . '/';
+
+            if(!$bucket->object($gcsFolderName)->exists()) {
+                $bucket->upload('', ['name' => $gcsFolderName]);
+            }
+        }
+
         $conn = $this->db->connect();
         $query = "INSERT INTO folder (userID, parentFolderId, name) VALUES (:userID, :parentFolderId, :name)";
         $stmt = $conn->prepare($query);

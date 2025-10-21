@@ -40,7 +40,7 @@
                     <div class="mb-3">
                         <label for="parentFolderId" class="form-label">Add to folder</label>
                         <select class="form-select" id="parentFolderId" name="parentFolderId">
-                            <option value="">No Parent Folder</option>
+                            <option value="">Choose...</option>
                             <?php if (!empty($folders)): ?>
                                 <?php foreach ($folders as $folder): ?>
                                     <option value="<?php echo htmlspecialchars($folder['folderID']); ?>">

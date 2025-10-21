@@ -60,7 +60,7 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Upload</button>
-                    <button type="button" class="btn btn-secondary">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancel</button>
                 </form>
             </div>
         </main>
