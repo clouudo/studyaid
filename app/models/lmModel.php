@@ -78,7 +78,7 @@ class LmModel
 
         $logicalFolderPath = '';
         if ($folderId !== null) {
-            $logicalFolderPath = $this->getLogicalFolderPath($folderId);
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
         }
 
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
@@ -228,9 +228,8 @@ class LmModel
             throw new \Exception("Folder not found or access denied.");
         }
 
-        //GCS Delete Folder
         $bucket = $this->storage->bucket($this->bucketName);
-        $logicalFolderPath = $this->getLogicalFolderPath($folderId);
+        $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
 
         error_log("Folder ID to delete: " . $folderId);
         error_log("Logical folder path: " . $logicalFolderPath);
@@ -269,7 +268,7 @@ class LmModel
                 throw new \Exception("Parent folder not found or access denied.");
             }
 
-            $logicalPath = $this->getLogicalFolderPath($parentFolderId);
+            $logicalPath = $this->getLogicalFolderPath($parentFolderId, $userId);
             $gcsFolderName = 'user_upload/' . $userId . '/content/' . $logicalPath . $folderName . '/';
 
             if(!$bucket->object($gcsFolderName)->exists()) {
@@ -287,16 +286,17 @@ class LmModel
         return $conn->lastInsertId();
     }
 
-    public function getLogicalFolderPath($folderId)
+    public function getLogicalFolderPath($folderId, $userId)
     {
         $conn = $this->db->connect();
         $path = [];
         $currentFolderId = $folderId;
 
         while ($currentFolderId !== null) {
-            $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID";
+            $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
             $stmt = $conn->prepare($query);
             $stmt->bindParam(':folderID', $currentFolderId);
+            $stmt->bindParam(':userID', $userId);
             $stmt->execute();
             $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -304,10 +304,89 @@ class LmModel
                 array_unshift($path, $folder['name']); // Add to the beginning of the array
                 $currentFolderId = $folder['parentFolderId'];
             } else {
-                $currentFolderId = null; // Folder not found, stop
+                throw new \Exception("Folder hierarchy broken or access denied.");
             }
         }
         return implode('/', $path) . '/'; // Return path like "RootFolder/SubFolder/TargetFolder/"
+    }
+
+    public function renameFolder($folderId, $newName, $userId)
+    {
+        $conn = $this->db->connect();
+        // First, check if the folder belongs to the user
+        $checkQuery = "SELECT folderID FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $checkStmt = $conn->prepare($checkQuery);
+        $checkStmt->bindParam(':folderID', $folderId);
+        $checkStmt->bindParam(':userID', $userId);
+        $checkStmt->execute();
+        if (!$checkStmt->fetch()) {
+            throw new \Exception("Folder not found or access denied.");
+        }
+
+        //Rename folder in GCS
+        $bucket = $this->storage->bucket($this->bucketName);
+
+        // Get folder info to build paths
+        $folderInfoQuery = "SELECT name, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $folderInfoStmt = $conn->prepare($folderInfoQuery);
+        $folderInfoStmt->bindParam(':folderID', $folderId);
+        $folderInfoStmt->bindParam(':userID', $userId);
+        $folderInfoStmt->execute();
+        $folderInfo = $folderInfoStmt->fetch(\PDO::FETCH_ASSOC);
+
+        // This check is redundant due to the check at the top of the function, but provides extra safety
+        if (!$folderInfo) {
+            throw new \Exception("Could not retrieve folder information for path construction.");
+        }
+
+        $parentFolderPath = '';
+        if ($folderInfo['parentFolderId'] !== null) {
+            // Get the path of the parent folder
+            $parentFolderPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
+        }
+
+        // Construct the old and new prefixes for GCS objects
+        $oldLogicalPath = $parentFolderPath . $folderInfo['name'] . '/';
+        $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldLogicalPath;
+        $newPrefix = 'user_upload/' . $userId . '/content/' . $parentFolderPath . $newName . '/';
+
+        $objects = $bucket->objects(['prefix' => $oldPrefix]);
+        foreach ($objects as $object) {
+            $oldObjectName = $object->name();
+            $newObjectName = str_replace($oldPrefix, $newPrefix, $oldObjectName);
+            // Copy to new object
+            $object->copy($bucket, ['name' => $newObjectName]);
+            // Delete old object
+            $object->delete();
+        }
+
+        // Update folder name in database
+        $updateQuery = "UPDATE folder SET name = :newName WHERE folderID = :folderID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':newName', $newName);
+        $updateStmt->bindParam(':folderID', $folderId);
+        return $updateStmt->execute();
+    }
+
+    public function renameFile($fileId, $newName, $userId)
+    {
+        $conn = $this->db->connect();
+        // First, check if the file belongs to the user
+        $checkQuery = "SELECT fileID FROM file WHERE fileID = :fileID AND userID = :userID";
+        $checkStmt = $conn->prepare($checkQuery);
+        $checkStmt->bindParam(':fileID', $fileId);
+        $checkStmt->bindParam(':userID', $userId);
+        $checkStmt->execute();
+        if (!$checkStmt->fetch()) {
+            throw new \Exception("File not found or access denied.");
+        }
+
+        // Update file name in database
+        $updateQuery = "UPDATE file SET name = :newName WHERE fileID = :fileID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':newName', $newName);
+        $updateStmt->bindParam(':fileID', $fileId);
+        return $updateStmt->execute();
     }
     
 }

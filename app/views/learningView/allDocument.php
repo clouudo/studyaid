@@ -66,7 +66,7 @@
                                         Actions
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
-                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#renameWindow">Rename</a></li>
+                                        <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-name="<?php echo htmlspecialchars($folder['name']); ?>" data-item-type="folder">Rename</a></li>
                                         <li><a class="dropdown-item" href="index.php?url=lm/deleteFolder&folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
@@ -104,7 +104,7 @@
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
                                         <li><a class="dropdown-item" href="index.php?url=lm/displayDocument&fileID=<?php echo $file['fileID'] ?>">View</a></li>
-                                        <li><a class="dropdown-item" href="#">Rename</a></li>
+                                        <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-name="<?php echo htmlspecialchars($file['name']); ?>" data-item-type="file">Rename</a></li>
                                         <li><a class="dropdown-item" href="index.php?url=lm/deleteDocument&fileID=<?php echo $file['fileID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
@@ -117,36 +117,155 @@
             </div>
         </main>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-</body>
 
-<div class="container mt-5">
-    <div class="modal fade" id="renameWindow" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <!-- Generic Rename Modal -->
+    <div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Rename Folder</h5>
+                    <h5 class="modal-title" id="renameModalLabel">Rename</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="exampleInput" class="form-label">Folder Name</label>
-                        <input type="text" class="form-control" id="newFolderName" placeholder="Enter text here...">
-                    </div>
-
+                    <form id="renameForm">
+                        <input type="hidden" id="renameItemId" name="itemId">
+                        <div class="mb-3">
+                            <label for="newItemName" class="form-label" id="renameModalItemNameLabel">Name</label>
+                            <input type="text" class="form-control" id="newItemName" name="newName" required>
+                        </div>
+                    </form>
                 </div>
-
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-primary" id="saveRenameBtn">Save Changes</button>
                 </div>
-
             </div>
         </div>
     </div>
-</div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function() {
+            var renameModal = document.getElementById('renameModal');
+            var saveRenameBtn = document.getElementById('saveRenameBtn');
+
+            renameModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                var itemId = button.getAttribute('data-item-id');
+                var itemName = button.getAttribute('data-item-name');
+                var itemType = button.getAttribute('data-item-type');
+
+                var modalTitle = renameModal.querySelector('.modal-title');
+                var modalBodyInputName = renameModal.querySelector('.modal-body #newItemName');
+                var modalBodyInputId = renameModal.querySelector('.modal-body #renameItemId');
+                var modalBodyNameLabel = renameModal.querySelector('.modal-body #renameModalItemNameLabel');
+
+                modalBodyInputId.value = itemId;
+                modalBodyInputName.value = itemName;
+                saveRenameBtn.setAttribute('data-item-type', itemType);
+
+                if (itemType === 'folder') {
+                    modalTitle.textContent = 'Rename Folder';
+                    modalBodyNameLabel.textContent = 'Folder Name';
+                } else if (itemType === 'file') {
+                    modalTitle.textContent = 'Rename File';
+                    modalBodyNameLabel.textContent = 'File Name';
+                }
+            });
+
+                    $(saveRenameBtn).on('click', function() {
+
+                        var itemId = $('#renameItemId').val();
+
+                        var newName = $('#newItemName').val();
+
+                        var itemType = this.getAttribute('data-item-type');
+
+            
+
+                        if (newName.trim() === '') {
+
+                            alert('Name cannot be empty.');
+
+                            return;
+
+                        }
+
+            
+
+                        var url = '';
+
+                        var data = {};
+
+            
+
+                        if (itemType === 'folder') {
+
+                            url = 'index.php?url=lm/renameFolder';
+
+                            data = { folderId: itemId, newName: newName };
+
+                        } else if (itemType === 'file') {
+
+                            url = 'index.php?url=lm/renameFile';
+
+                            data = { fileId: itemId, newName: newName };
+
+                        }
+
+            
+
+                        if (url === '') return;
+
+            
+
+                        $.ajax({
+
+                            url: url,
+
+                            type: 'POST',
+
+                            data: data,
+
+                            dataType: 'json',
+
+                            success: function(response) {
+
+                                if (response.success) {
+
+                                    location.reload();
+
+                                } else {
+
+                                    alert('Error renaming ' + itemType + ': ' + response.message);
+
+                                }
+
+                            },
+
+                            error: function() {
+
+                                alert('An error occurred while communicating with the server.');
+
+                            }
+
+                        });
+
+                    });
+
+            
+
+                    $('#renameForm').on('submit', function(event) {
+
+                        event.preventDefault();
+
+                        $('#saveRenameBtn').click();
+
+                    });
+        });
+    </script>
+</body>
 
 </html>
 <?php ob_end_flush(); ?>

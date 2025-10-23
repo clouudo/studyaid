@@ -235,5 +235,73 @@ class LmController
         }
         return $path;
     }
+
+    public function renameFolder()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folderId']) && isset($_POST['newName'])) {
+            $folderId = $_POST['folderId'];
+            $newName = trim($_POST['newName']);
+            $userId = $_SESSION['user_id'];
+
+            if (empty($newName)) {
+                echo json_encode(['success' => false, 'message' => 'Folder name cannot be empty.']);
+                exit();
+            }
+
+            try {
+                $success = $this->lmModel->renameFolder($folderId, $newName, $userId);
+                if ($success) {
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to rename folder in database.']);
+                }
+            } catch (\Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+        }
+        exit();
+    }
+
+    public function renameFile()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fileId']) && isset($_POST['newName'])) {
+            $fileId = $_POST['fileId'];
+            $newName = trim($_POST['newName']);
+            $userId = $_SESSION['user_id'];
+
+            if (empty($newName)) {
+                echo json_encode(['success' => false, 'message' => 'Document name cannot be empty.']);
+                exit();
+            }
+
+            try {
+                $success = $this->lmModel->renameFile($fileId, $newName, $userId);
+                if ($success) {
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to rename document in database.']);
+                }
+            } catch (\Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+        }
+        exit();
+    }
     
 }
