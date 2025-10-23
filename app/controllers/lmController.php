@@ -146,7 +146,8 @@ class LmController
             header('Location: index.php?url=auth/home');
             exit();
         }
-        $folders = $this->lmModel->getFoldersAndFiles($_SESSION['user_id'])['folders']; // Get only folders
+        $userId = $_SESSION['user_id'];
+        $folders = $this->lmModel->getAllFoldersForUser($userId);
         require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
 
@@ -157,33 +158,31 @@ class LmController
             exit();
         }
 
-        if(isset($_POST['folderSelect'])){
-            $parentFolderId = $_POST['folderSelect'];
-        } else {
-            $parentFolderId = null;
-        }
-
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folderName'])) {
             $folderName = trim($_POST['folderName']);
-            if (!empty($folderName)) {
-                $parentFolderId = !empty($_POST['parentFolderId']) ? $_POST['parentFolderId'] : null;
-                try {
-                    $this->lmModel->createFolder($_SESSION['user_id'], $folderName, $parentFolderId);
-                    $_SESSION['message'] = "Folder created successfully.";
-                    header('Location: index.php?url=lm/displayLearningMaterials');
-                    exit();
-                } catch (\Exception $e) {
-                    $_SESSION['error'] = "Error creating folder: " . $e->getMessage();
-                    header('Location: index.php?url=lm/newFolder');
-                    exit();
-                }
-            } else {
+            $parentFolderId = !empty($_POST['parentFolderId']) ? $_POST['parentFolderId'] : null;
+
+            if (empty($folderName)) {
                 $_SESSION['error'] = "Folder name cannot be empty.";
                 header('Location: index.php?url=lm/newFolder');
                 exit();
             }
+
+            try {
+                $this->lmModel->createFolder($_SESSION['user_id'], $folderName, $parentFolderId);
+                $_SESSION['message'] = "Folder created successfully.";
+                header('Location: index.php?url=lm/displayLearningMaterials');
+                exit();
+            } catch (\Exception $e) {
+                $_SESSION['error'] = "Error creating folder: " . $e->getMessage();
+                header('Location: index.php?url=lm/newFolder');
+                exit();
+            }
+        } else {
+            // If not a POST request, just show the form
+            header('Location: index.php?url=lm/newFolder');
+            exit();
         }
-        require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
 
     public function deleteFolder(){
@@ -215,7 +214,7 @@ class LmController
         }
 
         $userId = $_SESSION['user_id'];
-        $folders = $this->lmModel->getFoldersAndFiles($userId)['folders']; // Get only folders
+        $folders = $this->lmModel->getAllFoldersForUser($userId);
 
         require_once __DIR__ . '/../views/learningView/newDocument.php';
     }

@@ -388,5 +388,15 @@ class LmModel
         $updateStmt->bindParam(':fileID', $fileId);
         return $updateStmt->execute();
     }
+
+    public function getAllFoldersForUser($userId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT folderID, name, parentFolderId FROM folder WHERE userID = :userID ORDER BY name ASC";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
     
 }
