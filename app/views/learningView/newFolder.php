@@ -61,7 +61,7 @@ function buildFolderTree($folders, $parentId = null) {
                     <div class="mb-3">
                         <label class="form-label">Add to folder</label>
                         <div>
-                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#selectFolderModal">
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#selectFolderModal" style="background-color: #A855F7;">
                                 Select Folder
                             </button>
                             <span id="selectedFolderName" class="ms-2"></span>

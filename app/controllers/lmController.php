@@ -79,6 +79,9 @@ class LmController
         // Fetch folders and files for the specified parent folder
         $fileList = $this->lmModel->getFoldersAndFiles($userId, $currentFolderId);
 
+        // Fetch all folders for the modals
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
         // Prepare data for breadcrumbs
         $currentFolderName = 'Home';
         $currentFolderPath = [];
@@ -298,6 +301,77 @@ class LmController
                 echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
             }
         } else {
+            echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+        }
+        exit();
+    }
+
+    public function moveFile(){
+        error_log("moveFile controller method triggered.");
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            error_log("moveFile error: User not logged in.");
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fileId']) && isset($_POST['newFolderId'])) {
+            $fileId = $_POST['fileId'];
+            $newFolderId = $_POST['newFolderId'] == '0' ? null : $_POST['newFolderId'];
+            $userId = $_SESSION['user_id'];
+            error_log("moveFile params: fileId={$fileId}, newFolderId={$newFolderId}, userId={$userId}");
+
+            try {
+                $success = $this->lmModel->moveFile($fileId, $newFolderId, $userId);
+                if ($success) {
+                    error_log("moveFile success for fileId: {$fileId}");
+                    echo json_encode(['success' => true]);
+                } else {
+                    error_log("moveFile failure for fileId: {$fileId}");
+                    echo json_encode(['success' => false, 'message' => 'Failed to move document in database.']);
+                }
+            } catch (\Exception $e) {
+                error_log("moveFile exception for fileId: {$fileId}. Error: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
+        } else {
+            error_log("moveFile error: Invalid request method or missing parameters.");
+            echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+        }
+        exit();
+    }
+
+    public function moveFolder()
+    {
+        error_log("moveFolder controller method triggered.");
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            error_log("moveFolder error: User not logged in.");
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folderId']) && isset($_POST['newFolderId'])) {
+            $folderId = $_POST['folderId'];
+            $newFolderId = $_POST['newFolderId'] == '0' ? null : $_POST['newFolderId']; // Allow moving to root
+            $userId = $_SESSION['user_id'];
+            error_log("moveFolder params: folderId={$folderId}, newFolderId={$newFolderId}, userId={$userId}");
+
+            try {
+                $success = $this->lmModel->moveFolder($folderId, $newFolderId, $userId);
+                if ($success) {
+                    error_log("moveFolder success for folderId: {$folderId}");
+                    echo json_encode(['success' => true]);
+                } else {
+                    error_log("moveFolder failure for folderId: {$folderId}");
+                    echo json_encode(['success' => false, 'message' => 'Failed to move folder.']);
+                }
+            } catch (\Exception $e) {
+                error_log("moveFolder exception for folderId: {$folderId}. Error: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
+        } else {
+            error_log("moveFolder error: Invalid request method or missing parameters.");
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
         }
         exit();

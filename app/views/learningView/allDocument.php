@@ -1,4 +1,19 @@
-<?php ob_start(); ?>
+<?php
+function buildFolderTree($folders, $parentId = null) {
+    $html = '<ul>';
+    foreach ($folders as $folder) {
+        if ($folder['parentFolderId'] == $parentId) {
+            $html .= '<li>';
+            $html .= '<a href="#" class="folder-item" data-folder-id="' . $folder['folderID'] . '" data-folder-name="' . htmlspecialchars($folder['name']) . '">' . htmlspecialchars($folder['name']) . '</a>';
+            $html .= buildFolderTree($folders, $folder['folderID']);
+            $html .= '</li>';
+        }
+    }
+    $html .= '</ul>';
+    return $html;
+}
+ob_start();
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -13,7 +28,7 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include 'app\\views\\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <?php
@@ -55,7 +70,8 @@
 
                 <div class="list-group">
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>
-                        <?php foreach ($fileList['folders'] as $folder): ?>
+                        <?php foreach ($fileList['folders'] as $folder):
+                        ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                 <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayLearningMaterials&folder_id=<?php echo $folder['folderID'] ?>">
                                     <i class="bi bi-folder-fill me-2"></i>
@@ -67,33 +83,24 @@
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-name="<?php echo htmlspecialchars($folder['name']); ?>" data-item-type="folder">Rename</a></li>
+                                        <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-type="folder">Move</a></li>
                                         <li><a class="dropdown-item" href="index.php?url=lm/deleteFolder&folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+                        <?php endforeach;
+                        ?>
 
-                        <?php foreach ($fileList['files'] as $file): ?>
+                        <?php foreach ($fileList['files'] as $file):
+                        ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                                 <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayDocument&fileID=<?php echo $file['fileID'] ?>">
                                     <?php
-                                    $fileIcon = 'bi-file-earmark'; // Default icon
+                                    $fileIcon = 'bi-file-earmark';
                                     $fileTypeLower = strtolower($file['fileType']);
-                                    if ($fileTypeLower == 'pdf') {
-                                        $fileIcon = 'bi-file-earmark-pdf';
-                                    } elseif ($fileTypeLower == 'doc' || $fileTypeLower == 'docx') {
-                                        $fileIcon = 'bi-file-earmark-word';
-                                    } elseif ($fileTypeLower == 'xls' || $fileTypeLower == 'xlsx') {
-                                        $fileIcon = 'bi-file-earmark-excel';
-                                    } elseif ($fileTypeLower == 'ppt' || $fileTypeLower == 'pptx') {
-                                        $fileIcon = 'bi-file-earmark-ppt';
-                                    } elseif ($fileTypeLower == 'jpg' || $fileTypeLower == 'jpeg' || $fileTypeLower == 'png' || $fileTypeLower == 'gif') {
-                                        $fileIcon = 'bi-file-earmark-image';
-                                    } elseif ($fileTypeLower == 'txt') {
-                                        $fileIcon = 'bi-file-earmark-text';
-                                    } elseif ($fileTypeLower == 'zip') {
-                                        $fileIcon = 'bi-file-earmark-zip';
-                                    }
+                                    if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
+                                    elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
+                                    elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
                                     ?>
                                     <i class="bi <?php echo $fileIcon; ?> me-2"></i>
                                     <strong><?php echo htmlspecialchars($file['name']); ?></strong>
@@ -104,15 +111,19 @@
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
                                         <li><a class="dropdown-item" href="index.php?url=lm/displayDocument&fileID=<?php echo $file['fileID'] ?>">View</a></li>
+                                        <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-type="file">Move</a></li>
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-name="<?php echo htmlspecialchars($file['name']); ?>" data-item-type="file">Rename</a></li>
                                         <li><a class="dropdown-item" href="index.php?url=lm/deleteDocument&fileID=<?php echo $file['fileID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
+                        <?php endforeach;
+                        ?>
+                    <?php else:
+                    ?>
                         <p>This folder is empty.</p>
-                    <?php endif; ?>
+                    <?php endif;
+                    ?>
                 </div>
             </div>
         </main>
@@ -127,11 +138,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="renameForm">
-                        <input type="hidden" id="renameItemId" name="itemId">
+                    <form id="renameForm" onsubmit="return false;">
+                        <input type="hidden" id="renameItemId">
                         <div class="mb-3">
                             <label for="newItemName" class="form-label" id="renameModalItemNameLabel">Name</label>
-                            <input type="text" class="form-control" id="newItemName" name="newName" required>
+                            <input type="text" class="form-control" id="newItemName" required>
                         </div>
                     </form>
                 </div>
@@ -143,129 +154,85 @@
         </div>
     </div>
 
+    <!-- Generic Move Modal -->
+    <div class="modal fade" id="moveModal" tabindex="-1" aria-labelledby="moveModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="moveModalLabel">Move Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h5>Select Destination Folder</h5>
+                    <ul>
+                        <li>
+                            <a href="#" class="folder-item" data-folder-id="0" data-folder-name="Root">Home</a>
+                        </li>
+                    </ul>
+                    <?php echo buildFolderTree($allUserFolders); ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        $(document).ready(function() {
-            var renameModal = document.getElementById('renameModal');
-            var saveRenameBtn = document.getElementById('saveRenameBtn');
+    $(document).ready(function() {
+        var renameModal = $("#renameModal");
+        var moveModal = $("#moveModal");
+        var itemToMove = { id: null, type: null };
 
-            renameModal.addEventListener('show.bs.modal', function(event) {
-                var button = event.relatedTarget;
-                var itemId = button.getAttribute('data-item-id');
-                var itemName = button.getAttribute('data-item-name');
-                var itemType = button.getAttribute('data-item-type');
-
-                var modalTitle = renameModal.querySelector('.modal-title');
-                var modalBodyInputName = renameModal.querySelector('.modal-body #newItemName');
-                var modalBodyInputId = renameModal.querySelector('.modal-body #renameItemId');
-                var modalBodyNameLabel = renameModal.querySelector('.modal-body #renameModalItemNameLabel');
-
-                modalBodyInputId.value = itemId;
-                modalBodyInputName.value = itemName;
-                saveRenameBtn.setAttribute('data-item-type', itemType);
-
-                if (itemType === 'folder') {
-                    modalTitle.textContent = 'Rename Folder';
-                    modalBodyNameLabel.textContent = 'Folder Name';
-                } else if (itemType === 'file') {
-                    modalTitle.textContent = 'Rename File';
-                    modalBodyNameLabel.textContent = 'File Name';
-                }
-            });
-
-                    $(saveRenameBtn).on('click', function() {
-
-                        var itemId = $('#renameItemId').val();
-
-                        var newName = $('#newItemName').val();
-
-                        var itemType = this.getAttribute('data-item-type');
-
+        // --- Rename Logic ---
+        renameModal.on('show.bs.modal', function(event) {
+            var button = $(event.relatedTarget);
+            var itemId = button.data('item-id');
+            var itemName = button.data('item-name');
+            var itemType = button.data('item-type');
             
-
-                        if (newName.trim() === '') {
-
-                            alert('Name cannot be empty.');
-
-                            return;
-
-                        }
-
-            
-
-                        var url = '';
-
-                        var data = {};
-
-            
-
-                        if (itemType === 'folder') {
-
-                            url = 'index.php?url=lm/renameFolder';
-
-                            data = { folderId: itemId, newName: newName };
-
-                        } else if (itemType === 'file') {
-
-                            url = 'index.php?url=lm/renameFile';
-
-                            data = { fileId: itemId, newName: newName };
-
-                        }
-
-            
-
-                        if (url === '') return;
-
-            
-
-                        $.ajax({
-
-                            url: url,
-
-                            type: 'POST',
-
-                            data: data,
-
-                            dataType: 'json',
-
-                            success: function(response) {
-
-                                if (response.success) {
-
-                                    location.reload();
-
-                                } else {
-
-                                    alert('Error renaming ' + itemType + ': ' + response.message);
-
-                                }
-
-                            },
-
-                            error: function() {
-
-                                alert('An error occurred while communicating with the server.');
-
-                            }
-
-                        });
-
-                    });
-
-            
-
-                    $('#renameForm').on('submit', function(event) {
-
-                        event.preventDefault();
-
-                        $('#saveRenameBtn').click();
-
-                    });
+            renameModal.find('.modal-title').text('Rename ' + itemType.charAt(0).toUpperCase() + itemType.slice(1));
+            renameModal.find('#renameModalItemNameLabel').text(itemType.charAt(0).toUpperCase() + itemType.slice(1) + ' Name');
+            renameModal.find('#renameItemId').val(itemId);
+            renameModal.find('#newItemName').val(itemName);
+            renameModal.find('#saveRenameBtn').data('item-type', itemType);
         });
+
+        $('#saveRenameBtn').on('click', function() {
+            var itemType = $(this).data('item-type');
+            var itemId = $('#renameItemId').val();
+            var newName = $('#newItemName').val();
+            var url = itemType === 'folder' ? 'index.php?url=lm/renameFolder' : 'index.php?url=lm/renameFile';
+            var data = itemType === 'folder' ? { folderId: itemId, newName: newName } : { fileId: itemId, newName: newName };
+
+            $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
+                success: function(response) { location.reload(); },
+                error: function() { alert('An error occurred.'); }
+            });
+        });
+
+        // --- Move Logic ---
+        moveModal.on('show.bs.modal', function(event) {
+            var button = $(event.relatedTarget);
+            itemToMove.id = button.data('item-id');
+            itemToMove.type = button.data('item-type');
+        });
+
+        moveModal.on('click', '.folder-item', function(e) {
+            e.preventDefault();
+            var targetFolderId = $(this).data('folder-id');
+            var url = itemToMove.type === 'folder' ? 'index.php?url=lm/moveFolder' : 'index.php?url=lm/moveFile';
+            var data = itemToMove.type === 'folder' ? { folderId: itemToMove.id, newFolderId: targetFolderId } : { fileId: itemToMove.id, newFolderId: targetFolderId };
+
+            $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
+                success: function(response) { location.reload(); },
+                error: function() { alert('An error occurred during the move.'); }
+            });
+        });
+    });
     </script>
 </body>
-
 </html>
 <?php ob_end_flush(); ?>
