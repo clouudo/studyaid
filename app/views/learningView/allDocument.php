@@ -68,6 +68,16 @@ ob_start();
                     <h5 class="mb-4"><?php echo htmlspecialchars($currentFolderName); ?></h5>
                 <?php endif; ?>
 
+                <div class="mb-3">
+                    <form action="index.php" method="get">
+                        <div class="input-group">
+                            <input type="hidden" name="url" value="lm/displayLearningMaterials">
+                            <input type="text" class="form-control" placeholder="Search all documents..." name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
+                            <button class="btn btn-outline-secondary" type="submit">Search</button>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="list-group">
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>
                         <?php foreach ($fileList['folders'] as $folder):
