@@ -532,4 +532,14 @@ class LmModel
         
         return $updateStmt->execute();
     }
+
+    public function getFile($userID, $fileID){
+        $conn = $this->db->connect();
+        $query = "SELECT * FROM file WHERE userID = :userID AND fileID = :fileID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userID);
+        $stmt->bindParam(':fileID', $fileID);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
 }

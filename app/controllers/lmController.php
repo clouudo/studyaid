@@ -112,6 +112,7 @@ class LmController
         if (isset($_GET['fileID'])) {
             $fileID = $_GET['fileID'];
             try {
+                $file = $this->lmModel->getFile($_SESSION['user_id'], $fileID);
                 $documentData = $this->lmModel->getDocumentContent($fileID, $_SESSION['user_id']);
                 require_once __DIR__ . '/../views/learningView/displayDocument.php';
             } catch (\Exception $e) {
@@ -379,6 +380,33 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
         }
         exit();
+    }
+
+    public function summary(){
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: index.php?url=auth/home');
+            exit();
+        }
+
+        require_once __DIR__ . '/../views/learningView/summary.php';
+    }
+
+    public function note(){
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: index.php?url=auth/home');
+            exit();
+        }
+
+        require_once __DIR__ . '/../views/learningView/note.php';
+    }
+
+    public function mindmap(){
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: index.php?url=auth/home');
+            exit();
+        }
+
+        require_once __DIR__ . '/../views/learningView/mindmap.php';
     }
     
 }
