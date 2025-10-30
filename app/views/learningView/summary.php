@@ -59,11 +59,8 @@
                     body: new FormData(form)
                 });
                 const json = await res.json();
-                if (json.success) {
-                    output.innerHTML = marked.parse(json.content);
-                } else {
-                    output.textContent = 'Error: ' + json.message;
-                }
+                output.textContent = json.success ? "Finished Generating Summary" : ('Error: ' + json.message);
+                location.reload();
             } catch (error) {
                 output.textContent = 'Error: ' + error.message;
             }
