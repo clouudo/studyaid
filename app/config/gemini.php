@@ -1,7 +1,6 @@
 <?php
 
 $defaults = [
-    // Prefer environment variable; fallback to local override or placeholder
     'api_key' => getenv('GEMINI_API_KEY')
         ?: ($_ENV['GEMINI_API_KEY'] ?? '')
         ?: ($_SERVER['GEMINI_API_KEY'] ?? ''),

@@ -399,6 +399,7 @@ class LmController
         }
         $fileId = (int)$_GET['fileID'];
         $userId = (int)$_SESSION['user_id'];
+        $file = $this->lmModel->getFile($userId, $fileId);
 
         $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
 
@@ -435,14 +436,13 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = (int)$_GET['fileID'];
-        if (isset($_GET['bulletpoint'])) {
-            if ($_GET['bulletpoint'] === 'true') {
-                $bulletpoint = true;
-            } else {
-                $bulletpoint = false;
+
+        $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['instructions'])) {
+                $instructions = trim($_POST['instructions']);
             }
         }
-
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             $extracted_text = $file['extracted_text'];
@@ -451,11 +451,13 @@ class LmController
                 exit();
             }
 
-            if ($bulletpoint) {
-                $generatedSummary = $this->gemini->generateSummary($extracted_text, "In bullet point format");
+            if ($instructions !== '') {
+                $context = $instructions;
             } else {
-                $generatedSummary = $this->gemini->generateSummary($extracted_text, "In paragraph format");
+                $context = "In paragraph format";
             }
+
+            $generatedSummary = $this->gemini->generateSummary($extracted_text, $context);
             $this->lmModel->saveSummary($fileId, $userId, 'Summary - ' . $file['name'], $generatedSummary);
             echo json_encode(['success' => true, 'content' => $generatedSummary]);
         } catch (\Throwable $e) {

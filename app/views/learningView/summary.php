@@ -15,15 +15,16 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
-                <h3 class="mb-4">Summary</h3>
+                <h3 class="mb-4" style="color: #A855F7;">Summary</h3>
+                <h4 class="mb-4"><?php echo $file['name']; ?></h4>
                 <?php require_once 'app\views\learningView\navbar.php'; ?>
                 <div class="card">
                     <div class="card-body">
-                        <a id="genSummary" href="<?= BASE_PATH ?>lm/generateSummary?fileID=<?php echo $_GET['fileID']; ?>" class="btn btn-primary mb-3">Summarize</a>
-                        <div id="checkBox" class="button-group" role="group">
-                            <input type="checkbox" class="btn-check" id="bulletpoint" autocomplete="off">
-                            <label for="bulletpoint" class="btn btn-outline-primary">Bullet Point</label>
-                        </div>
+                        <form action="<?= BASE_PATH ?>lm/generateSummary?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
+                            <label for="instructions" class="form-label">Instructions</label>
+                            <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
+                            <button type="submit" id="genSummary" class="btn btn-primary" style="background-color: #A855F7; border: none;">Summarize</button>
+                        </form>
                     </div>
                 </div>
                 <div class="mt-3">
@@ -47,17 +48,22 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        document.getElementById('genSummary').addEventListener('click', async (e) => {
+        document.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const bulletpoint = document.getElementById('bulletpoint').checked;
-            const apiUrl = `<?= BASE_PATH ?>lm/generateSummary?fileID=<?= (int)$_GET['fileID']; ?>&bulletpoint=${bulletpoint}`;
+            const form = e.target;
             const output = document.getElementById('summaryResult');
-            output.textContent = "Generating...";
+            output.textContent = 'Generating...';
             try {
-                const res = await fetch(apiUrl);
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form)
+                });
                 const json = await res.json();
-                output.textContent = json.success ? "Finished Generating Summary" : ('Error: ' + json.message);
-                location.reload();
+                if (json.success) {
+                    output.innerHTML = marked.parse(json.content);
+                } else {
+                    output.textContent = 'Error: ' + json.message;
+                }
             } catch (error) {
                 output.textContent = 'Error: ' + error.message;
             }
