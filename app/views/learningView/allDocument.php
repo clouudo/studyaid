@@ -23,7 +23,7 @@ ob_start();
     <title>All Documents - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../public/css/style.css">
+    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -53,11 +53,11 @@ ob_start();
 
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials">Home</a></li>
+                        <li class="breadcrumb-item"><a href="<?= BASE_PATH ?>lm/displayLearningMaterials">Home</a></li>
                         <?php
                         if (isset($currentFolderPath) && is_array($currentFolderPath)) {
                             foreach ($currentFolderPath as $pathItem) {
-                                echo '<li class="breadcrumb-item"><a href="index.php?url=lm/displayLearningMaterials&folder_id=' . htmlspecialchars($pathItem['id']) . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
+                                echo '<li class="breadcrumb-item"><a href="' . BASE_PATH . 'lm/displayLearningMaterials?folder_id=' . htmlspecialchars($pathItem['id']) . '">' . htmlspecialchars($pathItem['name']) . '</a></li>';
                             }
                         }
                         ?>
@@ -83,7 +83,7 @@ ob_start();
                         <?php foreach ($fileList['folders'] as $folder):
                         ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayLearningMaterials&folder_id=<?php echo $folder['folderID'] ?>">
+                                <a class="text-decoration-none text-dark flex-grow-1" href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?php echo $folder['folderID'] ?>">
                                     <i class="bi bi-folder-fill me-2"></i>
                                     <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
                                 </a>
@@ -94,7 +94,7 @@ ob_start();
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-name="<?php echo htmlspecialchars($folder['name']); ?>" data-item-type="folder">Rename</a></li>
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-type="folder">Move</a></li>
-                                        <li><a class="dropdown-item" href="index.php?url=lm/deleteFolder&folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
+                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteFolder?folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -104,7 +104,7 @@ ob_start();
                         <?php foreach ($fileList['files'] as $file):
                         ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="index.php?url=lm/displayDocument&fileID=<?php echo $file['fileID'] ?>">
+                                <a class="text-decoration-none text-dark flex-grow-1" href="<?= BASE_PATH ?>lm/displayDocument?fileID=<?php echo $file['fileID'] ?>">
                                     <?php
                                     $fileIcon = 'bi-file-earmark';
                                     $fileTypeLower = strtolower($file['fileType']);
@@ -120,10 +120,10 @@ ob_start();
                                         Actions
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
-                                        <li><a class="dropdown-item" href="index.php?url=lm/displayDocument&fileID=<?php echo $file['fileID'] ?>">View</a></li>
+                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/displayDocument?fileID=<?php echo $file['fileID'] ?>">View</a></li>
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-type="file">Move</a></li>
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-name="<?php echo htmlspecialchars($file['name']); ?>" data-item-type="file">Rename</a></li>
-                                        <li><a class="dropdown-item" href="index.php?url=lm/deleteDocument&fileID=<?php echo $file['fileID'] ?>">Delete</a></li>
+                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteDocument?fileID=<?php echo $file['fileID'] ?>">Delete</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -214,7 +214,7 @@ ob_start();
             var itemType = $(this).data('item-type');
             var itemId = $('#renameItemId').val();
             var newName = $('#newItemName').val();
-            var url = itemType === 'folder' ? 'index.php?url=lm/renameFolder' : 'index.php?url=lm/renameFile';
+            var url = itemType === 'folder' ? '<?= BASE_PATH ?>lm/renameFolder' : '<?= BASE_PATH ?>lm/renameFile';
             var data = itemType === 'folder' ? { folderId: itemId, newName: newName } : { fileId: itemId, newName: newName };
 
             $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
@@ -233,7 +233,7 @@ ob_start();
         moveModal.on('click', '.folder-item', function(e) {
             e.preventDefault();
             var targetFolderId = $(this).data('folder-id');
-            var url = itemToMove.type === 'folder' ? 'index.php?url=lm/moveFolder' : 'index.php?url=lm/moveFile';
+            var url = itemToMove.type === 'folder' ? '<?= BASE_PATH ?>lm/moveFolder' : '<?= BASE_PATH ?>lm/moveFile';
             var data = itemToMove.type === 'folder' ? { folderId: itemToMove.id, newFolderId: targetFolderId } : { fileId: itemToMove.id, newFolderId: targetFolderId };
 
             $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',

@@ -3,14 +3,17 @@
 namespace App\Controllers;
 
 use App\Models\LmModel;
+use App\Services\GeminiService;
 
 class LmController
 {
 
     private $lmModel;
+    private $gemini;
     public function __construct()
     {
         $this->lmModel = new LmModel();
+        $this->gemini = new GeminiService();
     }
 
     public function uploadDocument()
@@ -19,7 +22,7 @@ class LmController
 
             if (!isset($_FILES['document']) || $_FILES['document']['error'] !== UPLOAD_ERR_OK) {
                 $_SESSION['error'] = "Missing Information. Please try again.";
-                header('Location: index.php?url=lm/newDocument');
+                header('Location: ' . BASE_PATH . 'lm/newDocument');
                 exit();
             }
 
@@ -50,16 +53,16 @@ class LmController
                 try {
                     $newFileID = $this->lmModel->uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName);
                     $_SESSION['message'] = "File uploaded successfully!";
-                    header('Location: index.php?url=lm/displayDocument&fileID=' . $newFileID);
+                    header('Location: ' . BASE_PATH . 'lm/displayDocument?fileID=' . $newFileID);
                     exit();
                 } catch (\Exception $e) {
                     $_SESSION['error'] = "Error uploading file: " . $e->getMessage();
-                    header('Location: index.php?url=lm/newDocument');
+                    header('Location: ' . BASE_PATH . 'lm/newDocument');
                     exit();
                 }
             } else {
                 $_SESSION['error'] = "Error reading uploaded file.";
-                header('Location: index.php?url=lm/newDocument');
+                header('Location: ' . BASE_PATH . 'lm/newDocument');
                 exit();
             }
         }
@@ -69,7 +72,7 @@ class LmController
     public function displayLearningMaterials()
     {
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -105,7 +108,7 @@ class LmController
     public function displayDocument()
     {
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -117,19 +120,19 @@ class LmController
                 require_once __DIR__ . '/../views/learningView/displayDocument.php';
             } catch (\Exception $e) {
                 $_SESSION['error'] = "Error: " . $e->getMessage();
-                header('Location: index.php?url=lm/displayLearningMaterials');
+                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
                 exit();
             }
         } else {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: index.php?url=lm/displayLearningMaterials');
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
             exit();
         }
     }
 
     public function deleteDocument(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -145,13 +148,13 @@ class LmController
                 $_SESSION['error'] = "Error: " . $e->getMessage();
             }
         }
-        header('Location: index.php?url=lm/displayLearningMaterials');
+        header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
         exit();
     }
 
     public function newFolder(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
         $userId = $_SESSION['user_id'];
@@ -162,7 +165,7 @@ class LmController
     public function createFolder(){
 
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -172,30 +175,30 @@ class LmController
 
             if (empty($folderName)) {
                 $_SESSION['error'] = "Folder name cannot be empty.";
-                header('Location: index.php?url=lm/newFolder');
+                header('Location: ' . BASE_PATH . 'lm/newFolder');
                 exit();
             }
 
             try {
                 $this->lmModel->createFolder($_SESSION['user_id'], $folderName, $parentFolderId);
                 $_SESSION['message'] = "Folder created successfully.";
-                header('Location: index.php?url=lm/displayLearningMaterials');
+                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
                 exit();
             } catch (\Exception $e) {
                 $_SESSION['error'] = "Error creating folder: " . $e->getMessage();
-                header('Location: index.php?url=lm/newFolder');
+                header('Location: ' . BASE_PATH . 'lm/newFolder');
                 exit();
             }
         } else {
             // If not a POST request, just show the form
-            header('Location: index.php?url=lm/newFolder');
+            header('Location: ' . BASE_PATH . 'lm/newFolder');
             exit();
         }
     }
 
     public function deleteFolder(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -211,13 +214,13 @@ class LmController
                 $_SESSION['error'] = "Error: " . $e->getMessage();
             }
         }
-        header('Location: index.php?url=lm/displayLearningMaterials');
+        header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
         exit();
     }
 
     public function newDocument(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -384,7 +387,7 @@ class LmController
 
     public function summary(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -393,7 +396,7 @@ class LmController
 
     public function note(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
@@ -402,11 +405,116 @@ class LmController
 
     public function mindmap(){
         if (!isset($_SESSION['user_id'])) {
-            header('Location: index.php?url=auth/home');
+            header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
 
         require_once __DIR__ . '/../views/learningView/mindmap.php';
+    }
+
+    public function generateSummary()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid method']);
+            exit();
+        }
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
+        $instructions = $_POST['instructions'] ?? null;
+        $rawText = $_POST['text'] ?? null;
+        try {
+            $sourceText = $rawText;
+            if (!$sourceText) {
+                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
+                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
+            }
+            $result = $this->gemini->generateSummary($sourceText, $instructions);
+            $id = 0;
+            if ($fileId) {
+                $file = $this->lmModel->getFile($userId, $fileId);
+                $title = 'Summary - ' . ($file ? $file['name'] : 'Untitled');
+                $id = $this->lmModel->saveSummary($fileId, $title, $result);
+            }
+            echo json_encode(['success' => true, 'id' => $id, 'content' => $result]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function generateNotes()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid method']);
+            exit();
+        }
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
+        $instructions = $_POST['instructions'] ?? null;
+        $rawText = $_POST['text'] ?? null;
+        try {
+            $sourceText = $rawText;
+            if (!$sourceText) {
+                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
+                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
+            }
+            $result = $this->gemini->generateNotes($sourceText, $instructions);
+            $id = 0;
+            if ($fileId) {
+                $file = $this->lmModel->getFile($userId, $fileId);
+                $title = 'Notes - ' . ($file ? $file['name'] : 'Untitled');
+                $id = $this->lmModel->saveNotes($fileId, $title, $result);
+            }
+            echo json_encode(['success' => true, 'id' => $id, 'content' => $result]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function generateMindmap()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid method']);
+            exit();
+        }
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
+        $instructions = $_POST['instructions'] ?? null;
+        $rawText = $_POST['text'] ?? null;
+        try {
+            $sourceText = $rawText;
+            if (!$sourceText) {
+                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
+                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
+            }
+            $json = $this->gemini->generateMindmapJson($sourceText, $instructions);
+            $id = 0;
+            if ($fileId) {
+                $file = $this->lmModel->getFile($userId, $fileId);
+                $title = 'Mindmap - ' . ($file ? $file['name'] : 'Untitled');
+                $id = $this->lmModel->saveMindmap($fileId, $title, $json, '');
+            }
+            echo json_encode(['success' => true, 'id' => $id, 'json' => $json]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
     }
     
 }

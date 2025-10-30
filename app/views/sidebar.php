@@ -16,7 +16,7 @@ function isActive($link_url, $current_url) {
 }
 ?>
 <div class="d-flex flex-column flex-shrink-0 p-3 text-dark bg-white" style="width: 280px;">
-  <a href="index.php?url=auth/home" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+  <a href="<?= BASE_PATH ?>auth/home" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
     <svg class="bi me-2" width="40" height="32">
       <use xlink:href="#bootstrap"></use>
     </svg>
@@ -25,7 +25,7 @@ function isActive($link_url, $current_url) {
   <hr>
   <ul class="nav nav-pills flex-column mb-auto">
     <li class="nav-item">
-      <a href="index.php?url=user/dashboard" class="nav-link <?php echo isActive('index.php?url=user/dashboard', $current_url); ?> text-dark" aria-current="page">
+      <a href="<?= BASE_PATH ?>user/dashboard" class="nav-link <?php echo isActive('index.php?url=user/dashboard', $current_url); ?> text-dark" aria-current="page">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#home"></use>
         </svg>
@@ -33,7 +33,7 @@ function isActive($link_url, $current_url) {
       </a>
     </li>
     <li>
-      <a href="index.php?url=lm/newDocument" class="nav-link <?php echo isActive('index.php?url=lm/newDocument', $current_url); ?> text-dark">
+      <a href="<?= BASE_PATH ?>lm/newDocument" class="nav-link <?php echo isActive('index.php?url=lm/newDocument', $current_url); ?> text-dark">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#speedometer2"></use>
         </svg>
@@ -41,7 +41,7 @@ function isActive($link_url, $current_url) {
       </a>
     </li>
     <li>
-      <a href="index.php?url=lm/newFolder" class="nav-link <?php echo isActive('index.php?url=lm/newFolder', $current_url); ?> text-dark">
+      <a href="<?= BASE_PATH ?>lm/newFolder" class="nav-link <?php echo isActive('index.php?url=lm/newFolder', $current_url); ?> text-dark">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#table"></use>
         </svg>
@@ -49,7 +49,7 @@ function isActive($link_url, $current_url) {
       </a>
     </li>
      <li>
-      <a href="index.php?url=lm/displayLearningMaterials" class="nav-link <?php echo isActive('index.php?url=lm/displayLearningMaterials', $current_url); ?> text-dark">
+      <a href="<?= BASE_PATH ?>lm/displayLearningMaterials" class="nav-link <?php echo isActive('index.php?url=lm/displayLearningMaterials', $current_url); ?> text-dark">
         <svg class="bi me-2" width="16" height="16">
           <use xlink:href="#speedometer2"></use>
         </svg>
@@ -61,7 +61,7 @@ function isActive($link_url, $current_url) {
   <div class="container">
     <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
     <strong>Username</strong>
-    <img src="/studyaid/public/asset/setting.png" alt="settings" width="28" height="28">
+    <img src="<?= IMG_SETTING ?>" alt="settings" width="28" height="28">
   </div>
 </div>
 

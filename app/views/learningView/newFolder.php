@@ -20,7 +20,7 @@ function buildFolderTree($folders, $parentId = null) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Folder - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="../../public/css/style.css">
+    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <style>
         .folder-item {
             text-decoration: none;
@@ -52,7 +52,7 @@ function buildFolderTree($folders, $parentId = null) {
                 endif;
                 ?>
                 <h3 class="mb-4">Create New Folder</h3>
-                <form action="index.php?url=lm/createFolder" method="POST">
+                <form action="<?= BASE_PATH ?>lm/createFolder" method="POST">
                     <input type="hidden" name="parentFolderId" id="parentFolderId">
                     <div class="mb-3">
                         <label for="folderName" class="form-label">Folder Name</label>

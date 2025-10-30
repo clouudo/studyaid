@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="public/css/style.css">
+    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
 </head>
 <body>
     <div class="container">
@@ -15,7 +15,7 @@
                 <?php if (isset($error)): ?>
                     <div class="alert alert-danger"><?php echo $error; ?></div>
                 <?php endif; ?>
-                <form action="index.php?url=auth/register" method="POST">
+                <form action="<?= BASE_PATH ?>auth/register" method="POST">
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="username" class="form-control" id="username" name="username" required>
@@ -34,7 +34,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Register</button>
                 </form>
-                <p class="text-center mt-3">Already have an account? <a href="index.php?url=auth/login">Login here</a></p>
+                <p class="text-center mt-3">Already have an account? <a href="<?= BASE_PATH ?>auth/login">Login here</a></p>
             </div>
         </div>
     </div>

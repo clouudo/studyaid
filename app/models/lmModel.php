@@ -542,4 +542,66 @@ class LmModel
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
+
+    public function saveSummary(int $fileId, string $title, string $content): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO summary (fileID, title, content) VALUES (:fileID, :title, :content)");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':content', $content);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function getSummaryByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM summary WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function saveNotes(int $fileId, string $title, string $content): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO note (fileID, title, content) VALUES (:fileID, :title, :content)");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':content', $content);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function getNotesByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM note WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function saveMindmap(int $fileId, string $title, array $mindmap, string $imagePath = ''): int
+    {
+        $conn = $this->db->connect();
+        $json = json_encode($mindmap, JSON_UNESCAPED_UNICODE);
+        $stmt = $conn->prepare("INSERT INTO mindmap (fileID, title, data, imagePath) VALUES (:fileID, :title, :data, :imagePath)");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':data', $json);
+        $stmt->bindParam(':imagePath', $imagePath);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function getMindmapByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM mindmap WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
 }

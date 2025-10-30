@@ -1,3 +1,16 @@
+RewriteEngine On
+
+# Adjust if your app is in a subfolder (here: /studyaid/)
+RewriteBase /studyaid/
+
+# Skip existing files and directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route everything else to index.php as url=...
+RewriteRule ^(.+)$ index.php?url=$1 [QSA,L]
+
 Options -Indexes
 RewriteEngine On
 RewriteBase /studyaid/
