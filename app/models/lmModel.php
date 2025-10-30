@@ -59,7 +59,7 @@ class LmModel
         return $extractedText;
     }
 
-    public function generateUniqueFileName($fileExtension)
+public function generateUniqueFileName($fileExtension)
     {
         $uuid = Uuid::uuid4()->toString();
         $uniqueFileName = $uuid . '.' . $fileExtension;
@@ -186,7 +186,7 @@ class LmModel
         if (in_array(strtolower($fileType), $imageExtensions)) {
             return [
                 'type' => 'image',
-                'content' => $object->signedUrl(new \DateTime('+1 hour'), ['version' => 'v4']),
+                'content' => $object->signedUrl(new \DateTimeImmutable('+1 hour'), ['version' => 'v4']),
                 'extracted_text' => $extractedText
             ];
         } else {
@@ -543,24 +543,26 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-    public function saveSummary(int $fileId, string $title, string $content): int
+    public function saveSummary(int $fileId, int $userId, string $title, string $content): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO summary (fileID, title, content) VALUES (:fileID, :title, :content)");
+        $stmt = $conn->prepare("INSERT INTO summary (fileID, userID, title, content) VALUES (:fileID, :userID, :title, :content)");
         $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':userID', $userId);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':content', $content);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
 
-    public function getSummaryByFile(int $fileId)
+    public function getSummaryByFile(int $fileId, int $userId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM summary WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM summary WHERE fileID = :fileID AND userID = :userID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     public function saveNotes(int $fileId, string $title, string $content): int

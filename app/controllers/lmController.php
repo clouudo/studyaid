@@ -130,7 +130,8 @@ class LmController
         }
     }
 
-    public function deleteDocument(){
+    public function deleteDocument()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -152,7 +153,8 @@ class LmController
         exit();
     }
 
-    public function newFolder(){
+    public function newFolder()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -162,7 +164,8 @@ class LmController
         require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
 
-    public function createFolder(){
+    public function createFolder()
+    {
 
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
@@ -196,7 +199,8 @@ class LmController
         }
     }
 
-    public function deleteFolder(){
+    public function deleteFolder()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -218,7 +222,8 @@ class LmController
         exit();
     }
 
-    public function newDocument(){
+    public function newDocument()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -314,7 +319,8 @@ class LmController
         exit();
     }
 
-    public function moveFile(){
+    public function moveFile()
+    {
         // error_log("moveFile controller method triggered.");
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
@@ -385,16 +391,22 @@ class LmController
         exit();
     }
 
-    public function summary(){
+    public function summary()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
+        $fileId = (int)$_GET['fileID'];
+        $userId = (int)$_SESSION['user_id'];
+
+        $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
 
         require_once __DIR__ . '/../views/learningView/summary.php';
     }
 
-    public function note(){
+    public function note()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -403,7 +415,8 @@ class LmController
         require_once __DIR__ . '/../views/learningView/note.php';
     }
 
-    public function mindmap(){
+    public function mindmap()
+    {
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
@@ -419,28 +432,32 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            echo json_encode(['success' => false, 'message' => 'Invalid method']);
-            exit();
-        }
+
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
-        $instructions = $_POST['instructions'] ?? null;
-        $rawText = $_POST['text'] ?? null;
+        $fileId = (int)$_GET['fileID'];
+        if (isset($_GET['bulletpoint'])) {
+            if ($_GET['bulletpoint'] === 'true') {
+                $bulletpoint = true;
+            } else {
+                $bulletpoint = false;
+            }
+        }
+
         try {
-            $sourceText = $rawText;
-            if (!$sourceText) {
-                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
-                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
+            $file = $this->lmModel->getFile($userId, $fileId);
+            $extracted_text = $file['extracted_text'];
+            if (!$extracted_text) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found']);
+                exit();
             }
-            $result = $this->gemini->generateSummary($sourceText, $instructions);
-            $id = 0;
-            if ($fileId) {
-                $file = $this->lmModel->getFile($userId, $fileId);
-                $title = 'Summary - ' . ($file ? $file['name'] : 'Untitled');
-                $id = $this->lmModel->saveSummary($fileId, $title, $result);
+
+            if ($bulletpoint) {
+                $generatedSummary = $this->gemini->generateSummary($extracted_text, "In bullet point format");
+            } else {
+                $generatedSummary = $this->gemini->generateSummary($extracted_text, "In paragraph format");
             }
-            echo json_encode(['success' => true, 'id' => $id, 'content' => $result]);
+            $this->lmModel->saveSummary($fileId, $userId, 'Summary - ' . $file['name'], $generatedSummary);
+            echo json_encode(['success' => true, 'content' => $generatedSummary]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -516,5 +533,4 @@ class LmController
         }
         exit();
     }
-    
 }

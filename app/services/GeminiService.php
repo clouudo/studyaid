@@ -61,7 +61,7 @@ class GeminiService
     public function generateSummary(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['summary'] ?? $this->defaultModel;
-        $prompt = "Summarize the following content into concise bullet points and a short paragraph.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Summarize the following content into a short paragraph.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         $contents = [ $this->buildUserContent($prompt) ];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);

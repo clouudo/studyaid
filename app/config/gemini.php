@@ -1,19 +1,17 @@
 <?php
 
-return [
-    // Prefer environment variable; fallback to placeholder
-    'api_key' => getenv('GEMINI_API_KEY') ?: '',
-    // Default text-only model
-    'model' => 'gemini-1.5-pro',
-    // Optional: tune per task if needed
+$defaults = [
+    // Prefer environment variable; fallback to local override or placeholder
+    'api_key' => getenv('GEMINI_API_KEY')
+        ?: ($_ENV['GEMINI_API_KEY'] ?? '')
+        ?: ($_SERVER['GEMINI_API_KEY'] ?? ''),
+    'model' => 'gemini-2.5-flash-lite',
     'models' => [
-        'summary' => 'gemini-1.5-pro',
-        'notes' => 'gemini-1.5-pro',
-        'mindmap' => 'gemini-1.5-pro',
+        'summary' => 'gemini-2.5-flash-lite',
+        'notes' => 'gemini-2.5-flash-lite',
+        'mindmap' => 'gemini-2.5-flash-lite',
     ],
-    // Base URL for Gemini REST API (Google AI Studio)
-    'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
-    // Request level defaults
+    'base_url' => 'https://generativelanguage.googleapis.com/v1',
     'generation_config' => [
         'temperature' => 0.2,
         'topP' => 0.95,
@@ -21,5 +19,15 @@ return [
         'maxOutputTokens' => 2048,
     ],
 ];
+
+$localFile = __DIR__ . '/gemini.local.php';
+if (file_exists($localFile)) {
+    $overrides = require $localFile;
+    if (is_array($overrides)) {
+        return array_replace($defaults, $overrides);
+    }
+}
+
+return $defaults;
 
 
