@@ -406,7 +406,7 @@ class LmController
         $fileId = (int)$_GET['fileID'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $file = $this->lmModel->getFile($userId, $fileId);
-
+        $noteList = $this->lmModel->getNotesByFile($file['fileID']);
 
         require_once __DIR__ . '/../views/learningView/note.php';
     }
@@ -465,38 +465,31 @@ class LmController
 
     public function generateNotes()
     {
+        
+    }
+
+    public function saveNote(){
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
-        $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
+        $userId = $_SESSION['user_id'];
+        $fileId = $_GET['fileID'];
+        $title = $_POST['noteTitle'];
+        $content = $_POST['noteContent'];
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (isset($_POST['instructions'])) {
-                $instructions = $_POST['instructions'] ?? null;
+        try{
+            if($content && $title){
+                $this->lmModel->saveNotes($fileId, $title, $content);
+            }else{
+                echo json_encode(['success' => false, 'message' => 'Content and title not found.']);
+                exit();
             }
-        }
-        $rawText = $_POST['text'] ?? null;
-        try {
-            $sourceText = $rawText;
-            if (!$sourceText) {
-                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
-                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
-            }
-            $result = $this->gemini->generateNotes($sourceText, $instructions);
-            $id = 0;
-            if ($fileId) {
-                $file = $this->lmModel->getFile($userId, $fileId);
-                $title = 'Notes - ' . ($file ? $file['name'] : 'Untitled');
-                $id = $this->lmModel->saveNotes($fileId, $title, $result);
-            }
-            echo json_encode(['success' => true, 'id' => $id, 'content' => $result]);
-        } catch (\Throwable $e) {
+            echo json_encode(['success' => true, 'message' => $content]);
+        } catch (\Throwable $e){
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
-        exit();
     }
 
     public function generateMindmap()

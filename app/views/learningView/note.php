@@ -30,47 +30,94 @@
                         </form>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">
-                        <label class="form-label">Note Title</label>
-                        <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
-                    </div>
-                    <div class="card-body">
-                        <form action="<?= BASE_PATH ?>lm/saveNote?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
-                        <div class="btn-toolbar mb-2" role="toolbar" id="toolbar">
-                            <div class="btn-group">
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-bold"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-italic"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-h1"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i></button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
+                <div class="card mb-3">
+                    <form id="noteEditor" action="<?= BASE_PATH ?>lm/saveNote?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
+                        <div class="card-header">
+                            <label class="form-label">Note Title</label>
+                            <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-toolbar mb-2" role="toolbar" id="toolbar">
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-bold"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-italic"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-h1"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
+                                </div>
+                            </div>
+                            <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px; overflow:hidden; resize:none;"></textarea>
+                            <div id="preview" class="bg-light border px-2 py-2 mb-3" style="min-height:120px"></div>
+                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Save Note</button>
+                        </div>
+                    </form>
+                </div>
+                <?php if ($noteList): ?>
+                    <?php foreach ($noteList as $note): ?>
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <?php echo $note['title'] ?>
+                            </div>
+                            <div class="card-body">
+                                <div class="noteText"><?php echo htmlspecialchars($note['content']); ?></div>
                             </div>
                         </div>
-                        <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px"></textarea>
-                        <div id="preview" class="bg-light border px-2 py-2 mb-3" style="min-height:120px"></div>
-                        <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Save Note</button>
-                        </form>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
     </div>
     </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        document.getElementById('notesForm').addEventListener('submit', async (e) => {
+        document.getElementById('noteEditor').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
-            const data = new FormData(form);
-            const res = await fetch('<?= BASE_PATH ?>lm/generateNotes', {
-                method: 'POST',
-                body: data
-            });
-            const json = await res.json();
-            document.getElementById('notesResult').textContent = json.success ? json.content : ('Error: ' + json.message);
+            const title = document.getElementById('noteTitle');
+            const content = document.getElementById('noteContent');
+
+            try {
+                const data = new FormData(form);
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: data
+                });
+                const json = await res.json();
+                if (json.success) {
+                    location.reload()
+                }else{
+                    alert("Title or content missing!");
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
         });
+
+        // Auto-resize textarea function
+        function autoResizeTextarea(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const noteContent = document.getElementById('noteContent');
+            if (noteContent) {
+                // Initial resize
+                autoResizeTextarea(noteContent);
+                
+                // Resize on input
+                noteContent.addEventListener('input', function() {
+                    autoResizeTextarea(this);
+                });
+            }
+
+            document.querySelectorAll('.noteText')
+                .forEach(function(div) {
+                    div.innerHTML = marked.parse(div.textContent);
+                })
+        })
 
         <?php include 'app\views\learningView\editor.js'; ?>
     </script>

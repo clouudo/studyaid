@@ -564,10 +564,10 @@ public function generateUniqueFileName($fileExtension)
     public function getNotesByFile(int $fileId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM note WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM note WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     public function saveMindmap(int $fileId, string $title, array $mindmap, string $imagePath = ''): int
