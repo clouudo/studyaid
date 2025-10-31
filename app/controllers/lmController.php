@@ -465,10 +465,44 @@ class LmController
 
     public function generateNotes()
     {
-        
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+        $userId = $_SESSION['user_id'];
+        $fileId = $_GET['fileID'];
+        $content = '';
+        $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['instructions'])) {
+                $instructions = trim($_POST['instructions']);
+            }
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            $extracted_text = $file['extracted_text'];
+            if (!$extracted_text) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found']);
+                exit();
+            }
+
+            if ($instructions !== '') {
+                $context = $instructions;
+            } else {
+                $context = '';
+            }
+            $generatedNote = $this->gemini->generateNotes($extracted_text, $context);
+            $this->lmModel->saveNotes($fileId, $file['name'], $generatedNote);
+            echo json_encode(['success' => true, 'content' => $generatedNote]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 
-    public function saveNote(){
+    public function saveNote()
+    {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
@@ -479,15 +513,15 @@ class LmController
         $title = $_POST['noteTitle'];
         $content = $_POST['noteContent'];
 
-        try{
-            if($content && $title){
+        try {
+            if ($content && $title) {
                 $this->lmModel->saveNotes($fileId, $title, $content);
-            }else{
+            } else {
                 echo json_encode(['success' => false, 'message' => 'Content and title not found.']);
                 exit();
             }
             echo json_encode(['success' => true, 'message' => $content]);
-        } catch (\Throwable $e){
+        } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
     }

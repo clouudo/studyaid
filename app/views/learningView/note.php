@@ -21,7 +21,7 @@
                 <?php require_once 'app\views\learningView\navbar.php'; ?>
                 <div class="card mb-3">
                     <div class="card-body">
-                        <form id="notesForm" action="<?= BASE_PATH ?>lm/generateNotes?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
+                        <form id="noteForm" action="<?= BASE_PATH ?>lm/generateNotes?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
@@ -75,8 +75,6 @@
         document.getElementById('noteEditor').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
-            const title = document.getElementById('noteTitle');
-            const content = document.getElementById('noteContent');
 
             try {
                 const data = new FormData(form);
@@ -86,14 +84,34 @@
                 });
                 const json = await res.json();
                 if (json.success) {
-                    location.reload()
-                }else{
+                    location.reload();
+                } else {
                     alert("Title or content missing!");
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
             }
         });
+
+        document.getElementById('noteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            try {
+                const data = new FormData(form);
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: data
+                });
+                const json = await res.json();
+                if (json.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (json.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        })
 
         // Auto-resize textarea function
         function autoResizeTextarea(textarea) {
@@ -106,7 +124,7 @@
             if (noteContent) {
                 // Initial resize
                 autoResizeTextarea(noteContent);
-                
+
                 // Resize on input
                 noteContent.addEventListener('input', function() {
                     autoResizeTextarea(this);

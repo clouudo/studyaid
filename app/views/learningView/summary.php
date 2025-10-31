@@ -23,7 +23,7 @@
                         <form action="<?= BASE_PATH ?>lm/generateSummary?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
                             <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
-                            <button type="submit" id="genSummary" class="btn btn-primary" style="background-color: #A855F7; border: none;">Create</button>
+                            <button type="submit" id="genSummary" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Summary</button>
                         </form>
                     </div>
                 </div>
