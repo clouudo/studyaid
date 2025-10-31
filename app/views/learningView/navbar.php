@@ -1,5 +1,5 @@
 <nav class="navbar navbar-expand-sm">
-    <ul class="navbar-nav ps-0">
+    <ul class="navbar-nav ps-0 mb-2">
         <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/summary', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
             <a class="nav-link <?php echo isActive('index.php?url=lm/summary', $current_url); ?>" href="<?= BASE_PATH ?>lm/summary?fileID=<?php echo $_GET['fileID']; ?>" style="color: black;">Summary</a>
         </li>

@@ -256,8 +256,6 @@ public function generateUniqueFileName($fileExtension)
         $bucket = $this->storage->bucket($this->bucketName);
         $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
 
-        // error_log("Folder ID to delete: " . $folderId);
-        // error_log("Logical folder path: " . $logicalFolderPath);
 
         $prefix = 'user_upload/' . $userId . '/content/' . $logicalFolderPath;
         
@@ -288,7 +286,6 @@ public function generateUniqueFileName($fileExtension)
 
         if($parentFolderId != null) {
             $parentFolderInfo = $this->getFolderInfo($parentFolderId);
-            // error_log("Parent Folder Info: " . print_r($parentFolderInfo, true));
             if (!$parentFolderInfo) {
                 throw new \Exception("Parent folder not found or access denied.");
             }
@@ -426,7 +423,6 @@ public function generateUniqueFileName($fileExtension)
 
     public function moveFile($fileId, $newFolderId, $userId)
     {
-        // error_log("moveFile model method triggered for fileId: {$fileId}");
         //Get current file path
         $conn = $this->db->connect();
         $pathQuery = "SELECT filePath FROM file where fileID = :fileID AND userID = :userID";
@@ -440,7 +436,6 @@ public function generateUniqueFileName($fileExtension)
             throw new \Exception("File not found or access denied in moveFile.");
         }
         $currentFilePath = $fileData['filePath'];
-        // error_log("Current file path: {$currentFilePath}");
 
         $logicalFolderPath = '';
         if ($newFolderId !== null) {
@@ -448,21 +443,16 @@ public function generateUniqueFileName($fileExtension)
         }
         $fileName = basename($currentFilePath);
         $newFilePath = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $fileName;
-        // error_log("New file path: {$newFilePath}");
 
         $bucket = $this->storage->bucket($this->bucketName);
         $object = $bucket->object($currentFilePath);
         if($object->exists()) {
-            // error_log("GCS: Copying from {$currentFilePath} to {$newFilePath}");
             $object->copy($bucket, ['name' => $newFilePath]);
-            // error_log("GCS: Deleting {$currentFilePath}");
             $object->delete();
         }else{
-            // error_log("GCS: File not found at {$currentFilePath}");
             throw new \Exception("File not found in Google Cloud Storage.");
         }
 
-        // error_log("Updating database: fileId={$fileId}, newFolderId={$newFolderId}, newFilePath={$newFilePath}");
         $updateQuery = "UPDATE file SET folderID = :newFolderID, filePath = :newFilePath WHERE fileID = :fileID AND userID = :userID";
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newFolderID', $newFolderId, $newFolderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
@@ -474,7 +464,6 @@ public function generateUniqueFileName($fileExtension)
 
     public function moveFolder($folderId, $newParentId, $userId)
     {
-        // error_log("moveFolder model method triggered for folderId: {$folderId} to newParentId: {$newParentId}");
         // 1. Validate against moving into self or child
         if ($folderId == $newParentId) {
             throw new \Exception("Cannot move a folder into itself.");
@@ -502,7 +491,6 @@ public function generateUniqueFileName($fileExtension)
             $oldParentPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
         }
         $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldParentPath . $folderInfo['name'] . '/';
-        // error_log("Old GCS prefix: {$oldPrefix}");
 
         // 3. Get new path information
         $newParentPath = '';
@@ -510,20 +498,17 @@ public function generateUniqueFileName($fileExtension)
             $newParentPath = $this->getLogicalFolderPath($newParentId, $userId);
         }
         $newPrefix = 'user_upload/' . $userId . '/content/' . $newParentPath . $folderInfo['name'] . '/';
-        // error_log("New GCS prefix: {$newPrefix}");
 
         // 4. GCS Operations
         $bucket = $this->storage->bucket($this->bucketName);
         $objects = $bucket->objects(['prefix' => $oldPrefix]);
         foreach ($objects as $object) {
             $newObjectName = str_replace($oldPrefix, $newPrefix, $object->name());
-            // error_log("GCS: Moving {$object->name()} to {$newObjectName}");
             $object->copy($bucket, ['name' => $newObjectName]);
             $object->delete();
         }
 
         // 5. Update Database
-        // error_log("Updating database: folderId={$folderId}, newParentId={$newParentId}");
         $updateQuery = "UPDATE folder SET parentFolderId = :newParentId WHERE folderID = :folderID AND userID = :userID";
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newParentId', $newParentId, $newParentId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);

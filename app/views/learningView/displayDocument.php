@@ -27,7 +27,7 @@
                     <?php endif; ?>
 
                     <?php if (!empty($documentData['extracted_text'])): ?>
-                        <div class="card">
+                        <div class="card mb-3">
                             <div class="card-body">
                                 <pre><?php echo htmlspecialchars($documentData['extracted_text']); ?></pre>
                             </div>

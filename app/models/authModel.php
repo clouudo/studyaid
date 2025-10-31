@@ -46,21 +46,17 @@ class AuthModel {
     public function authenticate($email, $password) {
         $user = $this->getUserByEmail($email);
         if($user != null){
-            // error_log("User fetched: " . print_r($user, true));
             if(password_verify($password, $user['password'])) {
-            // error_log("Authentication successful for user: " . $user['email']);
             $this-> addSession($email);
             return [
                 'id' => $user['userID'],
                 'email' => $user['email']
             ];
         }else{
-            // error_log("Authentication failed for user: " . $user['email']);
             return false;
         }
         }
         else{
-            // error_log("No user found with email: " . $email);
             return false;
         }
     }

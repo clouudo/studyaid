@@ -111,7 +111,8 @@ class LmController
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
-
+        $userId = $_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         if (isset($_GET['fileID'])) {
             $fileID = $_GET['fileID'];
             try {
@@ -160,6 +161,7 @@ class LmController
             exit();
         }
         $userId = $_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $folders = $this->lmModel->getAllFoldersForUser($userId);
         require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
@@ -230,6 +232,7 @@ class LmController
         }
 
         $userId = $_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $folders = $this->lmModel->getAllFoldersForUser($userId);
 
         require_once __DIR__ . '/../views/learningView/newDocument.php';
@@ -321,10 +324,8 @@ class LmController
 
     public function moveFile()
     {
-        // error_log("moveFile controller method triggered.");
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
-            // error_log("moveFile error: User not logged in.");
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
@@ -333,23 +334,18 @@ class LmController
             $fileId = $_POST['fileId'];
             $newFolderId = $_POST['newFolderId'] == '0' ? null : $_POST['newFolderId'];
             $userId = $_SESSION['user_id'];
-            // error_log("moveFile params: fileId={$fileId}, newFolderId={$newFolderId}, userId={$userId}");
 
             try {
                 $success = $this->lmModel->moveFile($fileId, $newFolderId, $userId);
                 if ($success) {
-                    // error_log("moveFile success for fileId: {$fileId}");
                     echo json_encode(['success' => true]);
                 } else {
-                    // error_log("moveFile failure for fileId: {$fileId}");
                     echo json_encode(['success' => false, 'message' => 'Failed to move document in database.']);
                 }
             } catch (\Exception $e) {
-                // error_log("moveFile exception for fileId: {$fileId}. Error: " . $e->getMessage());
                 echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
             }
         } else {
-            // error_log("moveFile error: Invalid request method or missing parameters.");
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
         }
         exit();
@@ -357,10 +353,8 @@ class LmController
 
     public function moveFolder()
     {
-        // error_log("moveFolder controller method triggered.");
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
-            // error_log("moveFolder error: User not logged in.");
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
@@ -369,23 +363,18 @@ class LmController
             $folderId = $_POST['folderId'];
             $newFolderId = $_POST['newFolderId'] == '0' ? null : $_POST['newFolderId']; // Allow moving to root
             $userId = $_SESSION['user_id'];
-            // error_log("moveFolder params: folderId={$folderId}, newFolderId={$newFolderId}, userId={$userId}");
 
             try {
                 $success = $this->lmModel->moveFolder($folderId, $newFolderId, $userId);
                 if ($success) {
-                    // error_log("moveFolder success for folderId: {$folderId}");
                     echo json_encode(['success' => true]);
                 } else {
-                    // error_log("moveFolder failure for folderId: {$folderId}");
                     echo json_encode(['success' => false, 'message' => 'Failed to move folder.']);
                 }
             } catch (\Exception $e) {
-                // error_log("moveFolder exception for folderId: {$folderId}. Error: " . $e->getMessage());
                 echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
             }
         } else {
-            // error_log("moveFolder error: Invalid request method or missing parameters.");
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
         }
         exit();
@@ -399,6 +388,7 @@ class LmController
         }
         $fileId = (int)$_GET['fileID'];
         $userId = (int)$_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $file = $this->lmModel->getFile($userId, $fileId);
 
         $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
@@ -412,6 +402,11 @@ class LmController
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
+        $userId = $_SESSION['user_id'];
+        $fileId = (int)$_GET['fileID'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $file = $this->lmModel->getFile($userId, $fileId);
+
 
         require_once __DIR__ . '/../views/learningView/note.php';
     }
@@ -422,6 +417,8 @@ class LmController
             header('Location: ' . BASE_PATH . 'auth/home');
             exit();
         }
+        $userId = $_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
         require_once __DIR__ . '/../views/learningView/mindmap.php';
     }
@@ -473,13 +470,14 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            echo json_encode(['success' => false, 'message' => 'Invalid method']);
-            exit();
-        }
         $userId = (int)$_SESSION['user_id'];
         $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
-        $instructions = $_POST['instructions'] ?? null;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['instructions'])) {
+                $instructions = $_POST['instructions'] ?? null;
+            }
+        }
         $rawText = $_POST['text'] ?? null;
         try {
             $sourceText = $rawText;
@@ -534,5 +532,16 @@ class LmController
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();
+    }
+
+    public function createSummary()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: ' . BASE_PATH . 'auth/home');
+            exit();
+        }
+        $userId = $_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        require_once __DIR__ . '/../views/learningView/createSummary.php';
     }
 }

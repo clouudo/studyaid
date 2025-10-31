@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Extracted Text - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
 </head>
 
@@ -14,33 +16,47 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
-                <h3 class="mb-4">Note</h3>
+                <h3 class="mb-4" style="color: #A855F7;">Note</h3>
+                <h4 class="mb-4"><?php echo $file['name']; ?></h4>
                 <?php require_once 'app\views\learningView\navbar.php'; ?>
-                <div class="card">
+                <div class="card mb-3">
                     <div class="card-body">
-                        <form id="notesForm">
-                            <div class="mb-3">
-                                <label class="form-label">File ID (optional)</label>
-                                <input type="number" name="fileID" class="form-control" placeholder="e.g. 12" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Or paste text</label>
-                                <textarea name="text" rows="6" class="form-control" placeholder="Paste content here..."></textarea>
-                            </div>
+                        <form id="notesForm" action="<?= BASE_PATH ?>lm/generateNotes?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
-                                <input type="text" name="instructions" class="form-control" placeholder="e.g. use markdown with headings" />
+                                <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
                             </div>
-                            <button type="submit" class="btn btn-primary">Generate Notes</button>
+                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Note</button>
                         </form>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <h5>Result</h5>
-                    <pre id="notesResult" class="p-3 bg-light border" style="white-space: pre-wrap;"></pre>
+                <div class="card">
+                    <div class="card-header">
+                        <label class="form-label">Note Title</label>
+                        <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
+                    </div>
+                    <div class="card-body">
+                        <form action="<?= BASE_PATH ?>lm/saveNote?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
+                        <div class="btn-toolbar mb-2" role="toolbar" id="toolbar">
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-bold"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-italic"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-h1"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
+                            </div>
+                        </div>
+                        <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px"></textarea>
+                        <div id="preview" class="bg-light border px-2 py-2 mb-3" style="min-height:120px"></div>
+                        <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Save Note</button>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </main>
+    </div>
+    </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
@@ -48,10 +64,15 @@
             e.preventDefault();
             const form = e.target;
             const data = new FormData(form);
-            const res = await fetch('<?= BASE_PATH ?>lm/generateNotes', { method: 'POST', body: data });
+            const res = await fetch('<?= BASE_PATH ?>lm/generateNotes', {
+                method: 'POST',
+                body: data
+            });
             const json = await res.json();
             document.getElementById('notesResult').textContent = json.success ? json.content : ('Error: ' + json.message);
         });
+
+        <?php include 'app\views\learningView\editor.js'; ?>
     </script>
 </body>
 
