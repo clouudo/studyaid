@@ -570,15 +570,13 @@ public function generateUniqueFileName($fileExtension)
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    public function saveMindmap(int $fileId, string $title, array $mindmap, string $imagePath = ''): int
+    public function saveMindmap(int $fileId, string $title, string $data): int
     {
         $conn = $this->db->connect();
-        $json = json_encode($mindmap, JSON_UNESCAPED_UNICODE);
-        $stmt = $conn->prepare("INSERT INTO mindmap (fileID, title, data, imagePath) VALUES (:fileID, :title, :data, :imagePath)");
+        $stmt = $conn->prepare("INSERT INTO mindmap (fileID, title, data) VALUES (:fileID, :title, :data)");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':title', $title);
-        $stmt->bindParam(':data', $json);
-        $stmt->bindParam(':imagePath', $imagePath);
+        $stmt->bindParam(':data', $data);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
@@ -586,7 +584,17 @@ public function generateUniqueFileName($fileExtension)
     public function getMindmapByFile(int $fileId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM mindmap WHERE fileID = :fileID ORDER BY createdAt DESC LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM mindmap WHERE fileID = :fileID ORDER BY createdAt DESC");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function getMindmapById(int $mindmapId, int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM mindmap WHERE mindmapID = :mindmapID AND fileID = :fileID");
+        $stmt->bindParam(':mindmapID', $mindmapId);
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);

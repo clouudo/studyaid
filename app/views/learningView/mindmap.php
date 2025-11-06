@@ -2,11 +2,23 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extracted Text - StudyAid</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mindmap - StudyAid</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css" />
+    <style>
+        #mindmap-container {
+            width: 100%;
+            min-height: 50vh;
+            border: 1px solid #ccc;
+        }
+
+        .markmap {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -16,17 +28,13 @@
             <div class="container">
                 <h3 class="mb-4">Mindmap</h3>
                 <?php require_once 'app\views\learningView\navbar.php'; ?>
+
+                <!-- Generate Mindmap Form -->
                 <div class="card">
                     <div class="card-body">
-                        <form id="mindmapForm">
-                            <div class="mb-3">
-                                <label class="form-label">File ID (optional)</label>
-                                <input type="number" name="fileID" class="form-control" placeholder="e.g. 12" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Or paste text</label>
-                                <textarea name="text" rows="6" class="form-control" placeholder="Paste content here..."></textarea>
-                            </div>
+                        <form id="mindmapForm"
+                            action="<?= BASE_PATH ?>lm/generateMindmap?fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>"
+                            method="POST">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control" placeholder="e.g. 3 levels depth" />
@@ -35,23 +43,123 @@
                         </form>
                     </div>
                 </div>
+
+                <!-- Mindmap Display -->
                 <div class="mt-3">
-                    <h5>JSON Result</h5>
-                    <pre id="mindmapResult" class="p-3 bg-light border" style="white-space: pre-wrap;"></pre>
+                    <h5>Mindmap</h5>
+                    <div id="mindmap-container">
+                        <!-- Mindmap will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Saved Mindmaps -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Saved Mindmaps</h5>
+                        <button class="btn btn-sm btn-primary" id="refreshMindmapList">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="mindmapList">
+                            <?php if (!empty($mindmapList)) : ?>
+                                <?php foreach ($mindmapList as $mindmap) : ?>
+                                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong><?= htmlspecialchars($mindmap['title']) ?></strong><br>
+                                            <small class="text-muted">Updated: <?= htmlspecialchars($mindmap['createdAt']) ?></small>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-primary me-2 view-btn"
+                                                data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</button>
+                                        </div>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php else : ?>
+                                <div class="list-group-item text-muted text-center">No saved mindmaps yet</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
+
     <script>
+        // Handle generating new mindmap
         document.getElementById('mindmapForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
             const data = new FormData(form);
-            const res = await fetch('<?= BASE_PATH ?>lm/generateMindmap', { method: 'POST', body: data });
-            const json = await res.json();
-            document.getElementById('mindmapResult').textContent = json.success ? JSON.stringify(json.json, null, 2) : ('Error: ' + json.message);
+            const container = document.getElementById('mindmap-container');
+            container.innerHTML = '<p class="text-center p-3">Generating mindmap...</p>';
+
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: data
+                });
+                const json = await res.json();
+
+                if (json.success && json.markdown) {
+                    renderAutoloadMindmap(json.markdown);
+                } else {
+                    container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to generate mindmap'}</div>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+            }
         });
+
+        // Handle viewing saved mindmaps
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.view-btn');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            const container = document.getElementById('mindmap-container');
+            container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
+
+            try {
+                const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
+                const json = await res.json();
+
+                if (json.success && json.markdown) {
+                    renderAutoloadMindmap(json.markdown);
+                } else {
+                    container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load mindmap'}</div>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+            }
+        });
+
+        //Render using autoloader 
+        function renderAutoloadMindmap(markdown) {
+            const container = document.getElementById('mindmap-container');
+
+            // Clear container
+            container.innerHTML = '';
+
+            // Create markmap div using DOM methods to avoid template literal issues
+            const markmapDiv = document.createElement('div');
+            markmapDiv.className = 'markmap';
+
+            // Create script element for template
+            const scriptEl = document.createElement('script');
+            scriptEl.type = 'text/template';
+            scriptEl.textContent = markdown;
+
+            markmapDiv.appendChild(scriptEl);
+            container.appendChild(markmapDiv);
+
+            // Re-run autoloader to render the new block
+            if (window.markmap && window.markmap.autoLoader) {
+                window.markmap.autoLoader.renderAll();
+            }
+        }
     </script>
 </body>
 

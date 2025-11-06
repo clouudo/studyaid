@@ -54,7 +54,7 @@ class GeminiService
     {
         return [
             'role' => 'user',
-            'parts' => [ ['text' => $text] ],
+            'parts' => [['text' => $text]],
         ];
     }
 
@@ -62,7 +62,7 @@ class GeminiService
     {
         $model = $this->models['summary'] ?? $this->defaultModel;
         $prompt = "Summarize the following content into a short paragraph.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
-        $contents = [ $this->buildUserContent($prompt) ];
+        $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);
     }
@@ -71,40 +71,40 @@ class GeminiService
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
         $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
-        $contents = [ $this->buildUserContent($prompt) ];
+        $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);
     }
 
-    public function generateMindmapJson(string $sourceText, ?string $instructions = null): array
+    public function generateMindmapMarkdown(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-You are to produce a mindmap as strict JSON with this shape:
-{
-  "topic": string,
-  "nodes": [
-    {"title": string, "children": [ ... recursive same shape ... ]}
-  ]
-}
-No markdown, no code fences, JSON only.
+
+Create a mindmap in Markdown format optimized for Markmap.js visualization.
+
+Rules:
+1. Heading Structure
+   * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
+   * Each idea should be a **heading**, not a paragraph.
+
+2. Style & Formatting
+   * Use **bold** for key terms and *italic* for emphasis.
+   * Keep headings short and meaningful.
+   * Avoid lists (-, *) — use subheadings instead.
+
+3. Content
+   * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
+   * For structured data, use markdown tables under headings.
+
+4. Output
+   * Output only the Markdown (no explanations or extra text).
+   * Start directly with #Main Topic.
 PROMPT;
         $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
-        $contents = [ $this->buildUserContent($prompt) ];
-        $result = $this->postGenerate($model, $contents, [
-            'temperature' => 0.1,
-            'maxOutputTokens' => 2048,
-        ]);
-        $text = $this->extractText($result);
-        $json = json_decode($text, true);
-        if (!is_array($json)) {
-            // Fallback: wrap as minimal structure
-            $json = [
-                'topic' => 'Mindmap',
-                'nodes' => [ ['title' => substr($text, 0, 100), 'children' => []] ],
-            ];
-        }
-        return $json;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents);
+        return $this->extractText($result);
     }
 
     private function extractText(array $result): string
@@ -121,6 +121,13 @@ PROMPT;
         }
         return $buffer;
     }
+
+    private function generateTitle(string $titleContext): string
+    {
+        $model = $this->models['title'] ?? $this->defaultModel;
+        $prompt = "Generate a title for the following context: " . $titleContext;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents);
+        return $this->extractText($result);
+    }
 }
-
-

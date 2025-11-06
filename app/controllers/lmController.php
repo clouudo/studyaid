@@ -418,8 +418,25 @@ class LmController
             exit();
         }
         $userId = $_SESSION['user_id'];
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($fileId === 0) {
+            $_SESSION['error'] = "File ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+        
+        $file = $this->lmModel->getFile($userId, $fileId);
+        if (!$file || !is_array($file)) {
+            $_SESSION['error'] = "File not found.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
+        // Get all mindmaps for this file
+        $mindmapList = $this->lmModel->getMindmapByFile($fileId) ?? [];
+        
         require_once __DIR__ . '/../views/learningView/mindmap.php';
     }
 
@@ -533,33 +550,92 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'User not logged in.']);
             exit();
         }
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            echo json_encode(['success' => false, 'message' => 'Invalid method']);
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = (int)$_GET['fileID'];
+        $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (isset($_POST['instructions'])) {
+                $instructions = trim($_POST['instructions']);
+            }
+        }
+
+        $file = $this->lmModel->getFile($userId, $fileId);
+        if (!$file || !is_array($file)) {
+            echo json_encode(['success' => false, 'message' => 'File not found']);
             exit();
         }
-        $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_POST['fileID']) ? (int)$_POST['fileID'] : 0;
-        $instructions = $_POST['instructions'] ?? null;
-        $rawText = $_POST['text'] ?? null;
+        
+        $extracted_text = $file['extracted_text'] ?? '';
+        error_log(print_r($instructions, true));
+
         try {
-            $sourceText = $rawText;
-            if (!$sourceText) {
-                $doc = $this->lmModel->getDocumentContent($fileId, $userId);
-                $sourceText = $doc['extracted_text'] ?: (is_string($doc['content']) ? $doc['content'] : '');
-            }
-            $json = $this->gemini->generateMindmapJson($sourceText, $instructions);
-            $id = 0;
-            if ($fileId) {
-                $file = $this->lmModel->getFile($userId, $fileId);
-                $title = 'Mindmap - ' . ($file ? $file['name'] : 'Untitled');
-                $id = $this->lmModel->saveMindmap($fileId, $title, $json, '');
-            }
-            echo json_encode(['success' => true, 'id' => $id, 'json' => $json]);
+            $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extracted_text, $instructions);
+            // Wrap markdown in JSON string to satisfy database constraint
+            $mindmapJson = json_encode($mindmapMarkdown, JSON_UNESCAPED_UNICODE);
+            $mindmapId = $this->lmModel->saveMindmap($fileId, 'Mindmap - ' . $file['name'], $mindmapJson);
+
+            echo json_encode(['success' => true, 'markdown' => $mindmapMarkdown]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();
     }
+
+    public function viewMindmap()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['success' => false, 'message' => 'User not logged in.']);
+            exit();
+        }
+        
+        $mindmapId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        if ($mindmapId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Missing mindmap ID']);
+            exit();
+        }
+
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Missing file ID']);
+            exit();
+        }
+        
+        $userId = (int)$_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        // Verify file belongs to user
+        $file = $this->lmModel->getFile($userId, $fileId);
+        if (!$file || !is_array($file)) {
+            echo json_encode(['success' => false, 'message' => 'File not found']);
+            exit();
+        }
+    
+        try {
+            $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId);
+            if (!$mindmap || !is_array($mindmap)) {
+                echo json_encode(['success' => false, 'message' => 'Mindmap not found']);
+                exit();
+            }
+        
+            // Decode JSON string back to markdown (database stores it as JSON string)
+            $markdown = json_decode($mindmap['data'], true);
+            if ($markdown === null) {
+                // If not valid JSON, use as-is (fallback)
+                $markdown = $mindmap['data'];
+            }
+        
+            echo json_encode([
+                'success' => true,
+                'markdown' => $markdown
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+    
+
 
     public function createSummary()
     {
