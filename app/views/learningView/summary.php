@@ -28,8 +28,6 @@
                     </div>
                 </div>
             <div class="mt-3">
-                    <h5>Result</h5>
-                    <pre id="summaryResult" class="p-3 bg-light border" style="white-space: pre-wrap;"><?php echo 'Generate Summary To View Result'; ?></pre>
                     <?php if ($summaryList): ?>
                         <?php foreach ($summaryList as $summary): ?>
                             <div class="card mb-3">
@@ -42,6 +40,7 @@
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
                                                 <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteSummary?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/saveSummaryAsFile?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Save as File</a></li>
                                             </ul>
                                         </div>
                                         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">
@@ -64,18 +63,15 @@
         document.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
-            const output = document.getElementById('summaryResult');
-            output.textContent = 'Generating...';
             try {
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form)
                 });
                 const json = await res.json();
-                output.textContent = json.success ? "Finished Generating Summary" : ('Error: ' + json.message);
                 location.reload();
             } catch (error) {
-                output.textContent = 'Error: ' + error.message;
+                alert('Error: ' + error.message);
             }
         });
 

@@ -505,6 +505,28 @@ class LmController
         }
     }
 
+    public function saveSummaryAsFile(){
+        $this->checkSession();
+        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $folderId = isset($_GET['folderID']) ? (int)$_GET['folderID'] : 0;
+
+        if ($summaryId === 0) {
+            $_SESSION['error'] = "Summary ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+
+        try{
+            $this->lmModel->saveSummaryAsFile($summaryId, $fileId, $folderId);
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+    }
+
     // ============================================================================
     // NOTE PAGE (note.php)
     // ============================================================================
@@ -561,6 +583,31 @@ class LmController
         try{
             $this->lmModel->deleteNote($noteId);
             header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+     /**
+     * ACTION: Save note as file
+     */
+    public function saveNoteAsFile(){
+        $this->checkSession();
+        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $folderId = isset($_GET['folderID']) ? (int)$_GET['folderID'] : 0;
+
+        if ($noteId === 0) {
+            $_SESSION['error'] = "Note ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+
+        try{
+            $this->lmModel->saveNoteAsFile($noteId, $fileId, $folderId);
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
@@ -688,7 +735,7 @@ class LmController
             
             $context = !empty($instructions) ? $instructions : '';
             $generatedNote = $this->gemini->generateNotes($extractedText, $context);
-            $this->lmModel->saveNotes($fileId, $file['name'], $generatedNote);
+            $this->lmModel->saveNotes($fileId, $file['name'], $generatedNote, $userId);
             
             echo json_encode(['success' => true, 'content' => $generatedNote]);
         } catch (\Throwable $e) {
@@ -726,7 +773,7 @@ class LmController
         }
         
         try {
-            $this->lmModel->saveNotes($fileId, $title, $content);
+            $this->lmModel->saveNotes($fileId, $title, $content, $userId);
             echo json_encode(['success' => true, 'message' => $content]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -849,7 +896,7 @@ class LmController
             exit();
         }
     }
-    
+
     // ============================================================================
     // CREATE SUMMARY PAGE (createSummary.php)
     // ============================================================================

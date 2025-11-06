@@ -150,10 +150,15 @@ class LmModel
     /**
      * Upload file to Google Cloud Storage and save metadata to database
      */
-    public function uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName = null)
+    public function uploadFileToGCS($userId, $folderId, $fileContent = null, $file = null, $extractedText, $originalFileName = null)
     {
-        $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $uniqueFileName = $this->generateUniqueFileName($fileExtension);
+        if($file != null) {
+            $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $uniqueFileName = $this->generateUniqueFileName($fileExtension);
+        } else {
+            $fileExtension = 'txt';
+            $uniqueFileName = $this->generateUniqueFileName($fileExtension);
+        }
 
         // Ensure $folderId is truly null if it's 0 or empty string from form
         if (empty($folderId) || $folderId == 0) {
@@ -168,10 +173,18 @@ class LmModel
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
         $fileName =  !empty($originalFileName) ? $originalFileName : $file['name'];
 
+        if($fileContent != null) { //If file is uploaded, upload to GCS 
+            $options = [
+                'name' => $gcsObjectName,
+                'metadata' => ['contentType' => 'text/plain']
+            ];
+        }else{
+            $options = [
+                'name' => $gcsObjectName
+            ];
+        }
         $bucket = $this->storage->bucket($this->bucketName);
-        $bucket->upload($fileContent, [
-            'name' => $gcsObjectName
-        ]);
+        $bucket->upload($fileContent, $options);
 
         $conn = $this->db->connect();
         $query = "INSERT INTO file (userID, folderID, name, fileType, filePath, extracted_text) VALUES (:userID, :folderID, :name, :fileType, :filePath, :extractedText)";
@@ -642,6 +655,24 @@ class LmModel
         return $stmt->execute();
     }
 
+     /**
+     * Save summary as file from database and upload to GCS
+     */
+    public function saveSummaryAsFile(int $summaryId, $filePath, $folderId){
+        $conn = $this->db->connect();
+        $summary = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID");
+        $summary->bindParam(':summaryID', $summaryId);
+        $summary->execute();
+        $summaryData = $summary->fetch(\PDO::FETCH_ASSOC);
+
+        $sourceText = $summaryData['content'];
+        $title = $summaryData['title'];
+        $userId = $summaryData['userID'];
+
+        //Upload to GCS
+        $this->uploadFileToGCS($userId, $folderId, null, null, $sourceText, $title);
+    }
+
     // ============================================================================
     // NOTE PAGE (note.php)
     // ============================================================================
@@ -649,13 +680,14 @@ class LmModel
     /**
      * Save a note to database
      */
-    public function saveNotes(int $fileId, string $title, string $content): int
+    public function saveNotes(int $fileId, string $title, string $content, int $userId): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO note (fileID, title, content) VALUES (:fileID, :title, :content)");
+        $stmt = $conn->prepare("INSERT INTO note (fileID, title, content, userID) VALUES (:fileID, :title, :content, :userID)");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':content', $content);
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
@@ -680,6 +712,24 @@ class LmModel
         $stmt = $conn->prepare("DELETE FROM note WHERE noteID = :noteID");
         $stmt->bindParam(':noteID', $noteId);
         return $stmt->execute();
+    }
+
+     /**
+     * Save note as file from database and upload to GCS
+     */
+    public function saveNoteAsFile(int $noteId, $filePath, $folderId){
+        $conn = $this->db->connect();
+        $note = $conn->prepare("SELECT * FROM note WHERE noteID = :noteID");
+        $note->bindParam(':noteID', $noteId);
+        $note->execute();
+        $noteData = $note->fetch(\PDO::FETCH_ASSOC);
+
+        $sourceText = $noteData['content'];
+        $title = $noteData['title'];
+        $userId = $noteData['userID'];
+
+        //Upload to GCS
+        $this->uploadFileToGCS($userId, $folderId, null, null, $sourceText, $title);
     }
 
     // ============================================================================
