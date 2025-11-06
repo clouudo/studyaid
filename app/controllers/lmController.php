@@ -481,6 +481,30 @@ class LmController
         }
     }
 
+     /**
+     * ACTION: Delete summary from database
+     */
+    public function deleteSummary(){
+        $this->checkSession();
+        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+
+        if ($summaryId === 0) {
+            $_SESSION['error'] = "Summary ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+
+        try{
+            $this->lmModel->deleteSummary($summaryId);
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+    }
+
     // ============================================================================
     // NOTE PAGE (note.php)
     // ============================================================================
@@ -516,6 +540,30 @@ class LmController
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+    }
+
+     /**
+     * ACTION: Delete note from database
+     */
+    public function deleteNote(){
+        $this->checkSession();
+        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+
+        if ($noteId === 0) {
+            $_SESSION['error'] = "Note ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+
+        try{
+            $this->lmModel->deleteNote($noteId);
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
             exit();
         }
     }
@@ -778,6 +826,30 @@ class LmController
         exit();
     }
 
+    /**
+     * ACTION: Delete mindmap from database
+     */
+    public function deleteMindmap(){
+        $this->checkSession();
+        $mindmapId = isset($_GET['mindmapID']) ? (int)$_GET['mindmapID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+
+        if ($mindmapId === 0) {
+            $_SESSION['error'] = "Mindmap ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            exit();
+        }
+
+        try{
+            $this->lmModel->deleteMindmap($mindmapId);
+            header('Location: ' . BASE_PATH . 'lm/mindmap?fileID=' . $fileId);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/mindmap?fileID=' . $fileId);
+            exit();
+        }
+    }
+    
     // ============================================================================
     // CREATE SUMMARY PAGE (createSummary.php)
     // ============================================================================

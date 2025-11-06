@@ -72,7 +72,7 @@
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>">
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteMindmap?mindmapID=<?= htmlspecialchars($mindmap['mindmapID']) ?>">Delete</a></li>
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteMindmap?mindmapID=<?= htmlspecialchars($mindmap['mindmapID'])?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
                                             </ul>
                                         </div>
                                     </div>

@@ -65,7 +65,7 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
-                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteNote?noteID=<?= htmlspecialchars($note['noteID']) ?>">Delete</a></li>
+                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteNote?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
                                         </ul>
                                     </div>
                                     <button class="btn btn-sm me-2 view-btn" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>"><i class=" bi bi-chevron-down"></i>

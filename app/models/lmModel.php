@@ -632,6 +632,16 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+     /**
+     * Delete summary from database
+     */
+    public function deleteSummary(int $summaryId){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("DELETE FROM summary WHERE summaryID = :summaryID");
+        $stmt->bindParam(':summaryID', $summaryId);
+        return $stmt->execute();
+    }
+
     // ============================================================================
     // NOTE PAGE (note.php)
     // ============================================================================
@@ -660,6 +670,16 @@ class LmModel
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+     /**
+     * Delete note from database
+     */
+    public function deleteNote(int $noteId){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("DELETE FROM note WHERE noteID = :noteID");
+        $stmt->bindParam(':noteID', $noteId);
+        return $stmt->execute();
     }
 
     // ============================================================================
@@ -703,5 +723,15 @@ class LmModel
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+     /**
+     * Delete mindmap from database
+     */
+    public function deleteMindmap(int $mindmapId){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("DELETE FROM mindmap WHERE mindmapID = :mindmapID");
+        $stmt->bindParam(':mindmapID', $mindmapId);
+        return $stmt->execute();
     }
 }
