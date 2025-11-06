@@ -27,16 +27,29 @@
                         </form>
                     </div>
                 </div>
-                <div class="mt-3">
+            <div class="mt-3">
                     <h5>Result</h5>
                     <pre id="summaryResult" class="p-3 bg-light border" style="white-space: pre-wrap;"><?php echo 'Generate Summary To View Result'; ?></pre>
                     <?php if ($summaryList): ?>
                         <?php foreach ($summaryList as $summary): ?>
                             <div class="card mb-3">
-                                <div class="card-header">
-                                    <?php echo $summary['title'] . ' - ' . $summary['createdAt']; ?>
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><?php echo $summary['title'] . ' - ' . $summary['createdAt']; ?></span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteSummary?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
+                                            </ul>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body collapse" id="summaryContent-<?php echo $summary['summaryID']; ?>">
                                     <div class="summaryContent" style="white-space: pre-wrap;"><?php echo htmlspecialchars($summary['content']); ?></div>
                                 </div>
                             </div>

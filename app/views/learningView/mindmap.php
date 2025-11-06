@@ -10,7 +10,7 @@
     <style>
         #mindmap-container {
             width: 100%;
-            min-height: 50vh;
+            min-height: 50px;
             border: 1px solid #ccc;
         }
 
@@ -26,7 +26,8 @@
         <?php include 'app\views\sidebar.php'; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
-                <h3 class="mb-4">Mindmap</h3>
+                <h3 class="mb-4" style="color: #A855F7;">Mindmap</h3>
+                <h4 class="mb-4"><?php echo $file['name']; ?></h4>
                 <?php require_once 'app\views\learningView\navbar.php'; ?>
 
                 <!-- Generate Mindmap Form -->
@@ -39,14 +40,13 @@
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control" placeholder="e.g. 3 levels depth" />
                             </div>
-                            <button type="submit" class="btn btn-primary">Generate Mindmap</button>
+                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Mindmap</button>
                         </form>
                     </div>
                 </div>
 
                 <!-- Mindmap Display -->
                 <div class="mt-3">
-                    <h5>Mindmap</h5>
                     <div id="mindmap-container">
                         <!-- Mindmap will be injected here -->
                     </div>
@@ -56,24 +56,26 @@
                 <div class="card mt-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Saved Mindmaps</h5>
-                        <button class="btn btn-sm btn-primary" id="refreshMindmapList">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh
-                        </button>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="mindmapList">
                             <?php if (!empty($mindmapList)) : ?>
                                 <?php foreach ($mindmapList as $mindmap) : ?>
-                                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                        <div>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
                                             <strong><?= htmlspecialchars($mindmap['title']) ?></strong><br>
                                             <small class="text-muted">Updated: <?= htmlspecialchars($mindmap['createdAt']) ?></small>
                                         </div>
-                                        <div>
-                                            <button class="btn btn-sm btn-outline-primary me-2 view-btn"
-                                                data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</button>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>">
+                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteMindmap?mindmapID=<?= htmlspecialchars($mindmap['mindmapID']) ?>">Delete</a></li>
+                                            </ul>
                                         </div>
-                                    </a>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
                                 <div class="list-group-item text-muted text-center">No saved mindmaps yet</div>
@@ -85,6 +87,7 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
 
     <script>
@@ -110,6 +113,13 @@
                 }
             } catch (err) {
                 container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedMindmap = document.getElementById('mindmap-container');
+            if (selectedMindmap.innerHTML) {
+                selectedMindmap.innerHTML = '<p class="text-center p-3"> Select a mindmap</p>';
             }
         });
 

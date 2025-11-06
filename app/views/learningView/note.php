@@ -32,11 +32,11 @@
                 </div>
                 <div class="card mb-3">
                     <form id="noteEditor" action="<?= BASE_PATH ?>lm/saveNote?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
-                        <div class="card-header">
-                            <label class="form-label">Note Title</label>
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
+                            <a class="btn btn-sm me-2 btn-toggle" data-bs-toggle="collapse" aria-expanded="true" data-bs-target="#noteEditorPanel"><i class="bi bi-chevron-down"></i></a>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body collapse" id="noteEditorPanel">
                             <div class="btn-toolbar mb-2" role="toolbar" id="toolbar">
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></button>
@@ -57,10 +57,22 @@
                 <?php if ($noteList): ?>
                     <?php foreach ($noteList as $note): ?>
                         <div class="card mb-3">
-                            <div class="card-header">
+                            <div class="card-header d-flex justify-content-between align-items-center">
                                 <?php echo $note['title'] ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Actions
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
+                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteNote?noteID=<?= htmlspecialchars($note['noteID']) ?>">Delete</a></li>
+                                        </ul>
+                                    </div>
+                                    <button class="btn btn-sm me-2 view-btn" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>"><i class=" bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body collapse" id="noteContent-<?php echo $note['noteID']; ?>">
                                 <div class="noteText"><?php echo htmlspecialchars($note['content']); ?></div>
                             </div>
                         </div>
