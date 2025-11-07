@@ -64,7 +64,6 @@ function isActive($link_url, $current_url)
   <hr>
   <div class="container position-relative">
     <div class="d-flex align-items-center">
-      <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
       <strong><?= $user['username']?></strong>
       <div class="dropdown ms-auto">
         <button class="btn btn-toggle dropdown-toggle" type="button" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border: none; background: none; padding: 0;">

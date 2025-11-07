@@ -1524,4 +1524,31 @@ class LmController
         echo "\xEF\xBB\xBF" . $text;
         exit();
     }
+
+    public function chatbot(){
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        require_once __DIR__ . '/../views/learningView/chatbot.php';
+    }
+
+    public function quiz(){
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        require_once __DIR__ . '/../views/learningView/quiz.php';
+    }
+
+    public function flashcard(){
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        require_once __DIR__ . '/../views/learningView/flashcard.php';
+    }
 }

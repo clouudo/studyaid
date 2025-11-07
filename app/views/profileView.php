@@ -99,7 +99,6 @@
                             </div>
                             <div class="card-body">
                                 <div class="text-center mb-3">
-                                    <img src="https://github.com/mdo.png" alt="Profile" width="100" height="100" class="rounded-circle mb-3">
                                     <h5><?= htmlspecialchars($user['username'] ?? 'Username') ?></h5>
                                     <p class="text-muted"><?= htmlspecialchars($user['email'] ?? 'email@example.com') ?></p>
                                 </div>

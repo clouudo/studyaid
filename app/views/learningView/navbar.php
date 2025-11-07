@@ -9,6 +9,15 @@
         <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/mindmap', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
             <a class="nav-link <?php echo isActive('index.php?url=lm/mindmap', $current_url); ?>" href="<?= BASE_PATH ?>lm/mindmap?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Mindmap</a>
         </li>
+        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/chatbot', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <a class="nav-link <?php echo isActive('index.php?url=lm/chatbot', $current_url); ?>" href="<?= BASE_PATH ?>lm/chatbot?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Chatbot</a>
+        </li>
+        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/flashcard', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <a class="nav-link <?php echo isActive('index.php?url=lm/flashcard', $current_url); ?>" href="<?= BASE_PATH ?>lm/flashcard?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Flashcard</a>
+        </li>
+        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/quiz', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <a class="nav-link <?php echo isActive('index.php?url=lm/quiz', $current_url); ?>" href="<?= BASE_PATH ?>lm/quiz?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Quiz</a>
+        </li>
     </ul>
 </nav>
 
