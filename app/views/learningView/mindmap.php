@@ -23,19 +23,18 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Mindmap</h3>
                 <h4 class="mb-4"><?php echo $file['name']; ?></h4>
-                <?php require_once 'app\views\learningView\navbar.php'; ?>
+                <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Mindmap Form -->
                 <div class="card">
                     <div class="card-body">
-                        <form id="mindmapForm"
-                            action="<?= BASE_PATH ?>lm/generateMindmap?fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>"
-                            method="POST">
+                        <form id="mindmapForm" action="<?= GENERATE_MINDMAP ?>" method="POST">
+                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control" placeholder="e.g. 3 levels depth" />
@@ -75,7 +74,13 @@
                                                 <li><a class="dropdown-item export-mindmap-image-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as Image</a></li>
                                                 <li><a class="dropdown-item export-mindmap-pdf-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as PDF</a></li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteMindmap?mindmapID=<?= htmlspecialchars($mindmap['mindmapID'])?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
+                                                <li>
+                                                    <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;">
+                                                        <input type="hidden" name="mindmap_id" value="<?= htmlspecialchars($mindmap['mindmapID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                    </form>
+                                                </li>
                                             </ul>
                                         </div>
                                     </div>
@@ -138,7 +143,14 @@
             container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
 
             try {
-                const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
+                const formData = new FormData();
+                formData.append('mindmap_id', id);
+                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+                
+                const res = await fetch('<?= VIEW_MINDMAP_ROUTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
                 const json = await res.json();
 
                 if (json.success && json.markdown) {

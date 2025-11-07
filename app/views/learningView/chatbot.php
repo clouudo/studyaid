@@ -43,12 +43,12 @@
     $current_url = $_GET['url'] ?? 'lm/chatbot';
     ?>
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Chatbot</h3>
                 <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
-                <?php require_once 'app\views\learningView\navbar.php'; ?>
+                <?php require_once VIEW_NAVBAR; ?>
 
                 <div class="card">
                     <div class="card-header" style="background-color: #A855F7; color: white;">
@@ -66,7 +66,8 @@
                         </div>
 
                         <!-- Chat Input Form -->
-                        <form id="chatForm" action="<?= BASE_PATH ?>lm/sendChatMessage?fileID=<?= htmlspecialchars($_GET['fileID'] ?? '') ?>" method="POST">
+                        <form id="chatForm" action="<?= SEND_CHAT_MESSAGE ?>" method="POST">
+                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <div class="input-group">
                                 <input type="text" class="form-control" id="questionInput" name="question" 
                                        placeholder="Type your question here..." required>

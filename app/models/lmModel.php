@@ -810,4 +810,36 @@ class LmModel
         $stmt->bindParam(':mindmapID', $mindmapId);
         return $stmt->execute();
     }
+
+    // ============================================================================
+    // FLASHCARD PAGE (flashcard.php)
+    // ============================================================================
+
+    /**
+     * Save flashcards to database
+     */
+    public function saveFlashcards(int $fileId, int $userId, string $title, string $term, string $definition): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO flashcard (fileID, userID, title, term, definition) VALUES (:fileID, :userID, :title, :term, :definition)");    
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':term', $term);
+        $stmt->bindParam(':definition', $definition);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Get all flashcards for a specific file
+     */
+    public function getFlashcardsByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM flashcard WHERE fileID = :fileID ORDER BY createdAt DESC");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
 }

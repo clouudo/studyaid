@@ -12,6 +12,8 @@ class LmController
     private $lmModel;
     private $gemini;
     private $userModel;
+
+    private const SESSION_CURRENT_FILE_ID = 'current_file_id';
     
     public function __construct()
     {
@@ -24,23 +26,42 @@ class LmController
     // UTILITY METHODS
     // ============================================================================
 
-    public function checkSession($isJsonResponse = false){
+    public function checkSession($isJsonResponse = false)
+    {
         if (!isset($_SESSION['user_id'])) {
             if ($isJsonResponse) {
                 header('Content-Type: application/json');
                 echo json_encode(['success' => false, 'message' => 'User not logged in.']);
                 exit();
             } else {
-                header('Location: ' . BASE_PATH . 'auth/home');
+                header('Location: ' . HOME);
                 exit();
             }
         }
     }
 
-    public function getUserInfo(){
+    public function getUserInfo()
+    {
         $userId = (int)$_SESSION['user_id'];
         $user = $this->userModel->getUserById($userId);
         return $user;
+    }
+
+    private function resolveFileId(bool $persist = true): int
+    {
+        $fileId = 0;
+
+        if (isset($_POST['file_id'])) {
+            $fileId = (int)$_POST['file_id'];
+        } elseif (isset($_SESSION[self::SESSION_CURRENT_FILE_ID])) {
+            $fileId = (int)$_SESSION[self::SESSION_CURRENT_FILE_ID];
+        }
+
+        if ($persist && $fileId > 0) {
+            $_SESSION[self::SESSION_CURRENT_FILE_ID] = $fileId;
+        }
+
+        return $fileId;
     }
 
     // ============================================================================
@@ -56,7 +77,7 @@ class LmController
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
             if (!isset($_FILES['document']) || $_FILES['document']['error'] !== UPLOAD_ERR_OK) {
                 $_SESSION['error'] = "Missing Information. Please try again.";
-                header('Location: ' . BASE_PATH . 'lm/newDocument');
+                header('Location: ' . NEW_DOCUMENT);
                 exit();
             }
             
@@ -78,18 +99,19 @@ class LmController
             
             if ($fileContent === false) {
                 $_SESSION['error'] = "Error reading uploaded file.";
-                header('Location: ' . BASE_PATH . 'lm/newDocument');
+                header('Location: ' . NEW_DOCUMENT);
                 exit();
             }
             
             try {
                 $newFileId = $this->lmModel->uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName);
                 $_SESSION['message'] = "File uploaded successfully!";
-                header('Location: ' . BASE_PATH . 'lm/displayDocument?fileID=' . $newFileId);
+                $_SESSION[self::SESSION_CURRENT_FILE_ID] = $newFileId;
+                header('Location: ' . DISPLAY_DOCUMENT);
                 exit();
             } catch (\Exception $e) {
                 $_SESSION['error'] = "Error uploading file: " . $e->getMessage();
-                header('Location: ' . BASE_PATH . 'lm/newDocument');
+                header('Location: ' . NEW_DOCUMENT);
                 exit();
             }
         }
@@ -98,8 +120,8 @@ class LmController
         $userId = (int)$_SESSION['user_id'];
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        
-        require_once __DIR__ . '/../views/learningView/newDocument.php';
+
+        require_once VIEW_NEW_DOCUMENT;
     }
 
     // ============================================================================
@@ -114,6 +136,7 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
         $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : null;
         $currentFolderId = isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : null;
         
@@ -138,7 +161,7 @@ class LmController
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
         
-        require_once __DIR__ . '/../views/learningView/allDocument.php';
+        require_once VIEW_ALL_DOCUMENT;
     }
 
     /**
@@ -149,11 +172,11 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -161,7 +184,7 @@ class LmController
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 $_SESSION['error'] = "File not found.";
-                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
             
@@ -169,10 +192,10 @@ class LmController
             $documentData = $this->lmModel->getDocumentContent($fileId, $userId);
             $user = $this->getUserInfo();
             
-            require_once __DIR__ . '/../views/learningView/displayDocument.php';
+            require_once VIEW_DISPLAY_DOCUMENT;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
     }
@@ -185,11 +208,11 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -203,7 +226,7 @@ class LmController
             $_SESSION['error'] = "Error: " . $e->getMessage();
         }
         
-        header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+        header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         exit();
     }
 
@@ -222,7 +245,7 @@ class LmController
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
         
-        require_once __DIR__ . '/../views/learningView/newFolder.php';
+        require_once VIEW_NEW_FOLDER;
     }
 
     /**
@@ -233,7 +256,7 @@ class LmController
         $this->checkSession();
         
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['folderName'])) {
-            header('Location: ' . BASE_PATH . 'lm/newFolder');
+            header('Location: ' . NEW_FOLDER);
             exit();
         }
         
@@ -243,18 +266,18 @@ class LmController
         
         if (empty($folderName)) {
             $_SESSION['error'] = "Folder name cannot be empty.";
-            header('Location: ' . BASE_PATH . 'lm/newFolder');
+            header('Location: ' . NEW_FOLDER);
             exit();
         }
         
         try {
             $this->lmModel->createFolder($userId, $folderName, $parentFolderId);
             $_SESSION['message'] = "Folder created successfully.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error creating folder: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/newFolder');
+            header('Location: ' . NEW_FOLDER);
             exit();
         }
     }
@@ -267,11 +290,11 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $folderId = isset($_GET['folderID']) ? (int)$_GET['folderID'] : 0;
+        $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
         
         if ($folderId === 0) {
             $_SESSION['error'] = "Folder ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -285,7 +308,7 @@ class LmController
             $_SESSION['error'] = "Error: " . $e->getMessage();
         }
         
-        header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+        header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         exit();
     }
 
@@ -300,7 +323,7 @@ class LmController
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
         
-        require_once __DIR__ . '/../views/learningView/newDocument.php';
+        require_once VIEW_NEW_DOCUMENT;
     }
 
     // ============================================================================
@@ -472,11 +495,11 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -484,7 +507,7 @@ class LmController
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 $_SESSION['error'] = "File not found.";
-                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
             
@@ -492,10 +515,10 @@ class LmController
             $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
             $user = $this->getUserInfo();
             
-            require_once __DIR__ . '/../views/learningView/summary.php';
+            require_once VIEW_SUMMARY;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
     }
@@ -503,45 +526,47 @@ class LmController
      /**
      * ACTION: Delete summary from database
      */
-    public function deleteSummary(){
+    public function deleteSummary()
+    {
         $this->checkSession();
-        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $fileId = $this->resolveFileId();
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
 
-        try{
+        try {
             $this->lmModel->deleteSummary($summaryId);
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
     }
 
-    public function saveSummaryAsFile(){
+    public function saveSummaryAsFile()
+    {
         $this->checkSession();
-        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        $folderId = isset($_GET['folderID']) ? (int)$_GET['folderID'] : 0;
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $fileId = $this->resolveFileId();
+        $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
 
-        try{
+        try {
             $this->lmModel->saveSummaryAsFile($summaryId, $fileId, $folderId);
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
     }
@@ -558,11 +583,11 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -570,7 +595,7 @@ class LmController
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 $_SESSION['error'] = "File not found.";
-                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
             
@@ -578,10 +603,10 @@ class LmController
             $noteList = $this->lmModel->getNotesByFile($fileId);
             $user = $this->getUserInfo();
             
-            require_once __DIR__ . '/../views/learningView/note.php';
+            require_once VIEW_NOTE;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
     }
@@ -589,23 +614,24 @@ class LmController
      /**
      * ACTION: Delete note from database
      */
-    public function deleteNote(){
+    public function deleteNote()
+    {
         $this->checkSession();
-        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
 
-        try{
+        try {
             $this->lmModel->deleteNote($noteId);
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
     }
@@ -613,24 +639,25 @@ class LmController
      /**
      * ACTION: Save note as file
      */
-    public function saveNoteAsFile(){
+    public function saveNoteAsFile()
+    {
         $this->checkSession();
-        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        $folderId = isset($_GET['folderID']) ? (int)$_GET['folderID'] : 0;
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
+        $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
 
-        try{
+        try {
             $this->lmModel->saveNoteAsFile($noteId, $fileId, $folderId);
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
     }
@@ -647,11 +674,12 @@ class LmController
         $this->checkSession();
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
         
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
         
@@ -659,7 +687,7 @@ class LmController
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 $_SESSION['error'] = "File not found.";
-                header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
             
@@ -667,10 +695,10 @@ class LmController
             $mindmapList = $this->lmModel->getMindmapByFile($fileId) ?? [];
             $user = $this->getUserInfo();
             
-            require_once __DIR__ . '/../views/learningView/mindmap.php';
+            require_once VIEW_MINDMAP;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
     }
@@ -684,7 +712,7 @@ class LmController
         $this->checkSession(true);
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $instructions = '';
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
@@ -711,6 +739,7 @@ class LmController
             
             $context = !empty($instructions) ? $instructions : "In paragraph format";
             $generatedSummary = $this->gemini->generateSummary($extractedText, $context);
+
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $this->lmModel->saveSummary($fileId, $userId, $title, $generatedSummary);
             
@@ -730,7 +759,7 @@ class LmController
         $this->checkSession(true);
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $instructions = '';
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
@@ -782,7 +811,7 @@ class LmController
         }
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $title = trim($_POST['noteTitle']);
         $content = trim($_POST['noteContent']);
         
@@ -814,7 +843,7 @@ class LmController
         $this->checkSession(true);
         
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $instructions = '';
         
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
@@ -861,8 +890,8 @@ class LmController
         $this->checkSession(true);
         
         $userId = (int)$_SESSION['user_id'];
-        $mindmapId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $mindmapId = isset($_POST['mindmap_id']) ? (int)$_POST['mindmap_id'] : 0;
+        $fileId = $this->resolveFileId();
         
         if ($mindmapId === 0) {
             echo json_encode(['success' => false, 'message' => 'Mindmap ID not provided.']);
@@ -875,12 +904,6 @@ class LmController
         }
         
         try {
-            $file = $this->lmModel->getFile($userId, $fileId);
-            if (!$file || !is_array($file)) {
-                echo json_encode(['success' => false, 'message' => 'File not found.']);
-                exit();
-            }
-            
             $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId);
             if (!$mindmap || !is_array($mindmap)) {
                 echo json_encode(['success' => false, 'message' => 'Mindmap not found.']);
@@ -902,23 +925,24 @@ class LmController
     /**
      * ACTION: Delete mindmap from database
      */
-    public function deleteMindmap(){
+    public function deleteMindmap()
+    {
         $this->checkSession();
-        $mindmapId = isset($_GET['mindmapID']) ? (int)$_GET['mindmapID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $mindmapId = isset($_POST['mindmap_id']) ? (int)$_POST['mindmap_id'] : 0;
+        $fileId = $this->resolveFileId();
 
         if ($mindmapId === 0) {
             $_SESSION['error'] = "Mindmap ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/displayLearningMaterials');
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
 
-        try{
+        try {
             $this->lmModel->deleteMindmap($mindmapId);
-            header('Location: ' . BASE_PATH . 'lm/mindmap?fileID=' . $fileId);
+            header('Location: ' . MINDMAP);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/mindmap?fileID=' . $fileId);
+            header('Location: ' . MINDMAP);
             exit();
         }
     }
@@ -937,8 +961,8 @@ class LmController
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
-        
-        require_once __DIR__ . '/../views/learningView/createSummary.php';
+
+        require_once VIEW_CREATE_SUMMARY;
     }
 
     // ============================================================================
@@ -951,29 +975,29 @@ class LmController
     public function exportSummaryAsPdf()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
-        
+
         try {
             $summary = $this->lmModel->getSummaryById($summaryId, $userId);
             if (!$summary) {
                 $_SESSION['error'] = "Summary not found.";
-                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                header('Location: ' . SUMMARY);
                 exit();
             }
-            
+
             $this->_generatePdf($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
     }
@@ -984,29 +1008,29 @@ class LmController
     public function exportSummaryAsDocx()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
-        
+
         try {
             $summary = $this->lmModel->getSummaryById($summaryId, $userId);
             if (!$summary) {
                 $_SESSION['error'] = "Summary not found.";
-                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                header('Location: ' . SUMMARY);
                 exit();
             }
-            
+
             $this->_generateDocx($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
     }
@@ -1017,29 +1041,29 @@ class LmController
     public function exportSummaryAsTxt()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
-        
+
         try {
             $summary = $this->lmModel->getSummaryById($summaryId, $userId);
             if (!$summary) {
                 $_SESSION['error'] = "Summary not found.";
-                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                header('Location: ' . SUMMARY);
                 exit();
             }
-            
+
             $this->_generateTxt($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            header('Location: ' . SUMMARY);
             exit();
         }
     }
@@ -1050,29 +1074,29 @@ class LmController
     public function exportNoteAsPdf()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
-        
+
         try {
             $note = $this->lmModel->getNoteById($noteId, $userId);
             if (!$note) {
                 $_SESSION['error'] = "Note not found.";
-                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                header('Location: ' . NOTE);
                 exit();
             }
-            
+
             $this->_generatePdf($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
     }
@@ -1083,29 +1107,29 @@ class LmController
     public function exportNoteAsDocx()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
-        
+
         try {
             $note = $this->lmModel->getNoteById($noteId, $userId);
             if (!$note) {
                 $_SESSION['error'] = "Note not found.";
-                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                header('Location: ' . NOTE);
                 exit();
             }
-            
+
             $this->_generateDocx($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
     }
@@ -1116,29 +1140,29 @@ class LmController
     public function exportNoteAsTxt()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
-        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
-        
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
+
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
-        
+
         try {
             $note = $this->lmModel->getNoteById($noteId, $userId);
             if (!$note) {
                 $_SESSION['error'] = "Note not found.";
-                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                header('Location: ' . NOTE);
                 exit();
             }
-            
+
             $this->_generateTxt($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            header('Location: ' . NOTE);
             exit();
         }
     }
@@ -1156,19 +1180,19 @@ class LmController
                 $options->set('defaultFont', 'Arial');
                 $options->set('isHtml5ParserEnabled', true);
                 $options->set('isRemoteEnabled', false);
-                
+
                 $html = $this->_convertContentToHtml($title, $content);
                 $dompdf->loadHtml($html);
                 $dompdf->setPaper('A4', 'portrait');
                 $dompdf->render();
-                
+
                 $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
-                
+
                 header('Content-Type: application/pdf');
                 header('Content-Disposition: attachment; filename="' . $filename . '"');
                 header('Cache-Control: private, max-age=0, must-revalidate');
                 header('Pragma: public');
-                
+
                 echo $dompdf->output();
                 exit();
             } catch (\Exception $e) {
@@ -1192,13 +1216,13 @@ class LmController
             try {
                 \PhpOffice\PhpWord\Settings::setPdfRendererName(\PhpOffice\PhpWord\Settings::PDF_RENDERER_DOMPDF);
                 \PhpOffice\PhpWord\Settings::setPdfRendererPath($dompdfPath);
-                
+
                 $phpWord = new \PhpOffice\PhpWord\PhpWord();
                 $section = $phpWord->addSection();
-                
+
                 $section->addTitle($title, 1);
                 $section->addTextBreak(1);
-                
+
                 // Convert markdown-like content to plain text and add paragraphs
                 $paragraphs = preg_split('/\n\s*\n/', $content);
                 foreach ($paragraphs as $paragraph) {
@@ -1208,10 +1232,10 @@ class LmController
                         $section->addTextBreak(1);
                     }
                 }
-                
+
                 $writer = new \PhpOffice\PhpWord\Writer\PDF($phpWord);
                 $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
-                
+
                 header('Content-Type: application/pdf');
                 header('Content-Disposition: attachment; filename="' . $filename . '"');
                 $writer->save('php://output');
@@ -1263,15 +1287,15 @@ class LmController
             }
         </style></head><body>';
         $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
-        
+
         // Convert markdown-like content to HTML paragraphs
         $lines = explode("\n", $content);
         $inList = false;
         $listType = '';
-        
+
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             if (empty($line)) {
                 if ($inList) {
                     $html .= '</' . $listType . '>';
@@ -1279,7 +1303,7 @@ class LmController
                 }
                 continue;
             }
-            
+
             // Check for unordered list
             if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ul') {
@@ -1294,7 +1318,7 @@ class LmController
                 $html .= '<li>' . $item . '</li>';
                 continue;
             }
-            
+
             // Check for ordered list
             if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ol') {
@@ -1309,23 +1333,23 @@ class LmController
                 $html .= '<li>' . $item . '</li>';
                 continue;
             }
-            
+
             // Regular paragraph
             if ($inList) {
                 $html .= '</' . $listType . '>';
                 $inList = false;
             }
-            
+
             $paragraph = htmlspecialchars($line);
             $paragraph = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $paragraph);
             $paragraph = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $paragraph);
             $html .= '<p>' . $paragraph . '</p>';
         }
-        
+
         if ($inList) {
             $html .= '</' . $listType . '>';
         }
-        
+
         $html .= '</body></html>';
         return $html;
     }
@@ -1381,7 +1405,7 @@ class LmController
                 margin: 5px 0;
             }
         </style></head><body>';
-        
+
         $html .= '<div class="info-box">
             <strong>Note:</strong> PDF library not installed. Please use your browser\'s "Print to PDF" feature:
             <ol>
@@ -1390,17 +1414,17 @@ class LmController
                 <li>Click "Save"</li>
             </ol>
         </div>';
-        
+
         $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
-        
+
         // Convert markdown-like content to HTML paragraphs
         $lines = explode("\n", $content);
         $inList = false;
         $listType = '';
-        
+
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             if (empty($line)) {
                 if ($inList) {
                     $html .= '</' . $listType . '>';
@@ -1408,7 +1432,7 @@ class LmController
                 }
                 continue;
             }
-            
+
             // Check for unordered list
             if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ul') {
@@ -1423,7 +1447,7 @@ class LmController
                 $html .= '<li>' . $item . '</li>';
                 continue;
             }
-            
+
             // Check for ordered list
             if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ol') {
@@ -1438,27 +1462,27 @@ class LmController
                 $html .= '<li>' . $item . '</li>';
                 continue;
             }
-            
+
             // Regular paragraph
             if ($inList) {
                 $html .= '</' . $listType . '>';
                 $inList = false;
             }
-            
+
             $paragraph = htmlspecialchars($line);
             $paragraph = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $paragraph);
             $paragraph = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $paragraph);
             $html .= '<p>' . $paragraph . '</p>';
         }
-        
+
         if ($inList) {
             $html .= '</' . $listType . '>';
         }
-        
+
         $html .= '</body></html>';
-        
+
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
-        
+
         // Output HTML that can be printed to PDF using browser's print functionality
         header('Content-Type: text/html; charset=UTF-8');
         header('Content-Disposition: inline; filename="' . $filename . '"');
@@ -1482,10 +1506,10 @@ class LmController
     {
         $phpWord = new \PhpOffice\PhpWord\PhpWord();
         $section = $phpWord->addSection();
-        
+
         $section->addTitle($title, 1);
         $section->addTextBreak(1);
-        
+
         // Convert markdown-like content to plain text and add paragraphs
         $paragraphs = preg_split('/\n\s*\n/', $content);
         foreach ($paragraphs as $paragraph) {
@@ -1495,12 +1519,12 @@ class LmController
                 $section->addTextBreak(1);
             }
         }
-        
+
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';
-        
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
-        
+
         $writer = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
         $writer->save('php://output');
         exit();
@@ -1513,47 +1537,138 @@ class LmController
     {
         // Clean filename
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.txt';
-        
+
         // Prepare text content
         $text = $title . "\n";
         $text .= str_repeat('=', strlen($title)) . "\n\n";
         $text .= $content . "\n";
-        
+
         // Set headers for download
         header('Content-Type: text/plain; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
-        
+
         // Output text with BOM for UTF-8 compatibility
         echo "\xEF\xBB\xBF" . $text;
         exit();
     }
 
-    public function chatbot(){
+    // ============================================================================
+    // CHATBOT PAGE (chatbot.php)
+    // ============================================================================
+
+    public function chatbot()
+    {
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        require_once __DIR__ . '/../views/learningView/chatbot.php';
+        require_once VIEW_CHATBOT;
     }
 
-    public function quiz(){
+    // ============================================================================
+    // QUIZ PAGE (quiz.php)
+    // ============================================================================
+
+    public function quiz()
+    {
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        require_once __DIR__ . '/../views/learningView/quiz.php';
+        require_once VIEW_QUIZ;
     }
 
-    public function flashcard(){
+    // ============================================================================
+    // FLASHCARD PAGE (flashcard.php)
+    // ============================================================================
+
+    /**
+     * VIEW: Display the flashcard page
+     */
+
+    public function flashcard()
+    {
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
-        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        require_once __DIR__ . '/../views/learningView/flashcard.php';
+
+        $flashcards = $this->lmModel->getFlashcardsByFile($fileId);
+        require_once VIEW_FLASHCARD;
+    }
+
+    /**
+     * ACTION: Generate flashcards
+     */
+
+    public function generateFlashcards()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                echo json_encode(['success' => false, 'message' => 'File not found.']);
+                exit();
+            }
+
+            $sourceText = $file['extracted_text'] ?? '';
+            if (empty($sourceText)) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
+                exit();
+            }
+
+            $context = !empty($instructions) ? $instructions : '';
+            $flashcards = $this->gemini->generateFlashcards($sourceText, $instructions);
+            $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
+            $decodedFlashcards = json_decode($flashcards, true);
+            $term = '';
+            $definition = '';
+            foreach ($decodedFlashcards['flashcards'] as $flashcard) {
+                $term .= $flashcard['term'] . "\n";
+                $definition .= $flashcard['definition'] . "\n";
+            }
+            $terms = json_encode($term);
+            $definitions = json_encode($definition);
+            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
+            $flashcardId = $this->lmModel->saveFlashcards($fileId, $userId, $title, $terms, $definitions);
+            echo json_encode(['success' => true, 'term' => $terms, 'definition' => $definitions]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function viewFlashcard()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
+        
+        try{
+            $flashcard = $this->lmModel->getFlashcardsByFile($fileId);
+            echo json_encode(['success' => true, 'flashcard' => $flashcard]);
+        }catch(\Throwable $e){
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
     }
 }

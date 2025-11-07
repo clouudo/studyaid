@@ -1,22 +1,40 @@
 <nav class="navbar navbar-expand-sm">
     <ul class="navbar-nav ps-0 mb-2">
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/summary', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/summary', $current_url); ?>" href="<?= BASE_PATH ?>lm/summary?fileID=<?php echo $_GET['fileID']; ?>" style="color: black;">Summary</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_SUMMARY, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= SUMMARY ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_SUMMARY, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Summary</button>
+            </form>
         </li>
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/note', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/note', $current_url); ?>" href="<?= BASE_PATH ?>lm/note?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Note</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_NOTE, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= NOTE ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_NOTE, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Note</button>
+            </form>
         </li>
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/mindmap', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/mindmap', $current_url); ?>" href="<?= BASE_PATH ?>lm/mindmap?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Mindmap</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_MINDMAP, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= MINDMAP ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_MINDMAP, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Mindmap</button>
+            </form>
         </li>
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/chatbot', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/chatbot', $current_url); ?>" href="<?= BASE_PATH ?>lm/chatbot?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Chatbot</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= CHATBOT ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Chatbot</button>
+            </form>
         </li>
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/flashcard', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/flashcard', $current_url); ?>" href="<?= BASE_PATH ?>lm/flashcard?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Flashcard</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_FLASHCARD, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= FLASHCARD ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_FLASHCARD, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Flashcard</button>
+            </form>
         </li>
-        <li class="nav-item badge rounded-pill <?php echo isActive('index.php?url=lm/quiz', $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
-            <a class="nav-link <?php echo isActive('index.php?url=lm/quiz', $current_url); ?>" href="<?= BASE_PATH ?>lm/quiz?fileID=<?php echo $_GET['fileID'] ?>" style="color: black;">Quiz</a>
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_QUIZ, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px;">
+            <form method="POST" action="<?= QUIZ ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_QUIZ, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;">Quiz</button>
+            </form>
         </li>
     </ul>
 </nav>

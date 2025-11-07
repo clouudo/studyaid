@@ -11,12 +11,12 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <?php if (isset($documentData)): ?>
                     <h3 class="mb-4"><?php echo $file['name'] ?></h3>
-                    <?php require_once 'app\views\learningView\navbar.php'; ?>
+                    <?php require_once VIEW_NAVBAR; ?>
 
                     <?php if ($documentData['type'] === 'image'): ?>
                         <div class="card mb-3">

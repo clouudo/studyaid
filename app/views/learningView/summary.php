@@ -12,15 +12,16 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Summary</h3>
                 <h4 class="mb-4"><?php echo $file['name']; ?></h4>
-                <?php require_once 'app\views\learningView\navbar.php'; ?>
+                <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
                     <div class="card-body">
-                        <form action="<?= BASE_PATH ?>lm/generateSummary?fileID=<?php echo $_GET['fileID']; ?>" method="POST">
+                        <form action="<?= GENERATE_SUMMARY ?>" method="POST">
+                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
                             <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
                             <button type="submit" id="genSummary" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Summary</button>
@@ -39,12 +40,42 @@
                                                 Actions
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsPdf?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsDocx?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsTxt?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
+                                                <li>
+                                                    <form method="POST" action="<?= EXPORT_SUMMARY_PDF ?>" style="display: inline;">
+                                                        <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as PDF</button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="POST" action="<?= EXPORT_SUMMARY_DOCX ?>" style="display: inline;">
+                                                        <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as DOCX</button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="POST" action="<?= EXPORT_SUMMARY_TXT ?>" style="display: inline;">
+                                                        <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as TXT</button>
+                                                    </form>
+                                                </li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteSummary?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
-                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/saveSummaryAsFile?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Save as File</a></li>
+                                                <li>
+                                                    <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;">
+                                                        <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;">
+                                                        <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                    </form>
+                                                </li>
                                             </ul>
                                         </div>
                                         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">

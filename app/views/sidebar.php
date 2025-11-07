@@ -18,28 +18,28 @@ function isActive($link_url, $current_url)
 ?>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <div class="d-flex flex-column flex-shrink-0 p-3 text-dark bg-white" style="width: 280px;">
-  <a href="<?= BASE_PATH ?>auth/home" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+  <a href="<?= HOME ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
     <strong class="fs-4">StudyAid</strong>
   </a>
   <hr>
   <ul class="nav nav-pills flex-column mb-auto">
-    <li class="sidebarlist <?php echo isActive('index.php?url=user/dashboard', $current_url); ?>">
-      <a href="<?= BASE_PATH ?>user/dashboard" class="nav-link text-dark <?php echo isActive('index.php?url=user/dashboard', $current_url); ?>" aria-current="page">
+    <li class="sidebarlist <?php echo isActive(URL_DASHBOARD, $current_url); ?>">
+      <a href="<?= DASHBOARD ?>" class="nav-link text-dark <?php echo isActive(URL_DASHBOARD, $current_url); ?>" aria-current="page">
         Dashboard
       </a>
     </li>
-    <li class="sidebarlist <?php echo isActive('index.php?url=lm/newDocument', $current_url); ?>">
-      <a href="<?= BASE_PATH ?>lm/newDocument" class="nav-link text-dark <?php echo isActive('index.php?url=lm/newDocument', $current_url); ?>">
+    <li class="sidebarlist <?php echo isActive(URL_NEW_DOCUMENT, $current_url); ?>">
+      <a href="<?= NEW_DOCUMENT ?>" class="nav-link text-dark <?php echo isActive(URL_NEW_DOCUMENT, $current_url); ?>">
         New Document
       </a>
     </li>
-    <li class="sidebarlist <?php echo isActive('index.php?url=lm/newFolder', $current_url); ?>">
-      <a href="<?= BASE_PATH ?>lm/newFolder" class="nav-link text-dark <?php echo isActive('index.php?url=lm/newFolder', $current_url); ?>">
+    <li class="sidebarlist <?php echo isActive(URL_NEW_FOLDER, $current_url); ?>">
+      <a href="<?= NEW_FOLDER ?>" class="nav-link text-dark <?php echo isActive(URL_NEW_FOLDER, $current_url); ?>">
         New Folder
       </a>
     </li>
-    <li class="d-flex align-items-center <?php echo isActive('index.php?url=lm/displayLearningMaterials', $current_url); ?>">
-      <a href="<?= BASE_PATH ?>lm/displayLearningMaterials" class="nav-link text-dark <?php echo isActive('index.php?url=lm/displayLearningMaterials', $current_url); ?>">
+    <li class="d-flex align-items-center <?php echo isActive(URL_DISPLAY_LEARNING_MATERIALS, $current_url); ?>">
+      <a href="<?= DISPLAY_LEARNING_MATERIALS ?>" class="nav-link text-dark <?php echo isActive(URL_DISPLAY_LEARNING_MATERIALS, $current_url); ?>">
         All Documents
       </a>
       <button type="button" class="btn btn-toggle align-items-center rounded" data-bs-toggle="collapse" data-bs-target="#document-collapse" aria-expanded="false">
@@ -49,7 +49,7 @@ function isActive($link_url, $current_url)
     <div class="collapse" id="document-collapse">
       <?php foreach ($allUserFolders as $folder): ?>
         <li class="sidebarlist">
-          <a href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?= $folder['folderID'] ?>" class="nav-link text-dark fst-italic fw-medium ms-4">
+          <a href="<?= DISPLAY_LEARNING_MATERIALS ?>?folder_id=<?= $folder['folderID'] ?>" class="nav-link text-dark fst-italic fw-medium ms-4">
             <?= $folder['name'] ?>
           </a>
         </li>
@@ -65,8 +65,8 @@ function isActive($link_url, $current_url)
           <img src="<?= IMG_SETTING ?>" alt="settings" width="28" height="28">
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown" style="min-width: 150px;">
-          <li><a class="dropdown-item" href="<?= BASE_PATH ?>auth/logout">Logout</a></li>
-          <li><a class="dropdown-item" href="<?= BASE_PATH ?>user/profile">Manage Profile</a></li>
+          <li><a class="dropdown-item" href="<?= LOGOUT ?>">Logout</a></li>
+          <li><a class="dropdown-item" href="<?= PROFILE ?>">Manage Profile</a></li>
         </ul>
       </div>
     </div>

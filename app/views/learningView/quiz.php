@@ -52,17 +52,18 @@
     $current_url = $_GET['url'] ?? 'lm/quiz';
     ?>
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Quiz</h3>
                 <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
-                <?php require_once 'app\views\learningView\navbar.php'; ?>
+                <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Quiz Form -->
                 <div class="card mb-4" id="generateQuizCard">
                     <div class="card-body">
-                        <form id="generateQuizForm" action="<?= BASE_PATH ?>lm/generateQuiz?fileID=<?= htmlspecialchars($_GET['fileID'] ?? '') ?>" method="POST">
+                        <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
+                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control" 
@@ -234,16 +235,17 @@
             }
 
             try {
-                const response = await fetch(`<?= BASE_PATH ?>lm/submitQuiz?fileID=<?= htmlspecialchars($_GET['fileID'] ?? '') ?>`, {
+                const formData = new FormData();
+                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+                formData.append('quiz_data', JSON.stringify({
+                    quizId: quizData.quizId || null,
+                    answers: userAnswers,
+                    questions: quizData
+                }));
+                
+                const response = await fetch('<?= SUBMIT_QUIZ ?>', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        quizId: quizData.quizId || null,
-                        answers: userAnswers,
-                        questions: quizData
-                    })
+                    body: formData
                 });
 
                 const data = await response.json();

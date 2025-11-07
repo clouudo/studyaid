@@ -104,26 +104,39 @@ ob_start();
                         <?php foreach ($fileList['files'] as $file):
                         ?>
                             <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="<?= BASE_PATH ?>lm/displayDocument?fileID=<?php echo $file['fileID'] ?>">
-                                    <?php
-                                    $fileIcon = 'bi-file-earmark';
-                                    $fileTypeLower = strtolower($file['fileType']);
-                                    if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
-                                    elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
-                                    elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
-                                    ?>
-                                    <i class="bi <?php echo $fileIcon; ?> me-2"></i>
-                                    <strong><?php echo htmlspecialchars($file['name']); ?></strong>
-                                </a>
+                                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1;">
+                                    <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
+                                    <button type="submit" class="text-decoration-none text-dark" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
+                                        <?php
+                                        $fileIcon = 'bi-file-earmark';
+                                        $fileTypeLower = strtolower($file['fileType']);
+                                        if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
+                                        elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
+                                        elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
+                                        ?>
+                                        <i class="bi <?php echo $fileIcon; ?> me-2"></i>
+                                        <strong><?php echo htmlspecialchars($file['name']); ?></strong>
+                                    </button>
+                                </form>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $file['fileID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
                                         Actions
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
-                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/displayDocument?fileID=<?php echo $file['fileID'] ?>">View</a></li>
+                                        <li>
+                                            <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
+                                                <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
+                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">View</button>
+                                            </form>
+                                        </li>
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-type="file">Move</a></li>
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-name="<?php echo htmlspecialchars($file['name']); ?>" data-item-type="file">Rename</a></li>
-                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteDocument?fileID=<?php echo $file['fileID'] ?>">Delete</a></li>
+                                        <li>
+                                            <form method="POST" action="<?= DELETE_DOCUMENT ?>" style="display: inline;">
+                                                <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
+                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                            </form>
+                                        </li>
                                     </ul>
                                 </div>
                             </div>
