@@ -20,7 +20,6 @@
                             </div>
                             <div class="card-body">
                                 <p>You are logged in!</p>
-                                <a href="<?= BASE_PATH ?>auth/logout" class="btn btn-danger">Logout</a>
                             </div>
                         </div>
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
 
@@ -10,11 +11,13 @@ class LmController
 
     private $lmModel;
     private $gemini;
+    private $userModel;
     
     public function __construct()
     {
         $this->lmModel = new LmModel();
         $this->gemini = new GeminiService();
+        $this->userModel = new UserModel();
     }
 
     // ============================================================================
@@ -32,6 +35,12 @@ class LmController
                 exit();
             }
         }
+    }
+
+    public function getUserInfo(){
+        $userId = (int)$_SESSION['user_id'];
+        $user = $this->userModel->getUserById($userId);
+        return $user;
     }
 
     // ============================================================================
@@ -85,6 +94,11 @@ class LmController
             }
         }
         
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        
         require_once __DIR__ . '/../views/learningView/newDocument.php';
     }
 
@@ -122,6 +136,7 @@ class LmController
         }
         
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $user = $this->getUserInfo();
         
         require_once __DIR__ . '/../views/learningView/allDocument.php';
     }
@@ -152,6 +167,7 @@ class LmController
             
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $documentData = $this->lmModel->getDocumentContent($fileId, $userId);
+            $user = $this->getUserInfo();
             
             require_once __DIR__ . '/../views/learningView/displayDocument.php';
         } catch (\Exception $e) {
@@ -204,6 +220,7 @@ class LmController
         
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $user = $this->getUserInfo();
         
         require_once __DIR__ . '/../views/learningView/newFolder.php';
     }
@@ -281,6 +298,7 @@ class LmController
         
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $user = $this->getUserInfo();
         
         require_once __DIR__ . '/../views/learningView/newDocument.php';
     }
@@ -472,6 +490,7 @@ class LmController
             
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
+            $user = $this->getUserInfo();
             
             require_once __DIR__ . '/../views/learningView/summary.php';
         } catch (\Exception $e) {
@@ -557,6 +576,7 @@ class LmController
             
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $noteList = $this->lmModel->getNotesByFile($fileId);
+            $user = $this->getUserInfo();
             
             require_once __DIR__ . '/../views/learningView/note.php';
         } catch (\Exception $e) {
@@ -645,6 +665,7 @@ class LmController
             
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $mindmapList = $this->lmModel->getMindmapByFile($fileId) ?? [];
+            $user = $this->getUserInfo();
             
             require_once __DIR__ . '/../views/learningView/mindmap.php';
         } catch (\Exception $e) {
@@ -910,6 +931,7 @@ class LmController
         
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $user = $this->getUserInfo();
         
         require_once __DIR__ . '/../views/learningView/createSummary.php';
     }

@@ -62,10 +62,20 @@ function isActive($link_url, $current_url)
     </li>
   </ul>
   <hr>
-  <div class="container">
-    <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
-    <strong>Username</strong>
-    <img src="<?= IMG_SETTING ?>" alt="settings" width="28" height="28">
+  <div class="container position-relative">
+    <div class="d-flex align-items-center">
+      <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
+      <strong><?= $user['username']?></strong>
+      <div class="dropdown ms-auto">
+        <button class="btn btn-toggle dropdown-toggle" type="button" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border: none; background: none; padding: 0;">
+          <img src="<?= IMG_SETTING ?>" alt="settings" width="28" height="28">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown" style="min-width: 150px;">
+          <li><a class="dropdown-item" href="<?= BASE_PATH ?>auth/logout">Logout</a></li>
+          <li><a class="dropdown-item" href="<?= BASE_PATH ?>user/profile">Manage Profile</a></li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 

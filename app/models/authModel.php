@@ -72,4 +72,13 @@ class AuthModel {
 
         return $stmt->execute();
     }
+
+    public function changePassword($userId, $newPassword) {
+        $conn = $this->db->connect();
+        $query = "UPDATE user SET password = :password WHERE userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':password', $newPassword);
+        $stmt->bindParam(':userID', $userId);
+        return $stmt->execute();
+    }
 }
