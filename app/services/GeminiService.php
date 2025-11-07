@@ -122,10 +122,10 @@ PROMPT;
         return $buffer;
     }
 
-    private function generateTitle(string $titleContext): string
+    public function generateTitle(string $titleContext): string
     {
         $model = $this->models['title'] ?? $this->defaultModel;
-        $prompt = "Generate a title for the following context: " . $titleContext;
+        $prompt = "Generate a title for the following context. The title should be short and descriptive. Only return the title. No formatting: " . $titleContext;
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);

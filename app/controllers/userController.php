@@ -39,14 +39,16 @@ class UserController {
     public function dashboard() {
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
         require_once 'app/views/dashboardView.php';
     }
 
-    public function profile() {   
+    public function profile() {
         $this->checkSession();
+        $user = $this->getUserInfo();
         $userId = (int)$_SESSION['user_id'];
-        $user = $this->userModel->getUserById($userId);
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         require_once 'app/views/profileView.php';
     }
 

@@ -55,11 +55,6 @@ function isActive($link_url, $current_url)
         </li>
       <?php endforeach; ?>
     </div>
-    <li class="sidebarlist <?php echo isActive('index.php?url=lm/createSummary', $current_url); ?>">
-      <a href="<?= BASE_PATH ?>lm/createSummary" class="nav-link text-dark <?php echo isActive('index.php?url=lm/createSummary', $current_url); ?>">
-        Create Summary
-      </a>
-    </li>
   </ul>
   <hr>
   <div class="container position-relative">

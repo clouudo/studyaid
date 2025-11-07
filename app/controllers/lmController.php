@@ -711,7 +711,8 @@ class LmController
             
             $context = !empty($instructions) ? $instructions : "In paragraph format";
             $generatedSummary = $this->gemini->generateSummary($extractedText, $context);
-            $this->lmModel->saveSummary($fileId, $userId, 'Summary - ' . $file['name'], $generatedSummary);
+            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
+            $this->lmModel->saveSummary($fileId, $userId, $title, $generatedSummary);
             
             echo json_encode(['success' => true, 'content' => $generatedSummary]);
         } catch (\Throwable $e) {
@@ -756,7 +757,9 @@ class LmController
             
             $context = !empty($instructions) ? $instructions : '';
             $generatedNote = $this->gemini->generateNotes($extractedText, $context);
-            $this->lmModel->saveNotes($fileId, $file['name'], $generatedNote, $userId);
+            $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
+            $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
+            $this->lmModel->saveNotes($fileId, $title, $generatedNote, $userId);
             
             echo json_encode(['success' => true, 'content' => $generatedNote]);
         } catch (\Throwable $e) {
@@ -838,7 +841,9 @@ class LmController
             
             $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText, $instructions);
             $mindmapJson = json_encode($mindmapMarkdown, JSON_UNESCAPED_UNICODE);
-            $this->lmModel->saveMindmap($fileId, 'Mindmap - ' . $file['name'], $mindmapJson);
+            $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
+            $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
+            $this->lmModel->saveMindmap($fileId, $title, $mindmapJson);
             
             echo json_encode(['success' => true, 'markdown' => $mindmapMarkdown]);
         } catch (\Throwable $e) {
