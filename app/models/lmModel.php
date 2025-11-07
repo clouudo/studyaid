@@ -645,6 +645,19 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get a specific summary by ID and user ID
+     */
+    public function getSummaryById(int $summaryId, int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID AND userID = :userID");
+        $stmt->bindParam(':summaryID', $summaryId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
      /**
      * Delete summary from database
      */
@@ -702,6 +715,19 @@ class LmModel
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get a specific note by ID and user ID
+     */
+    public function getNoteById(int $noteId, int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM note WHERE noteID = :noteID AND userID = :userID");
+        $stmt->bindParam(':noteID', $noteId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
      /**

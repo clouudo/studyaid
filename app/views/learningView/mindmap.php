@@ -72,6 +72,9 @@
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>">
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
+                                                <li><a class="dropdown-item export-mindmap-image-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as Image</a></li>
+                                                <li><a class="dropdown-item export-mindmap-pdf-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as PDF</a></li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteMindmap?mindmapID=<?= htmlspecialchars($mindmap['mindmapID'])?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
                                             </ul>
                                         </div>
@@ -89,6 +92,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script>
         // Handle generating new mindmap
@@ -145,6 +150,203 @@
                 container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
             }
         });
+
+        // Handle exporting mindmap as image
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.export-mindmap-image-btn');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            const container = document.getElementById('mindmap-container');
+            
+            // Check if mindmap is currently displayed
+            const markmapDiv = container.querySelector('.markmap');
+            if (!markmapDiv || markmapDiv.children.length === 0) {
+                // Load mindmap first if not displayed
+                container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
+                
+                try {
+                    const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
+                    const json = await res.json();
+
+                    if (json.success && json.markdown) {
+                        renderAutoloadMindmap(json.markdown);
+                        // Wait for mindmap to render, then export
+                        setTimeout(() => exportMindmapAsImage(id), 1000);
+                    } else {
+                        alert('Error: ' + (json.message || 'Failed to load mindmap'));
+                    }
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            } else {
+                // Export currently displayed mindmap
+                exportMindmapAsImage(id);
+            }
+        });
+
+        // Handle exporting mindmap as PDF
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.export-mindmap-pdf-btn');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            const container = document.getElementById('mindmap-container');
+            
+            // Check if mindmap is currently displayed
+            const markmapDiv = container.querySelector('.markmap');
+            if (!markmapDiv || markmapDiv.children.length === 0) {
+                // Load mindmap first if not displayed
+                container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
+                
+                try {
+                    const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
+                    const json = await res.json();
+
+                    if (json.success && json.markdown) {
+                        renderAutoloadMindmap(json.markdown);
+                        // Wait for mindmap to render, then export
+                        setTimeout(() => exportMindmapAsPdf(id), 1000);
+                    } else {
+                        alert('Error: ' + (json.message || 'Failed to load mindmap'));
+                    }
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            } else {
+                // Export currently displayed mindmap
+                exportMindmapAsPdf(id);
+            }
+        });
+
+        // Function to export mindmap as image
+        function exportMindmapAsImage(mindmapId) {
+            const container = document.getElementById('mindmap-container');
+            const markmapDiv = container.querySelector('.markmap');
+            
+            if (!markmapDiv) {
+                alert('Please view the mindmap first before exporting.');
+                return;
+            }
+
+            // Use html2canvas to capture the mindmap
+            html2canvas(markmapDiv, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                // Convert canvas to blob and download
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `mindmap_${mindmapId}_${new Date().getTime()}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            }).catch(err => {
+                alert('Error exporting mindmap: ' + err.message);
+            });
+        }
+
+        // Function to export mindmap as PDF
+        function exportMindmapAsPdf(mindmapId) {
+            const container = document.getElementById('mindmap-container');
+            const markmapDiv = container.querySelector('.markmap');
+            
+            if (!markmapDiv) {
+                alert('Please view the mindmap first before exporting.');
+                return;
+            }
+
+            // Check if jsPDF is available
+            if (typeof window.jspdf === 'undefined') {
+                alert('PDF library not loaded. Please refresh the page and try again.');
+                return;
+            }
+
+            // Use html2canvas to capture the mindmap with higher quality
+            html2canvas(markmapDiv, {
+                backgroundColor: '#ffffff',
+                scale: 3, // Higher scale for better quality
+                logging: false,
+                useCORS: true,
+                width: markmapDiv.scrollWidth,
+                height: markmapDiv.scrollHeight
+            }).then(canvas => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    
+                    // PDF dimensions (A4 size in mm)
+                    const pdfWidth = 210; // A4 width in mm
+                    const pdfHeight = 297; // A4 height in mm
+                    
+                    // Reduced margins for bigger mindmap (5mm on each side = 10mm total)
+                    const margin = 5;
+                    const availableWidth = pdfWidth - (margin * 2);
+                    const availableHeight = pdfHeight - (margin * 2);
+                    
+                    // Calculate image dimensions maintaining aspect ratio
+                    const imgWidth = canvas.width;
+                    const imgHeight = canvas.height;
+                    const ratio = imgWidth / imgHeight;
+                    
+                    // Determine orientation based on mindmap aspect ratio
+                    let finalWidth, finalHeight, orientation, pageWidth, pageHeight;
+                    
+                    if (ratio > 1) {
+                        // Landscape mindmap - use landscape orientation
+                        orientation = 'landscape';
+                        pageWidth = pdfHeight; // Swap for landscape
+                        pageHeight = pdfWidth;
+                        const landscapeAvailableWidth = pageWidth - (margin * 2);
+                        const landscapeAvailableHeight = pageHeight - (margin * 2);
+                        
+                        finalWidth = landscapeAvailableWidth;
+                        finalHeight = finalWidth / ratio;
+                        
+                        // If height exceeds page, scale down
+                        if (finalHeight > landscapeAvailableHeight) {
+                            finalHeight = landscapeAvailableHeight;
+                            finalWidth = finalHeight * ratio;
+                        }
+                    } else {
+                        // Portrait mindmap - use portrait orientation
+                        orientation = 'portrait';
+                        pageWidth = pdfWidth;
+                        pageHeight = pdfHeight;
+                        
+                        finalWidth = availableWidth;
+                        finalHeight = finalWidth / ratio;
+                        
+                        // If height exceeds page, scale down
+                        if (finalHeight > availableHeight) {
+                            finalHeight = availableHeight;
+                            finalWidth = finalHeight * ratio;
+                        }
+                    }
+                    
+                    // Center the image
+                    const xOffset = (pageWidth - finalWidth) / 2;
+                    const yOffset = (pageHeight - finalHeight) / 2;
+                    
+                    // Create PDF with appropriate orientation
+                    const pdf = new jsPDF(orientation, 'mm', 'a4');
+                    pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+                    
+                    // Save PDF
+                    pdf.save(`mindmap_${mindmapId}_${new Date().getTime()}.pdf`);
+                } catch (err) {
+                    alert('Error exporting mindmap as PDF: ' + err.message);
+                }
+            }).catch(err => {
+                alert('Error capturing mindmap: ' + err.message);
+            });
+        }
 
         //Render using autoloader 
         function renderAutoloadMindmap(markdown) {

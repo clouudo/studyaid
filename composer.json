@@ -2,6 +2,7 @@
     "require": {
         "google/cloud-storage": "^1.48",
         "smalot/pdfparser": "^2.12",
-        "phpoffice/phpword": "^1.3"
+        "phpoffice/phpword": "^1.3",
+        "dompdf/dompdf": "^3.1"
     }
 }

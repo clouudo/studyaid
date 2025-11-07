@@ -913,4 +913,593 @@ class LmController
         
         require_once __DIR__ . '/../views/learningView/createSummary.php';
     }
+
+    // ============================================================================
+    // EXPORT FUNCTIONALITY
+    // ============================================================================
+
+    /**
+     * ACTION: Export summary as PDF
+     */
+    public function exportSummaryAsPdf()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($summaryId === 0) {
+            $_SESSION['error'] = "Summary ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
+            if (!$summary) {
+                $_SESSION['error'] = "Summary not found.";
+                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generatePdf($summary['title'], $summary['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * ACTION: Export summary as DOCX
+     */
+    public function exportSummaryAsDocx()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($summaryId === 0) {
+            $_SESSION['error'] = "Summary ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
+            if (!$summary) {
+                $_SESSION['error'] = "Summary not found.";
+                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generateDocx($summary['title'], $summary['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * ACTION: Export summary as TXT
+     */
+    public function exportSummaryAsTxt()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $summaryId = isset($_GET['summaryID']) ? (int)$_GET['summaryID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($summaryId === 0) {
+            $_SESSION['error'] = "Summary ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
+            if (!$summary) {
+                $_SESSION['error'] = "Summary not found.";
+                header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generateTxt($summary['title'], $summary['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/summary?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * ACTION: Export note as PDF
+     */
+    public function exportNoteAsPdf()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($noteId === 0) {
+            $_SESSION['error'] = "Note ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            if (!$note) {
+                $_SESSION['error'] = "Note not found.";
+                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generatePdf($note['title'], $note['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * ACTION: Export note as DOCX
+     */
+    public function exportNoteAsDocx()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($noteId === 0) {
+            $_SESSION['error'] = "Note ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            if (!$note) {
+                $_SESSION['error'] = "Note not found.";
+                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generateDocx($note['title'], $note['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * ACTION: Export note as TXT
+     */
+    public function exportNoteAsTxt()
+    {
+        $this->checkSession();
+        
+        $userId = (int)$_SESSION['user_id'];
+        $noteId = isset($_GET['noteID']) ? (int)$_GET['noteID'] : 0;
+        $fileId = isset($_GET['fileID']) ? (int)$_GET['fileID'] : 0;
+        
+        if ($noteId === 0) {
+            $_SESSION['error'] = "Note ID not provided.";
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+        
+        try {
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            if (!$note) {
+                $_SESSION['error'] = "Note not found.";
+                header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+                exit();
+            }
+            
+            $this->_generateTxt($note['title'], $note['content']);
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'lm/note?fileID=' . $fileId);
+            exit();
+        }
+    }
+
+    /**
+     * Helper: Generate PDF file
+     */
+    private function _generatePdf($title, $content)
+    {
+        // Try to use dompdf directly if available via Composer
+        if (class_exists('\Dompdf\Dompdf')) {
+            try {
+                $dompdf = new \Dompdf\Dompdf();
+                $options = $dompdf->getOptions();
+                $options->set('defaultFont', 'Arial');
+                $options->set('isHtml5ParserEnabled', true);
+                $options->set('isRemoteEnabled', false);
+                
+                $html = $this->_convertContentToHtml($title, $content);
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                
+                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
+                
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                header('Cache-Control: private, max-age=0, must-revalidate');
+                header('Pragma: public');
+                
+                echo $dompdf->output();
+                exit();
+            } catch (\Exception $e) {
+                // Fallback to PHPWord PDF writer
+                $this->_generatePdfWithPhpWord($title, $content);
+            }
+        } else {
+            // Try PHPWord PDF writer as fallback
+            $this->_generatePdfWithPhpWord($title, $content);
+        }
+    }
+
+    /**
+     * Helper: Generate PDF using PHPWord (requires PDF renderer)
+     */
+    private function _generatePdfWithPhpWord($title, $content)
+    {
+        // Try to use PHPWord's PDF writer if PDF renderer is available
+        $dompdfPath = __DIR__ . '/../../vendor/dompdf/dompdf';
+        if (file_exists($dompdfPath)) {
+            try {
+                \PhpOffice\PhpWord\Settings::setPdfRendererName(\PhpOffice\PhpWord\Settings::PDF_RENDERER_DOMPDF);
+                \PhpOffice\PhpWord\Settings::setPdfRendererPath($dompdfPath);
+                
+                $phpWord = new \PhpOffice\PhpWord\PhpWord();
+                $section = $phpWord->addSection();
+                
+                $section->addTitle($title, 1);
+                $section->addTextBreak(1);
+                
+                // Convert markdown-like content to plain text and add paragraphs
+                $paragraphs = preg_split('/\n\s*\n/', $content);
+                foreach ($paragraphs as $paragraph) {
+                    $paragraph = trim($paragraph);
+                    if (!empty($paragraph)) {
+                        $section->addText($paragraph);
+                        $section->addTextBreak(1);
+                    }
+                }
+                
+                $writer = new \PhpOffice\PhpWord\Writer\PDF($phpWord);
+                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
+                
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                $writer->save('php://output');
+                exit();
+            } catch (\Exception $e) {
+                // Final fallback: HTML that prompts user to save as PDF
+                $this->_generateSimplePdf($title, $content);
+            }
+        } else {
+            // Final fallback: HTML that prompts user to save as PDF
+            $this->_generateSimplePdf($title, $content);
+        }
+    }
+
+    /**
+     * Helper: Convert content to HTML for PDF generation
+     */
+    private function _convertContentToHtml($title, $content)
+    {
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($title) . '</title>';
+        $html .= '<style>
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                line-height: 1.6;
+            }
+            h1 {
+                color: #333;
+                border-bottom: 2px solid #A855F7;
+                padding-bottom: 10px;
+                margin-top: 0;
+            }
+            p {
+                margin: 10px 0;
+                text-align: justify;
+            }
+            strong {
+                font-weight: bold;
+            }
+            em {
+                font-style: italic;
+            }
+            ul, ol {
+                margin: 10px 0;
+                padding-left: 30px;
+            }
+            li {
+                margin: 5px 0;
+            }
+        </style></head><body>';
+        $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
+        
+        // Convert markdown-like content to HTML paragraphs
+        $lines = explode("\n", $content);
+        $inList = false;
+        $listType = '';
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            if (empty($line)) {
+                if ($inList) {
+                    $html .= '</' . $listType . '>';
+                    $inList = false;
+                }
+                continue;
+            }
+            
+            // Check for unordered list
+            if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
+                if (!$inList || $listType !== 'ul') {
+                    if ($inList) $html .= '</' . $listType . '>';
+                    $html .= '<ul>';
+                    $inList = true;
+                    $listType = 'ul';
+                }
+                $item = htmlspecialchars($matches[1]);
+                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
+                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
+                $html .= '<li>' . $item . '</li>';
+                continue;
+            }
+            
+            // Check for ordered list
+            if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
+                if (!$inList || $listType !== 'ol') {
+                    if ($inList) $html .= '</' . $listType . '>';
+                    $html .= '<ol>';
+                    $inList = true;
+                    $listType = 'ol';
+                }
+                $item = htmlspecialchars($matches[1]);
+                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
+                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
+                $html .= '<li>' . $item . '</li>';
+                continue;
+            }
+            
+            // Regular paragraph
+            if ($inList) {
+                $html .= '</' . $listType . '>';
+                $inList = false;
+            }
+            
+            $paragraph = htmlspecialchars($line);
+            $paragraph = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $paragraph);
+            $paragraph = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $paragraph);
+            $html .= '<p>' . $paragraph . '</p>';
+        }
+        
+        if ($inList) {
+            $html .= '</' . $listType . '>';
+        }
+        
+        $html .= '</body></html>';
+        return $html;
+    }
+
+    /**
+     * Helper: Generate simple HTML-based PDF (fallback when no PDF library available)
+     * This will show a message and provide download instructions
+     */
+    private function _generateSimplePdf($title, $content)
+    {
+        // Convert markdown to HTML with better formatting
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($title) . '</title>';
+        $html .= '<style>
+            @media print {
+                body { margin: 0; padding: 15mm; }
+                .info-box { display: none; }
+            }
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                line-height: 1.6;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+            .info-box {
+                background-color: #fff3cd;
+                border: 1px solid #ffc107;
+                border-radius: 5px;
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            h1 {
+                color: #333;
+                border-bottom: 2px solid #A855F7;
+                padding-bottom: 10px;
+                margin-top: 0;
+            }
+            p {
+                margin: 10px 0;
+                text-align: justify;
+            }
+            strong {
+                font-weight: bold;
+            }
+            em {
+                font-style: italic;
+            }
+            ul, ol {
+                margin: 10px 0;
+                padding-left: 30px;
+            }
+            li {
+                margin: 5px 0;
+            }
+        </style></head><body>';
+        
+        $html .= '<div class="info-box">
+            <strong>Note:</strong> PDF library not installed. Please use your browser\'s "Print to PDF" feature:
+            <ol>
+                <li>Press Ctrl+P (or Cmd+P on Mac)</li>
+                <li>Select "Save as PDF" as the destination</li>
+                <li>Click "Save"</li>
+            </ol>
+        </div>';
+        
+        $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
+        
+        // Convert markdown-like content to HTML paragraphs
+        $lines = explode("\n", $content);
+        $inList = false;
+        $listType = '';
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            if (empty($line)) {
+                if ($inList) {
+                    $html .= '</' . $listType . '>';
+                    $inList = false;
+                }
+                continue;
+            }
+            
+            // Check for unordered list
+            if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
+                if (!$inList || $listType !== 'ul') {
+                    if ($inList) $html .= '</' . $listType . '>';
+                    $html .= '<ul>';
+                    $inList = true;
+                    $listType = 'ul';
+                }
+                $item = htmlspecialchars($matches[1]);
+                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
+                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
+                $html .= '<li>' . $item . '</li>';
+                continue;
+            }
+            
+            // Check for ordered list
+            if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
+                if (!$inList || $listType !== 'ol') {
+                    if ($inList) $html .= '</' . $listType . '>';
+                    $html .= '<ol>';
+                    $inList = true;
+                    $listType = 'ol';
+                }
+                $item = htmlspecialchars($matches[1]);
+                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
+                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
+                $html .= '<li>' . $item . '</li>';
+                continue;
+            }
+            
+            // Regular paragraph
+            if ($inList) {
+                $html .= '</' . $listType . '>';
+                $inList = false;
+            }
+            
+            $paragraph = htmlspecialchars($line);
+            $paragraph = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $paragraph);
+            $paragraph = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $paragraph);
+            $html .= '<p>' . $paragraph . '</p>';
+        }
+        
+        if ($inList) {
+            $html .= '</' . $listType . '>';
+        }
+        
+        $html .= '</body></html>';
+        
+        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
+        
+        // Output HTML that can be printed to PDF using browser's print functionality
+        header('Content-Type: text/html; charset=UTF-8');
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        echo $html;
+        echo '<script>
+            window.onload = function() {
+                setTimeout(function() {
+                    if (confirm("PDF library not installed. Would you like to open the print dialog to save as PDF?")) {
+                        window.print();
+                    }
+                }, 500);
+            };
+        </script>';
+        exit();
+    }
+
+    /**
+     * Helper: Generate DOCX file
+     */
+    private function _generateDocx($title, $content)
+    {
+        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+        $section = $phpWord->addSection();
+        
+        $section->addTitle($title, 1);
+        $section->addTextBreak(1);
+        
+        // Convert markdown-like content to plain text and add paragraphs
+        $paragraphs = preg_split('/\n\s*\n/', $content);
+        foreach ($paragraphs as $paragraph) {
+            $paragraph = trim($paragraph);
+            if (!empty($paragraph)) {
+                $section->addText($paragraph);
+                $section->addTextBreak(1);
+            }
+        }
+        
+        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $writer = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
+        $writer->save('php://output');
+        exit();
+    }
+
+    /**
+     * Helper: Generate TXT file
+     */
+    private function _generateTxt($title, $content)
+    {
+        // Clean filename
+        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.txt';
+        
+        // Prepare text content
+        $text = $title . "\n";
+        $text .= str_repeat('=', strlen($title)) . "\n\n";
+        $text .= $content . "\n";
+        
+        // Set headers for download
+        header('Content-Type: text/plain; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        
+        // Output text with BOM for UTF-8 compatibility
+        echo "\xEF\xBB\xBF" . $text;
+        exit();
+    }
 }

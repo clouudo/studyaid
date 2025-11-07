@@ -1,11 +1,11 @@
 <?php
-function buildFolderTree($folders, $parentId = null) {
+function buildFolderTree($allUserFolders, $parentId = null) {
     $html = '<ul>';
-    foreach ($folders as $folder) {
+    foreach ($allUserFolders as $folder) {
         if ($folder['parentFolderId'] == $parentId) {
             $html .= '<li>';
             $html .= '<a href="#" class="folder-item" data-folder-id="' . $folder['folderID'] . '" data-folder-name="' . htmlspecialchars($folder['name']) . '">' . htmlspecialchars($folder['name']) . '</a>';
-            $html .= buildFolderTree($folders, $folder['folderID']);
+            $html .= buildFolderTree($allUserFolders, $folder['folderID']);
             $html .= '</li>';
         }
     }
@@ -62,12 +62,13 @@ function buildFolderTree($folders, $parentId = null) {
                         <label class="form-label">Add to folder</label>
                         <div>
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#selectFolderModal" style="background-color: #A855F7;">
+                                <i class="bi bi-folder-fill"></i>
                                 Select Folder
                             </button>
                             <span id="selectedFolderName" class="ms-2"></span>
                         </div>
                     </div>  
-                    <button type="submit" class="btn btn-primary">Create Folder</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Create Folder</button>
                     <button type="button" class="btn btn-secondary" onclick="window.history.back();">Cancel</button>
                 </form>
             </div>
@@ -83,7 +84,7 @@ function buildFolderTree($folders, $parentId = null) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <?php echo buildFolderTree($folders); ?>
+                    <?php echo buildFolderTree($allUserFolders); ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

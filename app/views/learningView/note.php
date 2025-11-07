@@ -65,6 +65,10 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
+                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportNoteAsPdf?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
+                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportNoteAsDocx?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
+                                            <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportNoteAsTxt?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
+                                            <li><hr class="dropdown-divider"></li>
                                             <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteNote?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
                                             <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/saveNoteAsFile?noteID=<?= htmlspecialchars($note['noteID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Save as File</a></li>
                                         </ul>

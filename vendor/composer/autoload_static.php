@@ -18,6 +18,8 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         'S' => 
         array (
             'Symfony\\Polyfill\\Mbstring\\' => 26,
+            'Svg\\' => 4,
+            'Sabberworm\\CSS\\' => 15,
         ),
         'R' => 
         array (
@@ -37,6 +39,7 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         'M' => 
         array (
             'Monolog\\' => 8,
+            'Masterminds\\' => 12,
         ),
         'G' => 
         array (
@@ -69,7 +72,12 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         ),
         'F' => 
         array (
+            'FontLib\\' => 8,
             'Firebase\\JWT\\' => 13,
+        ),
+        'D' => 
+        array (
+            'Dompdf\\' => 7,
         ),
         'B' => 
         array (
@@ -81,6 +89,14 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         'Symfony\\Polyfill\\Mbstring\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
+        ),
+        'Svg\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/dompdf/php-svg-lib/src/Svg',
+        ),
+        'Sabberworm\\CSS\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/sabberworm/php-css-parser/src',
         ),
         'Rize\\' => 
         array (
@@ -122,6 +138,10 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         'Monolog\\' => 
         array (
             0 => __DIR__ . '/..' . '/monolog/monolog/src/Monolog',
+        ),
+        'Masterminds\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/masterminds/html5/src',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (
@@ -227,9 +247,17 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
         array (
             0 => __DIR__ . '/..' . '/google/gax/metadata/ApiCore',
         ),
+        'FontLib\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/dompdf/php-font-lib/src/FontLib',
+        ),
         'Firebase\\JWT\\' => 
         array (
             0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
+        ),
+        'Dompdf\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/dompdf/dompdf/src',
         ),
         'Brick\\Math\\' => 
         array (
@@ -249,6 +277,7 @@ class ComposerStaticInit27552009b83b40e557cfcb9647b15f68
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'Dompdf\\Cpdf' => __DIR__ . '/..' . '/dompdf/dompdf/lib/Cpdf.php',
         'GPBMetadata\\GrpcGcp' => __DIR__ . '/..' . '/google/grpc-gcp/src/generated/GPBMetadata/GrpcGcp.php',
         'Grpc\\Gcp\\AffinityConfig' => __DIR__ . '/..' . '/google/grpc-gcp/src/generated/Grpc/Gcp/AffinityConfig.php',
         'Grpc\\Gcp\\AffinityConfig_Command' => __DIR__ . '/..' . '/google/grpc-gcp/src/generated/Grpc/Gcp/AffinityConfig_Command.php',

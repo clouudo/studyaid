@@ -39,6 +39,10 @@
                                                 Actions
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsPdf?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsDocx?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
+                                                <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/exportSummaryAsTxt?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteSummary?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Delete</a></li>
                                                 <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/saveSummaryAsFile?summaryID=<?= htmlspecialchars($summary['summaryID']) ?>&fileID=<?= htmlspecialchars($file['fileID']) ?>">Save as File</a></li>
                                             </ul>
