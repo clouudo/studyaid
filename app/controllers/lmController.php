@@ -104,7 +104,7 @@ class LmController
             }
             
             try {
-                $newFileId = $this->lmModel->uploadFileToGCS($fileContent, $userId, $folderId, $file, $extractedText, $originalFileName);
+                $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $extractedText, $fileContent, $file, $originalFileName);
                 $_SESSION['message'] = "File uploaded successfully!";
                 $_SESSION[self::SESSION_CURRENT_FILE_ID] = $newFileId;
                 header('Location: ' . DISPLAY_DOCUMENT);

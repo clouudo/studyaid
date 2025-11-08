@@ -150,7 +150,7 @@ class LmModel
     /**
      * Upload file to Google Cloud Storage and save metadata to database
      */
-    public function uploadFileToGCS($userId, $folderId, $fileContent = null, $file = null, $extractedText, $originalFileName = null)
+    public function uploadFileToGCS($userId, $folderId, $extractedText, $fileContent = null, $file = null, $originalFileName = null)
     {
         if($file != null) {
             $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
@@ -683,7 +683,7 @@ class LmModel
         $userId = $summaryData['userID'];
 
         //Upload to GCS
-        $this->uploadFileToGCS($userId, $folderId, null, null, $sourceText, $title);
+        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
     }
 
     // ============================================================================
@@ -755,7 +755,7 @@ class LmModel
         $userId = $noteData['userID'];
 
         //Upload to GCS
-        $this->uploadFileToGCS($userId, $folderId, null, null, $sourceText, $title);
+        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
     }
 
     // ============================================================================
