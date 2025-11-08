@@ -45,13 +45,34 @@ class GeminiService
             'contents' => $contents,
             'generationConfig' => $generationConfig ?: $this->generationConfig,
         ];
-        $resp = $this->client->post("models/{$model}:generateContent", [
-            'query' => ['key' => $this->apiKey],
-            'headers' => ['Content-Type' => 'application/json'],
-            'json' => $payload,
-        ]);
-        $json = json_decode((string) $resp->getBody(), true);
-        return $json ?: [];
+
+        try {
+            $resp = $this->client->post("models/{$model}:generateContent", [
+                'query' => ['key' => $this->apiKey],
+                'headers' => ['Content-Type' => 'application/json'],
+                'json' => $payload,
+            ]);
+            $json = json_decode((string) $resp->getBody(), true);
+
+            if ($json === null) {
+                error_log('Gemini API - Failed to decode JSON response. Status: ' . $resp->getStatusCode());
+                return ['error' => 'Invalid JSON response'];
+            }
+
+            return $json ?: [];
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            error_log('Gemini API Request Exception: ' . $e->getMessage());
+            if ($e->hasResponse()) {
+                $errorBody = (string) $e->getResponse()->getBody();
+                error_log('Gemini API Error Response: ' . $errorBody);
+                $errorJson = json_decode($errorBody, true);
+                return $errorJson ?: ['error' => ['message' => $e->getMessage()]];
+            }
+            return ['error' => ['message' => $e->getMessage()]];
+        } catch (\Exception $e) {
+            error_log('Gemini API General Exception: ' . $e->getMessage());
+            return ['error' => ['message' => $e->getMessage()]];
+        }
     }
 
     private function buildUserContent(string $text): array
@@ -64,9 +85,40 @@ class GeminiService
 
     private function extractText(array $result): string
     {
-        if (!isset($result['candidates'][0]['content']['parts'])) {
+        // Check for API errors first
+        if (isset($result['error'])) {
+            error_log('Gemini API Error: ' . json_encode($result['error']));
             return '';
         }
+
+        // Check if candidates exist
+        if (!isset($result['candidates']) || !is_array($result['candidates']) || empty($result['candidates'])) {
+            error_log('Gemini API Response - No candidates found. Full response: ' . json_encode($result));
+            return '';
+        }
+
+        $finishReason = $result['candidates'][0]['finishReason'] ?? null;
+
+        // Check for safety ratings that blocked content (but not MAX_TOKENS which is just truncation)
+        if ($finishReason && $finishReason !== 'STOP' && $finishReason !== 'MAX_TOKENS') {
+            error_log('Gemini API - Content blocked. Finish reason: ' . $finishReason);
+            if (isset($result['candidates'][0]['safetyRatings'])) {
+                error_log('Safety ratings: ' . json_encode($result['candidates'][0]['safetyRatings']));
+            }
+            return '';
+        }
+
+        // Warn if content was truncated but still extract it
+        if ($finishReason === 'MAX_TOKENS') {
+            error_log('Gemini API - Response truncated due to MAX_TOKENS limit. Consider increasing maxOutputTokens.');
+        }
+
+        // Check for content structure
+        if (!isset($result['candidates'][0]['content']['parts'])) {
+            error_log('Gemini API Response - Unexpected structure. Full response: ' . json_encode($result));
+            return '';
+        }
+
         $parts = $result['candidates'][0]['content']['parts'];
         $buffer = '';
         foreach ($parts as $part) {
@@ -155,10 +207,10 @@ PROMPT;
     // ============================================================================
     public function generateFlashcards(string $sourceText, ?string $instructions = null, ?string $flashcardAmount = null, ?string $flashcardType = null): string
     {
-        if($flashcardAmount == null){
+        if ($flashcardAmount == null) {
             $flashcardAmount = 'standard, (10-20 flashcards)';
         }
-        if($flashcardType == null){
+        if ($flashcardType == null) {
             $flashcardType = 'medium';
         }
         $model = $this->models['flashcards'] ?? $this->defaultModel;
@@ -186,12 +238,51 @@ PROMPT;
         return $this->cleanJsonOutput($output);
     }
 
-    private function cleanJsonOutput(string $raw): string
+    // ============================================================================
+    // QUIZ PAGE (quiz.php)
+    // ============================================================================
+    public function generateMCQ(string $sourceText, ?string $instructions = null, ?string $questionAmount = null, ?string $questionDifficulty = null): string
     {
-        $clean = preg_replace('/^```(?:json)?\s*/', '', trim($raw));
-        $clean = preg_replace('/```$/', '', trim($clean));
-        $clean = str_replace(["\\n", "\\t"], ["\n", "\t"], $clean);
-        return $clean;
+        if ($questionAmount == null) {
+            $questionAmount = 'standard, (10-20 questions)';
+        }
+        if ($questionDifficulty == null) {
+            $questionDifficulty = 'medium';
+        }
+        $model = $this->models['quiz'] ?? $this->defaultModel;
+
+        // Increase maxOutputTokens for quiz generation to handle multiple questions
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 4096, // Increased from default 2048 for quiz generation
+        ]);
+
+        $schema = <<<PROMPT
+        Create a multiple choice question based on the content provided.
+        Each question should have a question and answer.
+        
+        Return in exact JSON format and structure:
+            {
+                "quiz": [
+                    {
+                        "question": "Question",
+                        "answer": "Answer",
+                        "options": [
+                            "Option 1",
+                            "Option 2",
+                            "Option 3",
+                            "Option 4"
+                        ]
+                    }
+                ]
+            }
+
+        Output ONLY valid JSON, no markdown, no extra text.
+        PROMPT;
+        $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . "Question Amount: " . $questionAmount . "\n\n" . "Question Difficulty: " . $questionDifficulty . "\n\n" . 'Content: ' . $sourceText;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents, $generationConfig);
+        $output = $this->extractText($result);
+        return $this->cleanJsonOutput($output);
     }
 
     // ============================================================================
@@ -209,5 +300,58 @@ PROMPT;
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);
+    }
+
+    private function cleanJsonOutput(string $raw): string
+    {
+        if (empty($raw)) {
+            return '';
+        }
+        
+        $clean = trim($raw);
+        
+        // Remove markdown code blocks (```json or ```)
+        $clean = preg_replace('/^```(?:json)?\s*/m', '', $clean);
+        $clean = preg_replace('/```\s*$/m', '', $clean);
+        
+        // Remove any leading/trailing whitespace
+        $clean = trim($clean);
+        
+        // Try to extract JSON if there's extra text
+        // Find the first complete JSON object by counting braces
+        $jsonStart = strpos($clean, '{');
+        if ($jsonStart !== false) {
+            $braceCount = 0;
+            $jsonEnd = -1;
+            for ($i = $jsonStart; $i < strlen($clean); $i++) {
+                if ($clean[$i] === '{') {
+                    $braceCount++;
+                } elseif ($clean[$i] === '}') {
+                    $braceCount--;
+                    if ($braceCount === 0) {
+                        $jsonEnd = $i;
+                        break;
+                    }
+                }
+            }
+            
+            if ($jsonEnd > $jsonStart) {
+                $potentialJson = substr($clean, $jsonStart, $jsonEnd - $jsonStart + 1);
+                // Validate it's valid JSON
+                if (json_decode($potentialJson) !== null) {
+                    $clean = $potentialJson;
+                }
+            }
+        }
+        
+        // Replace escaped newlines and tabs
+        $clean = str_replace(["\\n", "\\t"], ["\n", "\t"], $clean);
+        
+        // Log if cleaning changed the output significantly
+        if ($clean !== trim($raw)) {
+            error_log('JSON cleaned. Original length: ' . strlen($raw) . ', Cleaned length: ' . strlen($clean));
+        }
+        
+        return $clean;
     }
 }

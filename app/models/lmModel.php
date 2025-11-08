@@ -848,4 +848,51 @@ class LmModel
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
+
+    // ============================================================================
+    // QUIZ PAGE (quiz.php)
+    // ============================================================================
+
+    /**
+     * Save a quiz to database
+     */
+    public function saveQuiz(int $fileId, int $totalQuestions, string $title, int $totalScore, ?string $examMode = null): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, examMode, title, totalScore) VALUES (:fileID, :totalQuestions, :examMode, :title, :totalScore)");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->bindParam(':totalQuestions', $totalQuestions);
+        $stmt->bindParam(':examMode', $examMode);
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':totalScore', $totalScore);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Save a question to database
+     */
+    public function saveQuestion(int $quizId, string $type, string $question): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO question (quizID, type, question) VALUES (:quizID, :type, :question)");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':type', $type);
+        $stmt->bindParam(':question', $question);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Save a user answer to database
+     */
+    public function saveUserAnswer(int $questionId, string $userAnswer): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO useranswer (questionID, userAnswer) VALUES (:questionID, :userAnswer)");
+        $stmt->bindParam(':questionID', $questionId);
+        $stmt->bindParam(':userAnswer', $userAnswer);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
 }

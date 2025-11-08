@@ -14,7 +14,7 @@ class LmController
     private $userModel;
 
     private const SESSION_CURRENT_FILE_ID = 'current_file_id';
-    
+
     public function __construct()
     {
         $this->lmModel = new LmModel();
@@ -80,29 +80,29 @@ class LmController
                 header('Location: ' . NEW_DOCUMENT);
                 exit();
             }
-            
+
             $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 'guest';
-            $folderId = isset($_POST['folderSelect']) && !empty($_POST['folderSelect']) && $_POST['folderSelect'] != '0' 
-                ? (int)$_POST['folderSelect'] 
+            $folderId = isset($_POST['folderSelect']) && !empty($_POST['folderSelect']) && $_POST['folderSelect'] != '0'
+                ? (int)$_POST['folderSelect']
                 : null;
-            
+
             $file = $_FILES['document'];
             $uploadedFileName = $file['name'];
             $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
             $tmpName = $file['tmp_name'];
-            
+
             $documentNameFromPost = isset($_POST['documentName']) ? trim($_POST['documentName']) : '';
             $originalFileName = !empty($documentNameFromPost) ? $documentNameFromPost : $uploadedFileName;
-            
+
             $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
             $fileContent = file_get_contents($tmpName);
-            
+
             if ($fileContent === false) {
                 $_SESSION['error'] = "Error reading uploaded file.";
                 header('Location: ' . NEW_DOCUMENT);
                 exit();
             }
-            
+
             try {
                 $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $extractedText, $fileContent, $file, $originalFileName);
                 $_SESSION['message'] = "File uploaded successfully!";
@@ -115,7 +115,7 @@ class LmController
                 exit();
             }
         }
-        
+
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
         $user = $this->getUserInfo();
@@ -134,12 +134,12 @@ class LmController
     public function displayLearningMaterials()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : null;
         $currentFolderId = isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : null;
-        
+
         if (!empty($searchQuery)) {
             $fileList = $this->lmModel->searchFilesAndFolders($userId, $searchQuery);
             $currentFolderName = 'Search Results for "' . htmlspecialchars($searchQuery) . '"';
@@ -148,7 +148,7 @@ class LmController
             $fileList = $this->lmModel->getFoldersAndFiles($userId, $currentFolderId);
             $currentFolderName = 'Home';
             $currentFolderPath = [];
-            
+
             if ($currentFolderId !== null) {
                 $currentFolderPath = $this->_buildFolderPath($currentFolderId);
                 $folderInfo = $this->lmModel->getFolderInfo($currentFolderId);
@@ -157,10 +157,10 @@ class LmController
                 }
             }
         }
-        
+
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
-        
+
         require_once VIEW_ALL_DOCUMENT;
     }
 
@@ -170,16 +170,16 @@ class LmController
     public function displayDocument()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        
+
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
@@ -187,11 +187,11 @@ class LmController
                 header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
-            
+
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $documentData = $this->lmModel->getDocumentContent($fileId, $userId);
             $user = $this->getUserInfo();
-            
+
             require_once VIEW_DISPLAY_DOCUMENT;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
@@ -206,16 +206,16 @@ class LmController
     public function deleteDocument()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        
+
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             if ($this->lmModel->deleteDocument($fileId, $userId)) {
                 $_SESSION['message'] = "Document deleted successfully.";
@@ -225,7 +225,7 @@ class LmController
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
         }
-        
+
         header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         exit();
     }
@@ -240,11 +240,11 @@ class LmController
     public function newFolder()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
-        
+
         require_once VIEW_NEW_FOLDER;
     }
 
@@ -254,22 +254,22 @@ class LmController
     public function createFolder()
     {
         $this->checkSession();
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['folderName'])) {
             header('Location: ' . NEW_FOLDER);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $folderName = trim($_POST['folderName']);
         $parentFolderId = !empty($_POST['parentFolderId']) ? (int)$_POST['parentFolderId'] : null;
-        
+
         if (empty($folderName)) {
             $_SESSION['error'] = "Folder name cannot be empty.";
             header('Location: ' . NEW_FOLDER);
             exit();
         }
-        
+
         try {
             $this->lmModel->createFolder($userId, $folderName, $parentFolderId);
             $_SESSION['message'] = "Folder created successfully.";
@@ -288,16 +288,16 @@ class LmController
     public function deleteFolder()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
-        
+
         if ($folderId === 0) {
             $_SESSION['error'] = "Folder ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             if ($this->lmModel->deleteFolder($folderId, $userId)) {
                 $_SESSION['message'] = "Folder deleted successfully.";
@@ -307,7 +307,7 @@ class LmController
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
         }
-        
+
         header('Location: ' . DISPLAY_LEARNING_MATERIALS);
         exit();
     }
@@ -318,11 +318,11 @@ class LmController
     public function newDocument()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
-        
+
         require_once VIEW_NEW_DOCUMENT;
     }
 
@@ -360,21 +360,21 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['folderId']) || !isset($_POST['newName'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $folderId = (int)$_POST['folderId'];
         $newName = trim($_POST['newName']);
-        
+
         if (empty($newName)) {
             echo json_encode(['success' => false, 'message' => 'Folder name cannot be empty.']);
             exit();
         }
-        
+
         try {
             $success = $this->lmModel->renameFolder($folderId, $newName, $userId);
             if ($success) {
@@ -395,21 +395,21 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['fileId']) || !isset($_POST['newName'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = (int)$_POST['fileId'];
         $newName = trim($_POST['newName']);
-        
+
         if (empty($newName)) {
             echo json_encode(['success' => false, 'message' => 'Document name cannot be empty.']);
             exit();
         }
-        
+
         try {
             $success = $this->lmModel->renameFile($fileId, $newName, $userId);
             if ($success) {
@@ -430,16 +430,16 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['fileId']) || !isset($_POST['newFolderId'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = (int)$_POST['fileId'];
         $newFolderId = $_POST['newFolderId'] == '0' ? null : (int)$_POST['newFolderId'];
-        
+
         try {
             $success = $this->lmModel->moveFile($fileId, $newFolderId, $userId);
             if ($success) {
@@ -460,16 +460,16 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['folderId']) || !isset($_POST['newFolderId'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $folderId = (int)$_POST['folderId'];
         $newFolderId = $_POST['newFolderId'] == '0' ? null : (int)$_POST['newFolderId'];
-        
+
         try {
             $success = $this->lmModel->moveFolder($folderId, $newFolderId, $userId);
             if ($success) {
@@ -493,16 +493,16 @@ class LmController
     public function summary()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        
+
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
@@ -510,11 +510,11 @@ class LmController
                 header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
-            
+
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
             $user = $this->getUserInfo();
-            
+
             require_once VIEW_SUMMARY;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
@@ -523,7 +523,7 @@ class LmController
         }
     }
 
-     /**
+    /**
      * ACTION: Delete summary from database
      */
     public function deleteSummary()
@@ -581,16 +581,16 @@ class LmController
     public function note()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        
+
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
@@ -598,11 +598,11 @@ class LmController
                 header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
-            
+
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $noteList = $this->lmModel->getNotesByFile($fileId);
             $user = $this->getUserInfo();
-            
+
             require_once VIEW_NOTE;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
@@ -611,7 +611,7 @@ class LmController
         }
     }
 
-     /**
+    /**
      * ACTION: Delete note from database
      */
     public function deleteNote()
@@ -636,7 +636,7 @@ class LmController
         }
     }
 
-     /**
+    /**
      * ACTION: Save note as file
      */
     public function saveNoteAsFile()
@@ -672,17 +672,17 @@ class LmController
     public function mindmap()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $file = $this->lmModel->getFile($userId, $fileId);
-        
+
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
@@ -690,11 +690,11 @@ class LmController
                 header('Location: ' . DISPLAY_LEARNING_MATERIALS);
                 exit();
             }
-            
+
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             $mindmapList = $this->lmModel->getMindmapByFile($fileId) ?? [];
             $user = $this->getUserInfo();
-            
+
             require_once VIEW_MINDMAP;
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
@@ -710,39 +710,39 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $instructions = '';
-        
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
         }
-        
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 echo json_encode(['success' => false, 'message' => 'File not found.']);
                 exit();
             }
-            
+
             $extractedText = $file['extracted_text'] ?? '';
             if (empty($extractedText)) {
                 echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
                 exit();
             }
-            
+
             $context = !empty($instructions) ? $instructions : "In paragraph format";
             $generatedSummary = $this->gemini->generateSummary($extractedText, $context);
 
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $this->lmModel->saveSummary($fileId, $title, $generatedSummary);
-            
+
             echo json_encode(['success' => true, 'content' => $generatedSummary]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -757,39 +757,39 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $instructions = '';
-        
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
         }
-        
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 echo json_encode(['success' => false, 'message' => 'File not found.']);
                 exit();
             }
-            
+
             $extractedText = $file['extracted_text'] ?? '';
             if (empty($extractedText)) {
                 echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
                 exit();
             }
-            
+
             $context = !empty($instructions) ? $instructions : '';
             $generatedNote = $this->gemini->generateNotes($extractedText, $context);
             $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
             $this->lmModel->saveNotes($fileId, $title, $generatedNote);
-            
+
             echo json_encode(['success' => true, 'content' => $generatedNote]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -804,27 +804,27 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['noteTitle']) || !isset($_POST['noteContent'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid request.']);
             exit();
         }
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $title = trim($_POST['noteTitle']);
         $content = trim($_POST['noteContent']);
-        
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
-        
+
         if (empty($title) || empty($content)) {
             echo json_encode(['success' => false, 'message' => 'Title and content are required.']);
             exit();
         }
-        
+
         try {
             $this->lmModel->saveNotes($fileId, $title, $content);
             echo json_encode(['success' => true, 'message' => $content]);
@@ -841,34 +841,34 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
-        
+
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 echo json_encode(['success' => false, 'message' => 'File not found.']);
                 exit();
             }
-            
+
             $extractedText = $file['extracted_text'] ?? '';
             if (empty($extractedText)) {
                 echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
                 exit();
             }
-            
+
             $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText);
             $mindmapJson = json_encode($mindmapMarkdown, JSON_UNESCAPED_UNICODE);
             $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
             $this->lmModel->saveMindmap($fileId, $title, $mindmapJson);
-            
+
             echo json_encode(['success' => true, 'markdown' => $mindmapMarkdown]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -883,33 +883,33 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         $userId = (int)$_SESSION['user_id'];
         $mindmapId = isset($_POST['mindmap_id']) ? (int)$_POST['mindmap_id'] : 0;
         $fileId = $this->resolveFileId();
-        
+
         if ($mindmapId === 0) {
             echo json_encode(['success' => false, 'message' => 'Mindmap ID not provided.']);
             exit();
         }
-        
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
-        
+
         try {
             $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId);
             if (!$mindmap || !is_array($mindmap)) {
                 echo json_encode(['success' => false, 'message' => 'Mindmap not found.']);
                 exit();
             }
-            
+
             $markdown = json_decode($mindmap['data'], true);
             if ($markdown === null) {
                 $markdown = $mindmap['data'];
             }
-            
+
             echo json_encode(['success' => true, 'markdown' => $markdown]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
@@ -952,7 +952,7 @@ class LmController
     public function createSummary()
     {
         $this->checkSession();
-        
+
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
@@ -1579,6 +1579,79 @@ class LmController
         require_once VIEW_QUIZ;
     }
 
+    public function generateQuiz()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        $questionAmount = '';
+        $questionDifficulty = '';
+        $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionAmount'])) {
+            $questionAmount = trim($_POST['questionAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionDifficulty'])) {
+            $questionDifficulty = trim($_POST['questionDifficulty']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+        $sourceText = $file['extracted_text'] ?? '';
+
+        try {
+            $context = !empty($instructions) ? $instructions : '';
+            $mcq = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
+            
+            // Log the raw response for debugging
+            error_log('Raw MCQ response: ' . substr($mcq, 0, 500));
+            
+            if (empty($mcq)) {
+                throw new \Exception('Empty response received from API');
+            }
+            
+            $decodedMcq = json_decode($mcq, true);
+            
+            // Check for JSON decode errors
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('JSON decode error: ' . json_last_error_msg());
+                error_log('Raw response: ' . $mcq);
+                throw new \Exception('Invalid JSON format received from API: ' . json_last_error_msg());
+            }
+            
+            // Check if decoded result is valid
+            if (!$decodedMcq) {
+                error_log('Decoded MCQ is null or false');
+                error_log('Raw response: ' . $mcq);
+                throw new \Exception('Failed to decode quiz data');
+            }
+            
+            // Check for quiz key (try both 'quiz' and 'questions' for backward compatibility)
+            if (!isset($decodedMcq['quiz']) && !isset($decodedMcq['questions'])) {
+                error_log('Quiz data structure: ' . json_encode(array_keys($decodedMcq)));
+                error_log('Full decoded response: ' . json_encode($decodedMcq));
+                throw new \Exception('Invalid quiz format: missing "quiz" or "questions" key. Received keys: ' . implode(', ', array_keys($decodedMcq)));
+            }
+            
+            // Use 'quiz' if available, otherwise fall back to 'questions'
+            $quizArray = $decodedMcq['quiz'] ?? $decodedMcq['questions'] ?? [];
+            
+            if (!is_array($quizArray) || empty($quizArray)) {
+                throw new \Exception('Quiz array is empty or invalid');
+            }
+            
+            echo json_encode(['success' => true, 'quiz' => $quizArray]);
+        } catch (\Throwable $e) {
+            error_log('Quiz generation error: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
     // ============================================================================
     // FLASHCARD PAGE (flashcard.php)
     // ============================================================================
@@ -1626,10 +1699,6 @@ class LmController
         }
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
-        error_log('flashcardAmount: ' . $flashcardAmount);
-        error_log('flashcardType: ' . $flashcardType);
-        error_log('instructions: ' . $instructions);
-
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
@@ -1644,7 +1713,7 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            $flashcards = $this->gemini->generateFlashcards($sourceText, $instructions, $flashcardAmount, $flashcardType);
+            $flashcards = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $decodedFlashcards = json_decode($flashcards, true);
             $term = '';
@@ -1672,11 +1741,11 @@ class LmController
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
-        
-        try{
+
+        try {
             $flashcard = $this->lmModel->getFlashcardsById($flashcardId);
             echo json_encode(['success' => true, 'flashcard' => $flashcard]);
-        }catch(\Throwable $e){
+        } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();

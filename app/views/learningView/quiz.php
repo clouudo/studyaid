@@ -156,8 +156,8 @@
                 
                 const data = await response.json();
                 
-                if (data.success && data.quiz) {
-                    quizData = data.quiz.questions || [];
+                if (data.success && data.quiz && Array.isArray(data.quiz)) {
+                    quizData = data.quiz;
                     userAnswers = {};
                     renderQuiz();
                     generateQuizCard.style.display = 'none';
@@ -174,34 +174,29 @@
         // Render quiz questions
         function renderQuiz() {
             quizQuestions.innerHTML = '';
+            
+            if (!quizData || quizData.length === 0) {
+                quizQuestions.innerHTML = '<p class="text-muted">No questions available.</p>';
+                questionCounter.textContent = 'Question 0 of 0';
+                return;
+            }
+
             questionCounter.textContent = `Question 1 of ${quizData.length}`;
 
             quizData.forEach((question, index) => {
                 const questionDiv = document.createElement('div');
                 questionDiv.className = 'quiz-question';
-                questionDiv.dataset.questionId = index;
-
-                let optionsHtml = '';
-                if (question.type === 'multiple_choice' && question.options) {
-                    question.options.forEach((option, optIndex) => {
-                        optionsHtml += `
-                            <div class="quiz-option" data-question="${index}" data-option="${optIndex}">
-                                ${option}
-                            </div>
-                        `;
-                    });
-                } else if (question.type === 'true_false') {
-                    optionsHtml += `
-                        <div class="quiz-option" data-question="${index}" data-option="true">True</div>
-                        <div class="quiz-option" data-question="${index}" data-option="false">False</div>
-                    `;
-                }
+                questionDiv.id = `question-${index}`;
 
                 questionDiv.innerHTML = `
                     <h5>Question ${index + 1}</h5>
-                    <p class="mb-3">${question.question || question.text || ''}</p>
+                    <p class="mb-3">${question.question || ''}</p>
                     <div class="quiz-options">
-                        ${optionsHtml}
+                        ${question.options.map((option, optIndex) => `
+                            <div class="quiz-option" data-question="${index}" data-option="${option}">
+                                ${option}
+                            </div>
+                        `).join('')}
                     </div>
                 `;
 
@@ -227,37 +222,28 @@
         }
 
         // Submit quiz
-        submitQuizBtn.addEventListener('click', async () => {
+        submitQuizBtn.addEventListener('click', () => {
             if (Object.keys(userAnswers).length < quizData.length) {
                 if (!confirm('You have not answered all questions. Submit anyway?')) {
                     return;
                 }
             }
 
-            try {
-                const formData = new FormData();
-                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
-                formData.append('quiz_data', JSON.stringify({
-                    quizId: quizData.quizId || null,
-                    answers: userAnswers,
-                    questions: quizData
-                }));
+            // Calculate score client-side
+            let score = 0;
+            const total = quizData.length;
+
+            quizData.forEach((question, index) => {
+                const correctAnswer = question.answer;
+                const userAnswer = userAnswers[index];
                 
-                const response = await fetch('<?= SUBMIT_QUIZ ?>', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    displayResults(data.score, data.total, data.percentage);
-                } else {
-                    alert('Error: ' + (data.message || 'Failed to submit quiz'));
+                if (userAnswer && userAnswer === correctAnswer) {
+                    score++;
                 }
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
+            });
+
+            const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+            displayResults(score, total, percentage);
         });
 
         // Display results
@@ -272,7 +258,7 @@
 
             // Highlight correct/incorrect answers
             quizData.forEach((question, index) => {
-                const correctAnswer = question.correct_answer || question.answer;
+                const correctAnswer = question.answer;
                 const userAnswer = userAnswers[index];
 
                 document.querySelectorAll(`[data-question="${index}"]`).forEach(option => {

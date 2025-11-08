@@ -10,6 +10,7 @@ $defaults = [
         'notes' => 'gemini-2.5-flash-lite',
         'mindmap' => 'gemini-2.5-flash-lite',
         'flashcards' => 'gemini-2.5-flash-lite',
+        'quiz' => 'gemini-2.5-flash',
     ],
     'base_url' => 'https://generativelanguage.googleapis.com/v1',
     'generation_config' => [
