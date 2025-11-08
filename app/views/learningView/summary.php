@@ -20,7 +20,7 @@
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
                     <div class="card-body">
-                        <form action="<?= GENERATE_SUMMARY ?>" method="POST">
+                        <form id="generateSummaryForm" action="#" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
                             <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
@@ -95,22 +95,53 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        document.querySelector('form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            try {
-                const res = await fetch(form.action, {
-                    method: 'POST',
-                    body: new FormData(form)
-                });
-                const json = await res.json();
-                location.reload();
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        });
-
         document.addEventListener('DOMContentLoaded', function() {
+            // Handle generate summary form submission
+            const generateSummaryForm = document.getElementById('generateSummaryForm');
+            if (generateSummaryForm) {
+                generateSummaryForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const form = e.target;
+                    const submitButton = form.querySelector('#genSummary');
+                    const originalButtonText = submitButton.textContent;
+                    
+                    // Disable button and show loading state
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Generating...';
+                    
+                    try {
+                        const actionUrl = form.getAttribute('data-action') || form.action;
+                        const res = await fetch(actionUrl, {
+                            method: 'POST',
+                            body: new FormData(form)
+                        });
+                        
+                        if (!res.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        
+                        const json = await res.json();
+                        
+                        if (json.success) {
+                            // Reload page to show new summary
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (json.message || 'Failed to generate summary'));
+                            submitButton.disabled = false;
+                            submitButton.textContent = originalButtonText;
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Error: ' + error.message);
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalButtonText;
+                    }
+                });
+            }
+            
+            // Parse markdown for summary content
             document.querySelectorAll('.summaryContent').forEach(function(div) {
                 div.innerHTML = marked.parse(div.textContent);
             });

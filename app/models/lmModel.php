@@ -171,7 +171,7 @@ class LmModel
         }
 
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
-        $fileName =  !empty($originalFileName) ? $originalFileName : $file['name'];
+        $fileName = !empty($originalFileName) ? $originalFileName : ($file != null ? $file['name'] : $uniqueFileName);
 
         if($fileContent != null) { //If file is uploaded, upload to GCS 
             $options = [
