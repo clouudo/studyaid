@@ -14,51 +14,58 @@ Furthermore, the architecture provides security by centralizing logic and valida
 
 ## Functional Requirements
 CM -  Content Management
-CM1 -  Upload Document
-CM1_01: The system shall allow the  user to upload learning materials in the format of PDF, Word, Image or text files.
-CM1_02: The system shall process learning materials in the format of PDF, Word, Image or text files and convert to machine-readable text.
 CM1_03: The system shall use OCR to extract text from images that contains text and screenshots of text contents.
-
-CM2 -  Manage Folders
-CM2_01: The system shall allow the user to create folders.
-CM2_02: The system shall allow the user to delete existing folders.
-CM2_03: The system shall allow the user to edit existing folder names.
 CM2_04: The system shall organize learning materials by date, or user-defined categories. 
-CM2_05: The system shall enable the user to search and retrieve specific folder.
-
-CM3 -  Manage File
-CM3_01: The system shall allow the user to add new files from uploaded documents.
-CM3_02: The system shall allow the user to remove existing files.
-CM3_03: The system shall allow the user to edit existing file names.
-CM3_04: The system shall enable the user to search and retrieve specific files.
-
-LM - Learning Material Management
-LM1 -  Summary
-LM1_01: The system shall summarize the learning materials selected by the user.
-LM1_02: The system shall store generated summary for future access.
-LM1_03: The system shall allow users to export summary in the format of PDF, Word or text files.
-
-LM2 -  Note
-LM2_01: The system shall generate notes based on uploaded learning materials selected by the user.
-LM2_02: The system shall store generated notes for future access.
-LM2_03: The system shall allow users to export notes in the format of PDF, Word or text files.
-
-LM3 - Mind map
-LM3_01: The system shall generate mind maps based on uploaded learning material selected by the user.
-LM3_02: The system shall store generated mind map for future access.
-LM3_03: The system shall allow users to export mind maps in the format of PDF or image files.
 
 U - User Management Module
-U1 - Register
-U1_01: The system shall provide a registration form to allow new users to create an account using a valid email and password.
-U1_02: The system shall validate that email address is not used by other accounts during registration.
 U1_03: The system shall send a confirmation message upon successful registration.
 
-U2 - Login
-U2_01: The system shall allow users to log in using their registered email and password.
-U2_02: The system shall validate the login credentials before granting access to the system.
-U2_03: The system shall display an appropriate error message if login credentials are invalid.
-U2_04: The system shall maintain a user session upon successful login.
+LM - Learning Material Management Module
+LM4 - Chatbot
+LM4_01: The system shall allow the user to submit the question to the chatbot.
+LM4_02: The system shall send the submitted question to the AI service via an API request.
+LM4_03: The system shall receive the AI-generated response from the API and display it in the user interface.
+LM4_04: The system shall log user queries.
+
+LM5 - Quiz
+LM5_01: The system shall allow the user to request the generation of a quiz from an uploaded document.
+LM5_02: The system shall send the uploaded document to the AI service via an API request for quiz generation.
+LM5_03: The system shall receive the AI-generated quiz from the API and display it in a structured quiz interface template.
+LM5_04: The system shall allow the user to answer the quiz questions via the user interface.
+LM5_05: The system shall evaluate the user’s answers and display the quiz score upon submission.
+LM5_06: The system shall store the quiz result in the user's performance record for progress tracking.
+
+LM6 - Flashcard
+LM6_01: The system shall allow the user to request the generation of flashcards based on the uploaded document.
+LM6_02: The system shall send the uploaded document to the AI service via an API request to extract key terms and definitions.
+LM6_03: The system shall receive the AI-generated key terms and definitions from the API and display them in a structured flashcards interface.
+LM6_04: The system shall allow the user to flip each flashcard to view both the key term and its corresponding explanation.
+LM6_05: The system shall allow the user to navigate through the flashcards.
+
+U - User Management Module
+U3 - Password reset
+U3_01: The system shall provide a "Forgot Password" option on the login page.
+U3_02: The system shall allow users to reset their password by sending a reset link to their registered email.
+U3_03: The system shall validate the reset link and allow the user to set a new password.
+
+U4 - Manage profile
+U4_01: The system shall allow users to view their personal profile information.
+U4_02: The system shall allow users to update their personal profile information.
+U4_03: The system shall validate input data when updating the profile.
+U4_04: The system shall allow users to change their password from within the profile settings.
+U4_05: The system shall display a success message when profile updates are saved.
+
+P - Performance Analysis Module
+P1 - Progress report
+P1_01: The system shall track each user's learning activities.
+P1_02: The system shall generate a progress report based on user interactions and activity history.
+P1_03: The system shall allow users to view their progress reports in a clean, readable layout with date and user identification.
+P1_04: The system shall allow users to export their progress report in PDF or Excel format.
+
+P2 - Performance dashboard
+P2_01: The system shall display key performance  in visual formats (charts/graphs).
+P2_02: The system shall update the performance dashboard in real time as the user completes tasks or assessments.
+P2_03: The system shall provide filters for users to view performance data over specific time periods (e.g., weekly, monthly).
 
 ## Behavior Expectation
 You are an expert in coding. You will use the most effective and efficient coding method known. 

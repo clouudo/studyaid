@@ -1,3 +1,6 @@
+app/config/gemini.local.php
+credentials/*.json
+.DS_Store
 credentials/studyaid-475504-ab6eeec0b8d7.json
 .DS_Store
 app/.DS_Store

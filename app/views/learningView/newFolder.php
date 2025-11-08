@@ -1,11 +1,11 @@
 <?php
-function buildFolderTree($folders, $parentId = null) {
+function buildFolderTree($allUserFolders, $parentId = null) {
     $html = '<ul>';
-    foreach ($folders as $folder) {
+    foreach ($allUserFolders as $folder) {
         if ($folder['parentFolderId'] == $parentId) {
             $html .= '<li>';
             $html .= '<a href="#" class="folder-item" data-folder-id="' . $folder['folderID'] . '" data-folder-name="' . htmlspecialchars($folder['name']) . '">' . htmlspecialchars($folder['name']) . '</a>';
-            $html .= buildFolderTree($folders, $folder['folderID']);
+            $html .= buildFolderTree($allUserFolders, $folder['folderID']);
             $html .= '</li>';
         }
     }
@@ -20,7 +20,7 @@ function buildFolderTree($folders, $parentId = null) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Folder - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="../../public/css/style.css">
+    <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <style>
         .folder-item {
             text-decoration: none;
@@ -52,7 +52,7 @@ function buildFolderTree($folders, $parentId = null) {
                 endif;
                 ?>
                 <h3 class="mb-4">Create New Folder</h3>
-                <form action="index.php?url=lm/createFolder" method="POST">
+                <form action="<?= BASE_PATH ?>lm/createFolder" method="POST">
                     <input type="hidden" name="parentFolderId" id="parentFolderId">
                     <div class="mb-3">
                         <label for="folderName" class="form-label">Folder Name</label>
@@ -62,12 +62,13 @@ function buildFolderTree($folders, $parentId = null) {
                         <label class="form-label">Add to folder</label>
                         <div>
                             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#selectFolderModal" style="background-color: #A855F7;">
+                                <i class="bi bi-folder-fill"></i>
                                 Select Folder
                             </button>
                             <span id="selectedFolderName" class="ms-2"></span>
                         </div>
                     </div>  
-                    <button type="submit" class="btn btn-primary">Create Folder</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Create Folder</button>
                     <button type="button" class="btn btn-secondary" onclick="window.history.back();">Cancel</button>
                 </form>
             </div>
@@ -83,7 +84,7 @@ function buildFolderTree($folders, $parentId = null) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <?php echo buildFolderTree($folders); ?>
+                    <?php echo buildFolderTree($allUserFolders); ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
