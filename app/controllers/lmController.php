@@ -844,11 +844,6 @@ class LmController
         
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $instructions = '';
-        
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
-            $instructions = trim($_POST['instructions']);
-        }
         
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
@@ -868,7 +863,7 @@ class LmController
                 exit();
             }
             
-            $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText, $instructions);
+            $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText);
             $mindmapJson = json_encode($mindmapMarkdown, JSON_UNESCAPED_UNICODE);
             $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
@@ -1563,6 +1558,7 @@ class LmController
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         require_once VIEW_CHATBOT;
@@ -1577,6 +1573,7 @@ class LmController
         $this->checkSession();
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         require_once VIEW_QUIZ;
@@ -1614,11 +1611,24 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
+
+        $flashcardAmount = '';
+        $flashcardType = '';
         $instructions = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
+            $flashcardAmount = trim($_POST['flashcardAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardType'])) {
+            $flashcardType = trim($_POST['flashcardType']);
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
         }
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        error_log('flashcardAmount: ' . $flashcardAmount);
+        error_log('flashcardType: ' . $flashcardType);
+        error_log('instructions: ' . $instructions);
 
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
@@ -1634,7 +1644,7 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            $flashcards = $this->gemini->generateFlashcards($sourceText, $instructions);
+            $flashcards = $this->gemini->generateFlashcards($sourceText, $instructions, $flashcardAmount, $flashcardType);
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $decodedFlashcards = json_decode($flashcards, true);
             $term = '';
@@ -1664,7 +1674,7 @@ class LmController
         $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
         
         try{
-            $flashcard = $this->lmModel->getFlashcardsByFile($fileId);
+            $flashcard = $this->lmModel->getFlashcardsById($flashcardId);
             echo json_encode(['success' => true, 'flashcard' => $flashcard]);
         }catch(\Throwable $e){
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);

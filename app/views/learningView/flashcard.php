@@ -70,6 +70,59 @@
             border-radius: 1rem;
             font-size: 0.875rem;
         }
+
+        .btn-check:checked + .btn-outline-secondary {
+            background-color: #A855F7;
+            border-color: #A855F7;
+        }
+        .btn-check:checked + .btn-outline-secondary:hover {
+            background-color: #A855F7;
+            border-color: #A855F7;
+        }
+
+        /* Fix for flashcard list overflow - prevents items from exceeding card body width */
+        #flashcardList {
+            overflow-x: hidden;
+        }
+
+        #flashcardList .list-group-item {
+            min-width: 0;
+            overflow: visible;
+            position: relative;
+            z-index: 1;
+        }
+
+        #flashcardList .list-group-item:hover {
+            z-index: 10;
+        }
+
+        #flashcardList .list-group-item .flex-grow-1 {
+            min-width: 0;
+            overflow: hidden;
+            margin-right: 0.75rem;
+        }
+
+        #flashcardList .list-group-item .flex-grow-1 strong {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        #flashcardList .list-group-item .dropdown {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        #flashcardList .list-group-item:hover .dropdown {
+            z-index: 11;
+        }
+
+        #flashcardList .list-group-item .dropdown-menu {
+            z-index: 1050 !important;
+        }
     </style>
 </head>
 
@@ -90,10 +143,31 @@
                     <div class="card-body">
                         <form id="generateFlashcardForm" action="<?= GENERATE_FLASHCARDS ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                            <label for="flashcardAmount" class="form-label">Flashcard Amount</label>
+                            <br>
+                            <div class="btn-group mb-3" role="group">
+                                <input type="radio" class="btn-check" name="flashcardAmount" autcomplete="off" value="fewer (5-10 flashcards)" id="fewerFlashcards">
+                                <label class="btn btn-outline-secondary" for="fewerFlashcards">Fewer Flashcards</label>
+                                <input type="radio" class="btn-check" name="flashcardAmount" autcomplete="off" checked value="standard (10-20 flashcards)" id="defaultFlashcards">
+                                <label class="btn btn-outline-secondary" for="defaultFlashcards">Standard (Default)</label>
+                                <input type="radio" class="btn-check" name="flashcardAmount" autcomplete="off" value="more (15-25 flashcards)" id="moreFlashcards">
+                                <label class="btn btn-outline-secondary" for="moreFlashcards">More Flashcards</label>
+                            </div>
+                            <br>
+                            <label for="flashcardType" class="form-label">Level of Difficulty</label>
+                            <br>
+                            <div class="btn-group mb-3" role="group">
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="easy" id="easy">
+                                <label class="btn btn-outline-secondary" for="easy">Easy</label>
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" checked value="medium" id="medium">
+                                <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="hard" id="hard">
+                                <label class="btn btn-outline-secondary" for="hard">Hard</label>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control"
-                                    placeholder="e.g. Focus on key terms, 10 flashcards">
+                                    placeholder="e.g. Briefly describe restrictions you want to apply.">
                             </div>
                             <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
                                 <i class="bi bi-lightning-charge me-2"></i>Generate Flashcards
@@ -147,9 +221,9 @@
                             <?php if ($flashcards): ?>
                                 <?php foreach ($flashcards as $flashcard): ?>
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div class="flex-grow-1">
-                                            <strong><?php echo $flashcard['title']; ?></strong>
-                                            <small class="text-muted">Updated: <?php echo $flashcard['createdAt']; ?></small>
+                                        <div class="flex-grow-1" style="min-width: 0;">
+                                            <strong title="<?php echo htmlspecialchars($flashcard['title']); ?>"><?php echo htmlspecialchars($flashcard['title']); ?></strong>
+                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($flashcard['createdAt']); ?></small>
                                         </div>
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
@@ -170,10 +244,10 @@
                                             </ul>
                                         </div>
                                     </div>
+                                <?php endforeach; ?>
                         </div>
-                    <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="list-group-item text-muted text-center">No saved flashcards</div>
+                <?php else: ?>
+                    <div class="list-group-item text-muted text-center">No saved flashcards</div>
                 <?php endif; ?>
                     </div>
                 </div>
@@ -282,7 +356,8 @@
             e.preventDefault();
 
             const formData = new FormData(generateForm);
-
+            formData.append('flashcardAmount', document.querySelector('input[name="flashcardAmount"]:checked').value);
+            formData.append('flashcardType', document.querySelector('input[name="flashcardType"]:checked').value);
             try {
                 const response = await fetch(generateForm.action, {
                     method: 'POST',

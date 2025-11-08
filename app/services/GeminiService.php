@@ -119,7 +119,7 @@ class GeminiService
      * Generate mindmap markdown from source text
      * Used by: Mindmap page (generateMindmap controller method)
      */
-    public function generateMindmapMarkdown(string $sourceText, ?string $instructions = null): string
+    public function generateMindmapMarkdown(string $sourceText): string
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
@@ -144,7 +144,7 @@ Rules:
    * Output only the Markdown (no explanations or extra text).
    * Start directly with #Main Topic.
 PROMPT;
-        $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . 'Content: ' . $sourceText;
+        $prompt = $schema . "\n" . "\n\n" . 'Content: ' . $sourceText;
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);
@@ -153,8 +153,14 @@ PROMPT;
     // ============================================================================
     // FLASHCARD PAGE (flashcard.php)
     // ============================================================================
-    public function generateFlashcards(string $sourceText, ?string $instructions = null): string
+    public function generateFlashcards(string $sourceText, ?string $instructions = null, ?string $flashcardAmount = null, ?string $flashcardType = null): string
     {
+        if($flashcardAmount == null){
+            $flashcardAmount = 'standard, (10-20 flashcards)';
+        }
+        if($flashcardType == null){
+            $flashcardType = 'medium';
+        }
         $model = $this->models['flashcards'] ?? $this->defaultModel;
         $schema = <<<PROMPT
         Create a set of flashcards based on the content provided.
@@ -171,8 +177,9 @@ PROMPT;
             }
 
         Output ONLY valid JSON, no markdown, no extra text.
+
         PROMPT;
-        $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . 'Content: ' . $sourceText;
+        $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . "Flashcard Amount: " . $flashcardAmount . "\n\n" . "Level of Difficulty: " . $flashcardType . "\n\n" . 'Content: ' . $sourceText;
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         $output = $this->extractText($result);

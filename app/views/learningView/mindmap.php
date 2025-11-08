@@ -35,10 +35,7 @@
                     <div class="card-body">
                         <form id="mindmapForm" action="<?= GENERATE_MINDMAP ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                            <div class="mb-3">
-                                <label class="form-label">Instructions (optional)</label>
-                                <input type="text" name="instructions" class="form-control" placeholder="e.g. 3 levels depth" />
-                            </div>
+
                             <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Mindmap</button>
                         </form>
                     </div>
@@ -73,7 +70,9 @@
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
                                                 <li><a class="dropdown-item export-mindmap-image-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as Image</a></li>
                                                 <li><a class="dropdown-item export-mindmap-pdf-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as PDF</a></li>
-                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
                                                 <li>
                                                     <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;">
                                                         <input type="hidden" name="mindmap_id" value="<?= htmlspecialchars($mindmap['mindmapID']) ?>">
@@ -148,7 +147,7 @@
                 const formData = new FormData();
                 formData.append('mindmap_id', id);
                 formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
-                
+
                 const res = await fetch('<?= VIEW_MINDMAP_ROUTE ?>', {
                     method: 'POST',
                     body: formData
@@ -173,13 +172,13 @@
 
             const id = btn.dataset.id;
             const container = document.getElementById('mindmap-container');
-            
+
             // Check if mindmap is currently displayed
             const markmapDiv = container.querySelector('.markmap');
             if (!markmapDiv || markmapDiv.children.length === 0) {
                 // Load mindmap first if not displayed
                 container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
-                
+
                 try {
                     const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
                     const json = await res.json();
@@ -207,13 +206,13 @@
 
             const id = btn.dataset.id;
             const container = document.getElementById('mindmap-container');
-            
+
             // Check if mindmap is currently displayed
             const markmapDiv = container.querySelector('.markmap');
             if (!markmapDiv || markmapDiv.children.length === 0) {
                 // Load mindmap first if not displayed
                 container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
-                
+
                 try {
                     const res = await fetch(`<?= BASE_PATH ?>lm/viewMindmap?id=${id}&fileID=<?= isset($_GET['fileID']) ? htmlspecialchars($_GET['fileID']) : '' ?>`);
                     const json = await res.json();
@@ -238,7 +237,7 @@
         function exportMindmapAsImage(mindmapId) {
             const container = document.getElementById('mindmap-container');
             const markmapDiv = container.querySelector('.markmap');
-            
+
             if (!markmapDiv) {
                 alert('Please view the mindmap first before exporting.');
                 return;
@@ -271,7 +270,7 @@
         function exportMindmapAsPdf(mindmapId) {
             const container = document.getElementById('mindmap-container');
             const markmapDiv = container.querySelector('.markmap');
-            
+
             if (!markmapDiv) {
                 alert('Please view the mindmap first before exporting.');
                 return;
@@ -293,26 +292,28 @@
                 height: markmapDiv.scrollHeight
             }).then(canvas => {
                 try {
-                    const { jsPDF } = window.jspdf;
+                    const {
+                        jsPDF
+                    } = window.jspdf;
                     const imgData = canvas.toDataURL('image/png', 1.0);
-                    
+
                     // PDF dimensions (A4 size in mm)
                     const pdfWidth = 210; // A4 width in mm
                     const pdfHeight = 297; // A4 height in mm
-                    
+
                     // Reduced margins for bigger mindmap (5mm on each side = 10mm total)
                     const margin = 5;
                     const availableWidth = pdfWidth - (margin * 2);
                     const availableHeight = pdfHeight - (margin * 2);
-                    
+
                     // Calculate image dimensions maintaining aspect ratio
                     const imgWidth = canvas.width;
                     const imgHeight = canvas.height;
                     const ratio = imgWidth / imgHeight;
-                    
+
                     // Determine orientation based on mindmap aspect ratio
                     let finalWidth, finalHeight, orientation, pageWidth, pageHeight;
-                    
+
                     if (ratio > 1) {
                         // Landscape mindmap - use landscape orientation
                         orientation = 'landscape';
@@ -320,10 +321,10 @@
                         pageHeight = pdfWidth;
                         const landscapeAvailableWidth = pageWidth - (margin * 2);
                         const landscapeAvailableHeight = pageHeight - (margin * 2);
-                        
+
                         finalWidth = landscapeAvailableWidth;
                         finalHeight = finalWidth / ratio;
-                        
+
                         // If height exceeds page, scale down
                         if (finalHeight > landscapeAvailableHeight) {
                             finalHeight = landscapeAvailableHeight;
@@ -334,25 +335,25 @@
                         orientation = 'portrait';
                         pageWidth = pdfWidth;
                         pageHeight = pdfHeight;
-                        
+
                         finalWidth = availableWidth;
                         finalHeight = finalWidth / ratio;
-                        
+
                         // If height exceeds page, scale down
                         if (finalHeight > availableHeight) {
                             finalHeight = availableHeight;
                             finalWidth = finalHeight * ratio;
                         }
                     }
-                    
+
                     // Center the image
                     const xOffset = (pageWidth - finalWidth) / 2;
                     const yOffset = (pageHeight - finalHeight) / 2;
-                    
+
                     // Create PDF with appropriate orientation
                     const pdf = new jsPDF(orientation, 'mm', 'a4');
                     pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
-                    
+
                     // Save PDF
                     pdf.save(`mindmap_${mindmapId}_${new Date().getTime()}.pdf`);
                 } catch (err) {

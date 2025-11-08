@@ -836,4 +836,16 @@ class LmModel
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Get a specific flashcard by ID
+     */
+    public function getFlashcardsById(int $flashcardId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM flashcard WHERE flashcardID = :flashcardID");
+        $stmt->bindParam(':flashcardID', $flashcardId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
 }
