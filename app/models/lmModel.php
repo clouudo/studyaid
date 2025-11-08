@@ -856,7 +856,7 @@ class LmModel
     /**
      * Save a quiz to database
      */
-    public function saveQuiz(int $fileId, int $totalQuestions, string $title, int $totalScore, ?string $examMode = null): int
+    public function saveQuiz(int $fileId, int $totalQuestions, string $title, ?int $totalScore = null, ?string $examMode = null): int
     {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, examMode, title, totalScore) VALUES (:fileID, :totalQuestions, :examMode, :title, :totalScore)");
@@ -894,5 +894,41 @@ class LmModel
         $stmt->bindParam(':userAnswer', $userAnswer);
         $stmt->execute();
         return (int)$conn->lastInsertId();
+    }
+
+    public function getQuizByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM quiz WHERE fileID = :fileID ORDER BY createdAt DESC");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function getQuizById(int $quizId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM quiz WHERE quizID = :quizID");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function getQuestionByQuiz(int $quizId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM question WHERE quizID = :quizID");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function saveScore(int $quizId, string $percentageScore): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE quiz SET totalScore = :totalScore, markAt = NOW() WHERE quizID = :quizID");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':totalScore', $percentageScore);
+        return $stmt->execute();
     }
 }

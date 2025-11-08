@@ -253,7 +253,7 @@ PROMPT;
 
         // Increase maxOutputTokens for quiz generation to handle multiple questions
         $generationConfig = array_merge($this->generationConfig, [
-            'maxOutputTokens' => 4096, // Increased from default 2048 for quiz generation
+            'maxOutputTokens' => 8192, // Increased from default 2048 for quiz generation
         ]);
 
         $schema = <<<PROMPT

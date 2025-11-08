@@ -1576,7 +1576,67 @@ class LmController
         $file = $this->lmModel->getFile($userId, $fileId);
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $quizList = $this->lmModel->getQuizByFile($fileId);
         require_once VIEW_QUIZ;
+    }
+
+    public function saveScore()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        $percentageScore = isset($_POST['percentage_score']) ? trim($_POST['percentage_score']) : '0';
+        
+        if ($quizId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid quiz ID']);
+            exit();
+        }
+        
+        try {
+            $result = $this->lmModel->saveScore($quizId, $percentageScore);
+            if ($result) {
+                echo json_encode(['success' => true, 'message' => 'Score saved successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to save score']);
+            }
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function viewQuiz()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
+        $user = $this->getUserInfo();
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        
+        $questions = $this->lmModel->getQuestionByQuiz($quizId);
+        
+        if (!$questions || empty($questions['question'])) {
+            echo json_encode(['success' => false, 'message' => 'No questions found']);
+            exit();
+        }
+        
+        // Decode the JSON string stored in the database
+        $quesArray = json_decode($questions['question'], true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'message' => 'Invalid quiz data format']);
+            exit();
+        }
+        
+        // Return the quiz array (should be in 'quiz' key if stored as full response, or direct array)
+        $quizData = isset($quesArray['quiz']) ? $quesArray['quiz'] : $quesArray;
+        
+        echo json_encode(['success' => true, 'quiz' => $quizData]);
+        exit();
     }
 
     public function generateQuiz()
@@ -1606,47 +1666,21 @@ class LmController
         try {
             $context = !empty($instructions) ? $instructions : '';
             $mcq = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            
-            // Log the raw response for debugging
-            error_log('Raw MCQ response: ' . substr($mcq, 0, 500));
-            
-            if (empty($mcq)) {
-                throw new \Exception('Empty response received from API');
-            }
-            
             $decodedMcq = json_decode($mcq, true);
-            
-            // Check for JSON decode errors
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('JSON decode error: ' . json_last_error_msg());
-                error_log('Raw response: ' . $mcq);
-                throw new \Exception('Invalid JSON format received from API: ' . json_last_error_msg());
+            $totalQuestions = 0;
+            foreach($decodedMcq['quiz'] as $question) {
+                $totalQuestions++;
             }
-            
-            // Check if decoded result is valid
-            if (!$decodedMcq) {
-                error_log('Decoded MCQ is null or false');
-                error_log('Raw response: ' . $mcq);
-                throw new \Exception('Failed to decode quiz data');
-            }
-            
-            // Check for quiz key (try both 'quiz' and 'questions' for backward compatibility)
-            if (!isset($decodedMcq['quiz']) && !isset($decodedMcq['questions'])) {
-                error_log('Quiz data structure: ' . json_encode(array_keys($decodedMcq)));
-                error_log('Full decoded response: ' . json_encode($decodedMcq));
-                throw new \Exception('Invalid quiz format: missing "quiz" or "questions" key. Received keys: ' . implode(', ', array_keys($decodedMcq)));
-            }
-            
-            // Use 'quiz' if available, otherwise fall back to 'questions'
+            $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
+            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
+            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
+
+            $this->lmModel->saveQuestion($quizId, 'MCQ', $mcq);
+
+            // Return decoded quiz array, not the raw JSON string
             $quizArray = $decodedMcq['quiz'] ?? $decodedMcq['questions'] ?? [];
-            
-            if (!is_array($quizArray) || empty($quizArray)) {
-                throw new \Exception('Quiz array is empty or invalid');
-            }
-            
-            echo json_encode(['success' => true, 'quiz' => $quizArray]);
+            echo json_encode(['success' => true, 'quiz' => $quizArray, 'quizId' => $quizId]);
         } catch (\Throwable $e) {
-            error_log('Quiz generation error: ' . $e->getMessage());
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();

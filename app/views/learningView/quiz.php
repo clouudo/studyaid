@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,6 +16,7 @@
             border-radius: 0.5rem;
             background-color: white;
         }
+
         .quiz-option {
             padding: 0.75rem;
             margin: 0.5rem 0;
@@ -23,23 +25,28 @@
             cursor: pointer;
             transition: all 0.3s;
         }
+
         .quiz-option:hover {
             border-color: #A855F7;
             background-color: #f8f9fa;
         }
+
         .quiz-option.selected {
             border-color: #A855F7;
             background-color: #A855F7;
             color: white;
         }
+
         .quiz-option.correct {
             border-color: #28a745;
             background-color: #d4edda;
         }
+
         .quiz-option.incorrect {
             border-color: #dc3545;
             background-color: #f8d7da;
         }
+
         .score-display {
             font-size: 2rem;
             font-weight: bold;
@@ -47,6 +54,7 @@
         }
     </style>
 </head>
+
 <body class="d-flex flex-column min-vh-100">
     <?php
     $current_url = $_GET['url'] ?? 'lm/quiz';
@@ -66,13 +74,49 @@
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
-                                <input type="text" name="instructions" class="form-control" 
-                                       placeholder="e.g. 10 questions, multiple choice, focus on key concepts">
+                                <input type="text" name="instructions" class="form-control"
+                                    placeholder="e.g. 10 questions, multiple choice, focus on key concepts">
                             </div>
                             <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
                                 <i class="bi bi-question-circle me-2"></i>Generate Quiz
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4" id="quizListCard">
+                    <div class="card-header">
+                        <h5 class="card-title">Generated Quizzes</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="quizList">
+                            <?php foreach ($quizList as $quiz): ?>
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <strong title="<?php echo htmlspecialchars($quiz['title']); ?>"><?php echo htmlspecialchars($quiz['title']); ?></strong>
+                                        <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($quiz['createdAt']); ?></small>
+                                    </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Actions
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
+                                            <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li>
+                                                <form method="POST" action="#" style="display: inline;">
+                                                    <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
+                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 </div>
 
@@ -124,13 +168,16 @@
                     </div>
                 </div>
             </div>
-        </main>
+
+    </div>
+    </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
         let quizData = [];
         let userAnswers = {};
+        let currentQuizId = null;
 
         const generateQuizCard = document.getElementById('generateQuizCard');
         const quizSection = document.getElementById('quizSection');
@@ -141,23 +188,24 @@
         const resultsCard = document.getElementById('resultsCard');
         const generateQuizForm = document.getElementById('generateQuizForm');
         const newQuizBtn = document.getElementById('newQuizBtn');
-
+        const quizListCard = document.getElementById('quizListCard');
         // Generate quiz
         generateQuizForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const formData = new FormData(generateQuizForm);
-            
+
             try {
                 const response = await fetch(generateQuizForm.action, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.quiz && Array.isArray(data.quiz)) {
                     quizData = data.quiz;
+                    currentQuizId = data.quizId || null; // Store quiz ID if provided
                     userAnswers = {};
                     renderQuiz();
                     generateQuizCard.style.display = 'none';
@@ -174,7 +222,7 @@
         // Render quiz questions
         function renderQuiz() {
             quizQuestions.innerHTML = '';
-            
+
             if (!quizData || quizData.length === 0) {
                 quizQuestions.innerHTML = '<p class="text-muted">No questions available.</p>';
                 questionCounter.textContent = 'Question 0 of 0';
@@ -222,7 +270,7 @@
         }
 
         // Submit quiz
-        submitQuizBtn.addEventListener('click', () => {
+        submitQuizBtn.addEventListener('click', async () => {
             if (Object.keys(userAnswers).length < quizData.length) {
                 if (!confirm('You have not answered all questions. Submit anyway?')) {
                     return;
@@ -236,22 +284,47 @@
             quizData.forEach((question, index) => {
                 const correctAnswer = question.answer;
                 const userAnswer = userAnswers[index];
-                
+
                 if (userAnswer && userAnswer === correctAnswer) {
                     score++;
                 }
             });
 
             const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+            if (currentQuizId) {
+                await saveScore(currentQuizId, percentage);
+            }
             displayResults(score, total, percentage);
         });
+
+        async function saveScore(quizId, percentageScore) {
+            try {
+                const formData = new FormData();
+                formData.append('quiz_id', quizId);
+                formData.append('percentage_score', percentageScore.toString());
+
+                const response = await fetch('<?= SAVE_SCORE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Score saved successfully:', percentageScore + '%');
+                } else {
+                    console.error('Failed to save score:', result.message);
+                }
+            } catch (error) {
+                console.error('Error saving score:', error);
+            }
+        }
 
         // Display results
         function displayResults(score, total, percentage) {
             document.getElementById('quizScore').textContent = score;
             document.getElementById('totalQuestions').textContent = total;
             document.getElementById('scorePercentage').textContent = `You scored ${percentage}%`;
-            
+
             const progressBar = document.getElementById('scoreProgressBar');
             progressBar.style.width = percentage + '%';
             progressBar.textContent = percentage + '%';
@@ -286,11 +359,44 @@
         newQuizBtn.addEventListener('click', () => {
             quizData = [];
             userAnswers = {};
+            currentQuizId = null;
             generateQuizCard.style.display = 'block';
             quizSection.style.display = 'none';
             resultsCard.style.display = 'none';
         });
+
+        //View quiz
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.view-btn');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            const container = document.getElementById('quizSection');
+
+            const formData = new FormData();
+            formData.append('quiz_id', id);
+            formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+
+            const res = await fetch('<?= VIEW_QUIZ_ROUTE ?>', {
+                method: 'POST',
+                body: formData
+            });
+
+            const json = await res.json();
+            console.log('Quiz data:', json);
+            if (json.success && json.quiz) {
+                quizData = json.quiz;
+                currentQuizId = id; // Store the quiz ID for saving score
+                userAnswers = {};
+                renderQuiz();
+                quizSection.style.display = 'block';
+                quizListCard.style.display = 'none';
+                generateQuizCard.style.display = 'none';
+            } else {
+                container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load quiz'}</div>`;
+            }
+        });
     </script>
 </body>
-</html>
 
+</html>

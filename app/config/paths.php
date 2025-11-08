@@ -78,6 +78,8 @@ define('VIEW_FLASHCARD_ROUTE', BASE_PATH . 'lm/viewFlashcard');
 // Chatbot, Quiz, Flashcard routes
 define('CHATBOT', BASE_PATH . 'lm/chatbot');
 define('QUIZ', BASE_PATH . 'lm/quiz');
+define('VIEW_QUIZ_ROUTE', BASE_PATH . 'lm/viewQuiz');
+define('SAVE_SCORE', BASE_PATH . 'lm/saveScore');
 define('FLASHCARD', BASE_PATH . 'lm/flashcard');
 define('GENERATE_QUIZ', BASE_PATH . 'lm/generateQuiz');
 define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
