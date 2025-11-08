@@ -741,7 +741,7 @@ class LmController
             $generatedSummary = $this->gemini->generateSummary($extractedText, $context);
 
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
-            $this->lmModel->saveSummary($fileId, $userId, $title, $generatedSummary);
+            $this->lmModel->saveSummary($fileId, $title, $generatedSummary);
             
             echo json_encode(['success' => true, 'content' => $generatedSummary]);
         } catch (\Throwable $e) {
@@ -788,7 +788,7 @@ class LmController
             $generatedNote = $this->gemini->generateNotes($extractedText, $context);
             $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
-            $this->lmModel->saveNotes($fileId, $title, $generatedNote, $userId);
+            $this->lmModel->saveNotes($fileId, $title, $generatedNote);
             
             echo json_encode(['success' => true, 'content' => $generatedNote]);
         } catch (\Throwable $e) {
@@ -826,7 +826,7 @@ class LmController
         }
         
         try {
-            $this->lmModel->saveNotes($fileId, $title, $content, $userId);
+            $this->lmModel->saveNotes($fileId, $title, $content);
             echo json_encode(['success' => true, 'message' => $content]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -1646,7 +1646,7 @@ class LmController
             $terms = json_encode($term);
             $definitions = json_encode($definition);
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
-            $flashcardId = $this->lmModel->saveFlashcards($fileId, $userId, $title, $terms, $definitions);
+            $flashcardId = $this->lmModel->saveFlashcards($fileId, $title, $terms, $definitions);
             echo json_encode(['success' => true, 'term' => $terms, 'definition' => $definitions]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);

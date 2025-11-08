@@ -34,9 +34,12 @@
                 <div class="card mb-3">
                     <form id="noteEditor" action="<?= SAVE_NOTE ?>" method="POST">
                         <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
-                            <a class="btn btn-sm me-2 btn-toggle" data-bs-toggle="collapse" aria-expanded="true" data-bs-target="#noteEditorPanel"><i class="bi bi-chevron-down"></i></a>
+                        <div class="card-header">
+                            <label for="noteTitle" class="form-label">Add Note</label>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <input type="text" class="form-control" id="noteTitle" name="noteTitle" placeholder="Enter note title">
+                                <a class="btn btn-sm me-2 btn-toggle" data-bs-toggle="collapse" aria-expanded="true" data-bs-target="#noteEditorPanel"><i class="bi bi-chevron-down"></i></a>
+                            </div>
                         </div>
                         <div class="card-body collapse" id="noteEditorPanel">
                             <div class="btn-toolbar mb-2" role="toolbar" id="toolbar">
@@ -56,65 +59,76 @@
                         </div>
                     </form>
                 </div>
-                <?php if ($noteList): ?>
-                    <?php foreach ($noteList as $note): ?>
-                        <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <?php echo $note['title'] ?>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Actions
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
-                                            <li>
-                                                <form method="POST" action="<?= EXPORT_NOTE_PDF ?>" style="display: inline;">
-                                                    <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as PDF</button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <form method="POST" action="<?= EXPORT_NOTE_DOCX ?>" style="display: inline;">
-                                                    <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as DOCX</button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <form method="POST" action="<?= EXPORT_NOTE_TXT ?>" style="display: inline;">
-                                                    <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as TXT</button>
-                                                </form>
-                                            </li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;">
-                                                    <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;">
-                                                    <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
-                                                </form>
-                                            </li>
-                                        </ul>
+                <div class="mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Saved Notes</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="noteList">
+                            <?php if ($noteList): ?>
+                                <?php foreach ($noteList as $note): ?>
+                                    <div class="card mb-3">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <?php echo $note['title'] ?>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        Actions
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
+                                                        <li>
+                                                            <form method="POST" action="<?= EXPORT_NOTE_PDF ?>" style="display: inline;">
+                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as PDF</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST" action="<?= EXPORT_NOTE_DOCX ?>" style="display: inline;">
+                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as DOCX</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST" action="<?= EXPORT_NOTE_TXT ?>" style="display: inline;">
+                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as TXT</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <hr class="dropdown-divider">
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;">
+                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;">
+                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                                <button class="btn btn-sm me-2 view-btn" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>"><i class=" bi bi-chevron-down"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body collapse" id="noteContent-<?php echo $note['noteID']; ?>">
+                                            <div class="noteText"><?php echo htmlspecialchars($note['content']); ?></div>
+                                        </div>
                                     </div>
-                                    <button class="btn btn-sm me-2 view-btn" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>"><i class=" bi bi-chevron-down"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body collapse" id="noteContent-<?php echo $note['noteID']; ?>">
-                                <div class="noteText"><?php echo htmlspecialchars($note['content']); ?></div>
-                            </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    </div>
+                </div>
             </div>
     </div>
     </main>

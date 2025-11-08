@@ -620,12 +620,11 @@ class LmModel
     /**
      * Save a summary to database
      */
-    public function saveSummary(int $fileId, int $userId, string $title, string $content): int
+    public function saveSummary(int $fileId, string $title, string $content): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO summary (fileID, userID, title, content) VALUES (:fileID, :userID, :title, :content)");
+        $stmt = $conn->prepare("INSERT INTO summary (fileID, title, content) VALUES (:fileID, :title, :content)");
         $stmt->bindParam(':fileID', $fileId);
-        $stmt->bindParam(':userID', $userId);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':content', $content);
         $stmt->execute();
@@ -635,12 +634,11 @@ class LmModel
     /**
      * Get all summaries for a specific file
      */
-    public function getSummaryByFile(int $fileId, int $userId)
+    public function getSummaryByFile(int $fileId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM summary WHERE fileID = :fileID AND userID = :userID ORDER BY createdAt DESC");
+        $stmt = $conn->prepare("SELECT * FROM summary WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
-        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -648,12 +646,11 @@ class LmModel
     /**
      * Get a specific summary by ID and user ID
      */
-    public function getSummaryById(int $summaryId, int $userId)
+    public function getSummaryById(int $summaryId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID AND userID = :userID");
+        $stmt = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID");
         $stmt->bindParam(':summaryID', $summaryId);
-        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
@@ -680,10 +677,9 @@ class LmModel
 
         $sourceText = $summaryData['content'];
         $title = $summaryData['title'];
-        $userId = $summaryData['userID'];
 
         //Upload to GCS
-        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
+        $this->uploadFileToGCS($folderId, $sourceText, null, null, $title);
     }
 
     // ============================================================================
@@ -693,14 +689,13 @@ class LmModel
     /**
      * Save a note to database
      */
-    public function saveNotes(int $fileId, string $title, string $content, int $userId): int
+    public function saveNotes(int $fileId, string $title, string $content): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO note (fileID, title, content, userID) VALUES (:fileID, :title, :content, :userID)");
+        $stmt = $conn->prepare("INSERT INTO note (fileID, title, content) VALUES (:fileID, :title, :content)");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':content', $content);
-        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
@@ -818,12 +813,11 @@ class LmModel
     /**
      * Save flashcards to database
      */
-    public function saveFlashcards(int $fileId, int $userId, string $title, string $term, string $definition): int
+    public function saveFlashcards(int $fileId, string $title, string $term, string $definition): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO flashcard (fileID, userID, title, term, definition) VALUES (:fileID, :userID, :title, :term, :definition)");    
+        $stmt = $conn->prepare("INSERT INTO flashcard (fileID, title, term, definition) VALUES (:fileID, :title, :term, :definition)");    
         $stmt->bindParam(':fileID', $fileId);
-        $stmt->bindParam(':userID', $userId);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':term', $term);
         $stmt->bindParam(':definition', $definition);

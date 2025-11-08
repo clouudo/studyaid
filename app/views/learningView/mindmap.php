@@ -46,7 +46,7 @@
 
                 <!-- Mindmap Display -->
                 <div class="mt-3">
-                    <div id="mindmap-container">
+                    <div id="mindmap-container" style="display: none;">
                         <!-- Mindmap will be injected here -->
                     </div>
                 </div>
@@ -86,7 +86,7 @@
                                     </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
-                                <div class="list-group-item text-muted text-center">No saved mindmaps yet</div>
+                                <div class="list-group-item text-muted text-center">No saved mindmaps</div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -117,7 +117,9 @@
                 const json = await res.json();
 
                 if (json.success && json.markdown) {
+                    container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
+                    location.reload();
                 } else {
                     container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to generate mindmap'}</div>`;
                 }
@@ -154,6 +156,7 @@
                 const json = await res.json();
 
                 if (json.success && json.markdown) {
+                    container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
                 } else {
                     container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load mindmap'}</div>`;

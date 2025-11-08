@@ -172,6 +172,8 @@
                                     </div>
                         </div>
                     <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="list-group-item text-muted text-center">No saved flashcards</div>
                 <?php endif; ?>
                     </div>
                 </div>
@@ -293,7 +295,7 @@
                     // Parse JSON strings from the response
                     let termString = data.term;
                     let definitionString = data.definition;
-                    
+
                     try {
                         // The controller returns JSON-encoded strings, so parse them first
                         termString = JSON.parse(data.term);
@@ -303,11 +305,11 @@
                         termString = data.term;
                         definitionString = data.definition;
                     }
-                    
+
                     // Split by newlines and filter out empty strings
                     terms = termString.split('\n').filter(t => t.trim() !== '');
                     definitions = definitionString.split('\n').filter(d => d.trim() !== '');
-                    
+
                     // Reset to first card
                     currentIndex = 0;
                     flashcard.classList.remove('flipped');
