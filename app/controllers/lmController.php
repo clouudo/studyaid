@@ -120,7 +120,6 @@ class LmController
         $userId = (int)$_SESSION['user_id'];
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-
         require_once VIEW_NEW_DOCUMENT;
     }
 
@@ -899,7 +898,7 @@ class LmController
         }
 
         try {
-            $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId);
+            $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
             if (!$mindmap || !is_array($mindmap)) {
                 echo json_encode(['success' => false, 'message' => 'Mindmap not found.']);
                 exit();
@@ -1561,7 +1560,53 @@ class LmController
         $file = $this->lmModel->getFile($userId, $fileId);
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $newChatbot = $this->saveChatbot($fileId, $userId);
+        $chatbot = $this->lmModel->getChatBotByFile($fileId);
+        $responseChats = '';
+        if ($chatbot) {
+            $chatbotId = $chatbot['chatbotID'];
+            if($chatbotId){
+                $questionChats = $this->lmModel->getQuestionChatByChatbot($chatbotId);
+                foreach($questionChats as $questionChat){
+                    $responseChats .= $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']) . "\n";
+                }
+            }
+        } else {
+            $_SESSION['error'] = "Failed to save chatbot";
+            header('Location: ' . DISPLAY_DOCUMENT);
+        }
         require_once VIEW_CHATBOT;
+    }
+
+    public function sendQuestionChat()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $file = $this->lmModel->getFile($userId, $fileId);
+
+        $chatbot = $this->lmModel->getChatBotByFile($fileId);
+        $question = isset($_POST['question']) ? trim($_POST['question']) : '';
+        $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
+
+        $response = $this->gemini->generateChatbotResponse($file['extracted_text'], $question);
+        $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
+        $response = $this->lmModel->getResponseChatById($responseChatId);
+        echo json_encode(['success' => true, 'response' => $response['response']]);
+        exit();
+    }
+
+    public function saveChatbot($fileId, $userId)
+    {
+        $file = $this->lmModel->getFile($userId, $fileId);
+        $chatbotId = $this->lmModel->getChatBotByFile($fileId);
+        if (!$chatbotId) {
+            $generateSummary = $this->gemini->generateSummary($file['extracted_text'], "A very short summary of the content");
+            $title = $this->gemini->generateTitle($generateSummary);
+            $chatbotId = $this->lmModel->saveChatbot($fileId, $title);
+        }
+        return $chatbotId;
     }
 
     // ============================================================================
@@ -1587,12 +1632,12 @@ class LmController
         $userId = (int)$_SESSION['user_id'];
         $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
         $percentageScore = isset($_POST['percentage_score']) ? trim($_POST['percentage_score']) : '0';
-        
+
         if ($quizId <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid quiz ID']);
             exit();
         }
-        
+
         try {
             $result = $this->lmModel->saveScore($quizId, $percentageScore);
             if ($result) {
@@ -1616,25 +1661,23 @@ class LmController
         $user = $this->getUserInfo();
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
-        
+
         $questions = $this->lmModel->getQuestionByQuiz($quizId);
-        
+
         if (!$questions || empty($questions['question'])) {
             echo json_encode(['success' => false, 'message' => 'No questions found']);
             exit();
         }
-        
-        // Decode the JSON string stored in the database
+
         $quesArray = json_decode($questions['question'], true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             echo json_encode(['success' => false, 'message' => 'Invalid quiz data format']);
             exit();
         }
-        
-        // Return the quiz array (should be in 'quiz' key if stored as full response, or direct array)
+
         $quizData = isset($quesArray['quiz']) ? $quesArray['quiz'] : $quesArray;
-        
+
         echo json_encode(['success' => true, 'quiz' => $quizData]);
         exit();
     }
@@ -1668,7 +1711,7 @@ class LmController
             $mcq = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
             $decodedMcq = json_decode($mcq, true);
             $totalQuestions = 0;
-            foreach($decodedMcq['quiz'] as $question) {
+            foreach ($decodedMcq['quiz'] as $question) {
                 $totalQuestions++;
             }
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");

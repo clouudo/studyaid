@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,21 +17,25 @@
             padding: 1rem;
             background-color: #f8f9fa;
         }
+
         .message {
             margin-bottom: 1rem;
             padding: 0.75rem;
             border-radius: 0.5rem;
         }
+
         .message.user {
             background-color: #A855F7;
             color: white;
             margin-left: 20%;
         }
+
         .message.bot {
             background-color: white;
             border: 1px solid #dee2e6;
             margin-right: 20%;
         }
+
         .message-time {
             font-size: 0.75rem;
             opacity: 0.7;
@@ -38,6 +43,7 @@
         }
     </style>
 </head>
+
 <body class="d-flex flex-column min-vh-100">
     <?php
     $current_url = $_GET['url'] ?? 'lm/chatbot';
@@ -52,7 +58,7 @@
 
                 <div class="card">
                     <div class="card-header" style="background-color: #A855F7; color: white;">
-                        <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>Ask Questions About This Document</h5>
+                        <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i><?php echo $chatbot['title'] ?? 'Chatbot'; ?></h5>
                     </div>
                     <div class="card-body">
                         <!-- Chat Messages Container -->
@@ -69,8 +75,8 @@
                         <form id="chatForm" action="<?= SEND_CHAT_MESSAGE ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <div class="input-group">
-                                <input type="text" class="form-control" id="questionInput" name="question" 
-                                       placeholder="Type your question here..." required>
+                                <input type="text" class="form-control" id="questionInput" name="question"
+                                    placeholder="Type your question here..." required>
                                 <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
                                     <i class="bi bi-send me-2"></i>Send
                                 </button>
@@ -93,20 +99,33 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        document.addEventListener('DOMContentLoaded', () => {
+            const questionChats = <?php echo json_encode($questionChats); ?>;
+            const responseChats = <?php echo json_encode($responseChats); ?>;
+            if(Array.isArray(questionChats)){
+                questionChats.forEach(questionChat => {
+                    addMessage(questionChat.userQuestion, true);
+                    addMessage(responseChats, false);
+                });
+            }
+        });
         // Add message to chat
         function addMessage(text, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-            
+
             const sender = isUser ? 'You' : 'StudyAid Bot';
-            const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            
+            const time = new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
             messageDiv.innerHTML = `
                 <div class="fw-bold">${sender}</div>
                 <div>${text}</div>
                 <div class="message-time">${time}</div>
             `;
-            
+
             chatContainer.appendChild(messageDiv);
             scrollToBottom();
         }
@@ -114,7 +133,7 @@
         // Handle form submission
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const question = questionInput.value.trim();
             if (!question) return;
 
@@ -131,16 +150,18 @@
 
             try {
                 const formData = new FormData(chatForm);
+                formData.append('file_id', <?php echo $file['fileID']; ?>);
+                formData.append('question', question);
                 const response = await fetch(chatForm.action, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 // Remove loading indicator
                 chatContainer.removeChild(loadingDiv);
-                
+
                 if (data.success) {
                     addMessage(data.response || data.message);
                 } else {
@@ -156,5 +177,5 @@
         scrollToBottom();
     </script>
 </body>
-</html>
 
+</html>

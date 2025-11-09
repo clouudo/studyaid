@@ -27,7 +27,7 @@
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
                             </div>
-                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Note</button>
+                            <button type="submit" id="genNote" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Note</button>
                         </form>
                     </div>
                 </div>
@@ -77,25 +77,13 @@
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_NOTE_PDF ?>" style="display: inline;">
-                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as PDF</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-note-btn" href="#" data-export-type="pdf" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_NOTE_DOCX ?>" style="display: inline;">
-                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as DOCX</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-note-btn" href="#" data-export-type="docx" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_NOTE_TXT ?>" style="display: inline;">
-                                                                <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as TXT</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-note-btn" href="#" data-export-type="txt" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a>
                                                         </li>
                                                         <li>
                                                             <hr class="dropdown-divider">
@@ -158,7 +146,16 @@
 
         document.getElementById('noteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
+
             const form = e.target;
+            const submitButton = form.querySelector('#genNote');
+            const originalButtonText = submitButton.textContent;
+
+            // Disable button and show loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Generating...';
+
             try {
                 const data = new FormData(form);
                 const res = await fetch(form.action, {
@@ -170,9 +167,13 @@
                     location.reload();
                 } else {
                     alert('Error: ' + (json.message || 'Unknown error'));
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalButtonText;
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
             }
         })
 
@@ -197,7 +198,98 @@
             document.querySelectorAll('.noteText')
                 .forEach(function(div) {
                     div.innerHTML = marked.parse(div.textContent);
-                })
+                });
+
+            // Handle export note buttons
+            document.querySelectorAll('.export-note-btn').forEach(function(btn) {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const exportType = this.dataset.exportType;
+                    const noteId = this.dataset.noteId;
+                    const fileId = this.dataset.fileId;
+
+                    // Determine the export URL based on type
+                    let exportUrl = '';
+                    if (exportType === 'pdf') {
+                        exportUrl = '<?= EXPORT_NOTE_PDF ?>';
+                    } else if (exportType === 'docx') {
+                        exportUrl = '<?= EXPORT_NOTE_DOCX ?>';
+                    } else if (exportType === 'txt') {
+                        exportUrl = '<?= EXPORT_NOTE_TXT ?>';
+                    }
+
+                    if (!exportUrl) {
+                        alert('Invalid export type');
+                        return;
+                    }
+
+                    try {
+                        // Create form data
+                        const formData = new FormData();
+                        formData.append('note_id', noteId);
+                        formData.append('file_id', fileId);
+
+                        // Fetch the file
+                        const response = await fetch(exportUrl, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        // Check if response is ok and has correct content type
+                        const contentType = response.headers.get('content-type') || '';
+                        
+                        // If it's an HTML response (error redirect), handle it
+                        if (contentType.includes('text/html')) {
+                            const text = await response.text();
+                            alert('Export failed. Please check if the note exists and try again.');
+                            console.error('Export error response:', text);
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            throw new Error('Export failed: ' + response.statusText);
+                        }
+
+                        // Get the blob from response
+                        const blob = await response.blob();
+                        
+                        // Verify blob is not empty
+                        if (blob.size === 0) {
+                            throw new Error('Empty file received from server');
+                        }
+                        
+                        // Determine file extension and MIME type
+                        let extension = '';
+                        let filename = 'note_' + noteId;
+                        if (exportType === 'pdf') {
+                            extension = 'pdf';
+                            // Verify it's actually a PDF by checking blob type
+                            if (!blob.type.includes('pdf') && !contentType.includes('pdf')) {
+                                throw new Error('Invalid PDF file received');
+                            }
+                        } else if (exportType === 'docx') {
+                            extension = 'docx';
+                        } else if (exportType === 'txt') {
+                            extension = 'txt';
+                        }
+
+                        // Create download link
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename + '.' + extension;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    } catch (error) {
+                        console.error('Export error:', error);
+                        alert('Error exporting note: ' + error.message);
+                    }
+                });
+            });
         })
     </script>
 </body>

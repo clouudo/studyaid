@@ -52,6 +52,15 @@
             font-weight: bold;
             color: #A855F7;
         }
+
+        .btn-check:checked + .btn-outline-secondary {
+            background-color: #A855F7;
+            border-color: #A855F7;
+        }
+        .btn-check:checked + .btn-outline-secondary:hover {
+            background-color: #A855F7;
+            border-color: #A855F7;
+        }
     </style>
 </head>
 
@@ -69,16 +78,37 @@
 
                 <!-- Generate Quiz Form -->
                 <div class="card mb-4" id="generateQuizCard">
-                    <div class="card-body">
+                <div class="card-body">
                         <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
-                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
+                            <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                            <label for="questionAmount" class="form-label">Question Amount</label>
+                            <br>
+                            <div class="btn-group mb-3" role="group">
+                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" value="fewer (5-10 questions)" id="fewerQuestions">
+                                <label class="btn btn-outline-secondary" for="fewerQuestions">Fewer Questions</label>
+                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" checked value="standard (10-20 questions)" id="defaultQuestions">
+                                <label class="btn btn-outline-secondary" for="defaultQuestions">Standard (Default)</label>
+                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" value="more (15-25 questions)" id="moreQuestions">
+                                <label class="btn btn-outline-secondary" for="moreQuestions">More Questions</label>
+                            </div>
+                            <br>
+                            <label for="questionDifficulty" class="form-label">Level of Difficulty</label>
+                            <br>
+                            <div class="btn-group mb-3" role="group">
+                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" value="easy" id="easy">
+                                <label class="btn btn-outline-secondary" for="easy">Easy</label>
+                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" checked value="medium" id="medium">
+                                <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
+                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" value="hard" id="hard">
+                                <label class="btn btn-outline-secondary" for="hard">Hard</label>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control"
-                                    placeholder="e.g. 10 questions, multiple choice, focus on key concepts">
+                                    placeholder="e.g. Briefly describe restrictions you want to apply.">
                             </div>
-                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                                <i class="bi bi-question-circle me-2"></i>Generate Quiz
+                            <button type="submit" id="genQuiz" class="btn btn-primary" style="background-color: #A855F7; border: none;">
+                                <i class="bi bi-lightning-charge me-2"></i>Generate Quiz
                             </button>
                         </form>
                     </div>
@@ -192,8 +222,19 @@
         // Generate quiz
         generateQuizForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
+
+            const submitButton = generateQuizForm.querySelector('#genQuiz');
+            const originalButtonText = submitButton.innerHTML;
+
+            // Disable button and show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
 
             const formData = new FormData(generateQuizForm);
+            formData.append('questionAmount', document.querySelector('input[name="questionAmount"]:checked').value);
+            formData.append('questionDifficulty', document.querySelector('input[name="questionDifficulty"]:checked').value);
+            formData.append('instructions', document.querySelector('input[name="instructions"]').value);
 
             try {
                 const response = await fetch(generateQuizForm.action, {
@@ -211,11 +252,19 @@
                     generateQuizCard.style.display = 'none';
                     quizSection.style.display = 'block';
                     resultsCard.style.display = 'none';
+                    
+                    // Restore button (though it's hidden now)
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
                 } else {
                     alert('Error: ' + (data.message || 'Failed to generate quiz'));
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
             }
         });
 

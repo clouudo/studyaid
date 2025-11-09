@@ -354,4 +354,16 @@ PROMPT;
         
         return $clean;
     }
+
+    // ============================================================================
+    // CHATBOT PAGE (chatbot.php)
+    // ============================================================================
+    public function generateChatbotResponse(string $sourceText, string $question): string
+    {
+        $model = $this->models['chatbot'] ?? $this->defaultModel;
+        $prompt = "Generate a response to the following question. Review the content provided before generating the response. Only return the response. No formatting: " . 'Question: ' . $question . "\n\n" . 'Content: ' . $sourceText;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents);
+        return $this->extractText($result);
+    }
 }

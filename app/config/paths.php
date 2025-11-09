@@ -84,7 +84,7 @@ define('FLASHCARD', BASE_PATH . 'lm/flashcard');
 define('GENERATE_QUIZ', BASE_PATH . 'lm/generateQuiz');
 define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
-define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendChatMessage');
+define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');

@@ -713,12 +713,14 @@ class LmModel
     }
 
     /**
-     * Get a specific note by ID and user ID
+     * Get a specific note by ID and user ID (checks ownership through file)
      */
     public function getNoteById(int $noteId, int $userId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM note WHERE noteID = :noteID AND userID = :userID");
+        $stmt = $conn->prepare("SELECT n.* FROM note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                WHERE n.noteID = :noteID AND f.userID = :userID");
         $stmt->bindParam(':noteID', $noteId);
         $stmt->bindParam(':userID', $userId);
         $stmt->execute();
@@ -740,7 +742,10 @@ class LmModel
      */
     public function saveNoteAsFile(int $noteId, $filePath, $folderId){
         $conn = $this->db->connect();
-        $note = $conn->prepare("SELECT * FROM note WHERE noteID = :noteID");
+        // Get note with file info to get userId
+        $note = $conn->prepare("SELECT n.*, f.userID FROM note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                WHERE n.noteID = :noteID");
         $note->bindParam(':noteID', $noteId);
         $note->execute();
         $noteData = $note->fetch(\PDO::FETCH_ASSOC);
@@ -784,14 +789,27 @@ class LmModel
     }
 
     /**
-     * Get a specific mindmap by ID and file ID
+     * Get a specific mindmap by ID and file ID (checks ownership through file)
      */
-    public function getMindmapById(int $mindmapId, int $fileId)
+    public function getMindmapById(int $mindmapId, int $fileId, ?int $userId = null)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM mindmap WHERE mindmapID = :mindmapID AND fileID = :fileID");
-        $stmt->bindParam(':mindmapID', $mindmapId);
-        $stmt->bindParam(':fileID', $fileId);
+        
+        // If userId is provided, verify ownership through file table
+        if ($userId !== null) {
+            $stmt = $conn->prepare("SELECT m.* FROM mindmap m 
+                                    INNER JOIN file f ON m.fileID = f.fileID 
+                                    WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
+            $stmt->bindParam(':mindmapID', $mindmapId);
+            $stmt->bindParam(':fileID', $fileId);
+            $stmt->bindParam(':userID', $userId);
+        } else {
+            // Fallback to original query if userId not provided (for backward compatibility)
+            $stmt = $conn->prepare("SELECT * FROM mindmap WHERE mindmapID = :mindmapID AND fileID = :fileID");
+            $stmt->bindParam(':mindmapID', $mindmapId);
+            $stmt->bindParam(':fileID', $fileId);
+        }
+        
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
@@ -931,4 +949,97 @@ class LmModel
         $stmt->bindParam(':totalScore', $percentageScore);
         return $stmt->execute();
     }
+
+    
+    // ============================================================================
+    // CHATBOT PAGE (chatbot.php)
+    // ============================================================================
+
+    /**
+     * Save a chat message to database
+     */
+    public function saveChatbot(int $fileID, string $title){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO chatbot (fileID, title) VALUES (:fileID, :title)");
+        $stmt->bindParam(':fileID', $fileID);
+        $stmt->bindParam(':title', $title);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function saveQuestionChat(int $chatbotId, string $question){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO questionChat (chatbotID, userQuestion) VALUES (:chatbotID, :userQuestion)");
+        $stmt->bindParam(':chatbotID', $chatbotId);
+        $stmt->bindParam(':userQuestion', $question);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function saveResponseChat(int $questionChatId, string $response){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO responseChat (questionChatID, response) VALUES (:questionChatID, :response)");
+        $stmt->bindParam(':questionChatID', $questionChatId);
+        $stmt->bindParam(':response', $response);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function getChatBotByFile(int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM chatbot WHERE fileID = :fileID");
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function getQuestionChatByChatbot(int $chatbotId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM questionChat WHERE chatbotID = :chatbotID");
+        $stmt->bindParam(':chatbotID', $chatbotId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function getResponseChatByQuestionChat(int $questionChatId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT response FROM responseChat WHERE questionChatID = :questionChatID");
+        $stmt->bindParam(':questionChatID', $questionChatId);
+        $stmt->execute();
+        return $stmt->fetchColumn();
+    }
+
+    public function getResponseChatById(int $responseChatId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM responseChat WHERE responseChatID = :responseChatID");
+        $stmt->bindParam(':responseChatID', $responseChatId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Pass chat history to gemini in json format
+     */
+
+    public function chatHistory($fileId){
+        $conn = $this->db->connect();
+        $chatbot = $this->getChatBotByFile($fileId);
+        $chatbotId = $chatbot['chatbotID'];
+        if($chatbotId){
+            $questionChats = $this->getQuestionChatByChatbot($chatbotId);
+            $responseChats = '';
+            foreach($questionChats as $questionChat){
+                $responseChat = $this->getResponseChatByQuestionChat($questionChat['questionChatID']);
+                if($responseChat){
+                    $responseChats .= $responseChat . "\n";
+                }
+            }
+            return json_encode(['userQuestions' => $questionChats, 'aiResponses' => $responseChats]);
+        }
+    }
+
 }

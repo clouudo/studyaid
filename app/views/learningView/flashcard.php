@@ -169,7 +169,7 @@
                                 <input type="text" name="instructions" class="form-control"
                                     placeholder="e.g. Briefly describe restrictions you want to apply.">
                             </div>
-                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
+                            <button type="submit" id="genFlashcards" class="btn btn-primary" style="background-color: #A855F7; border: none;">
                                 <i class="bi bi-lightning-charge me-2"></i>Generate Flashcards
                             </button>
                         </form>
@@ -354,6 +354,14 @@
         // Generate flashcards
         generateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
+
+            const submitButton = generateForm.querySelector('#genFlashcards');
+            const originalButtonText = submitButton.innerHTML;
+
+            // Disable button and show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
 
             const formData = new FormData(generateForm);
             formData.append('flashcardAmount', document.querySelector('input[name="flashcardAmount"]:checked').value);
@@ -390,11 +398,19 @@
                     flashcard.classList.remove('flipped');
                     flashcardsSection.style.display = 'block';
                     updateFlashcard();
+                    
+                    // Restore button
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
                 } else {
                     alert('Error: ' + (data.message || 'Failed to generate flashcards'));
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
             }
         });
     </script>
