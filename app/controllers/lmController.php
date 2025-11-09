@@ -1562,13 +1562,13 @@ class LmController
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $newChatbot = $this->saveChatbot($fileId, $userId);
         $chatbot = $this->lmModel->getChatBotByFile($fileId);
-        $responseChats = '';
+        $responseChats = [];
         if ($chatbot) {
             $chatbotId = $chatbot['chatbotID'];
             if($chatbotId){
                 $questionChats = $this->lmModel->getQuestionChatByChatbot($chatbotId);
                 foreach($questionChats as $questionChat){
-                    $responseChats .= $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']) . "\n";
+                    $responseChats[] = $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']) . "\n";
                 }
             }
         } else {
