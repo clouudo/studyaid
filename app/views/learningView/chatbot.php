@@ -102,7 +102,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const questionChats = <?php echo json_encode($questionChats); ?>;
             const responseChats = <?php echo json_encode($responseChats); ?>;
-            if(Array.isArray(questionChats)){
+            if (Array.isArray(questionChats)) {
                 questionChats.forEach((questionChat, index) => {
                     addMessage(questionChat.userQuestion, true);
                     addMessage(responseChats[index], false);

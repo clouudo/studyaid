@@ -1021,25 +1021,52 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Pass chat history to gemini in json format
-     */
-
-    public function chatHistory($fileId){
-        $conn = $this->db->connect();
+    public function chatHistory($fileId, int $limit = 5)
+    {
         $chatbot = $this->getChatBotByFile($fileId);
+        
+        if (!$chatbot || !isset($chatbot['chatbotID'])) {
+            return [
+                'questions' => [],
+                'responseChats' => []
+            ];
+        }
+
         $chatbotId = $chatbot['chatbotID'];
-        if($chatbotId){
+        $questions = [];
+        $responseChats = [];
+
+        if ($chatbotId) {
             $questionChats = $this->getQuestionChatByChatbot($chatbotId);
-            $responseChats = '';
-            foreach($questionChats as $questionChat){
-                $responseChat = $this->getResponseChatByQuestionChat($questionChat['questionChatID']);
-                if($responseChat){
-                    $responseChats .= $responseChat . "\n";
+            
+            if ($questionChats && is_array($questionChats)) {
+                // Sort by createdAt DESC to get latest first
+                usort($questionChats, function($a, $b) {
+                    $dateA = isset($a['createdAt']) ? strtotime($a['createdAt']) : (isset($a['questionChatID']) ? $a['questionChatID'] : 0);
+                    $dateB = isset($b['createdAt']) ? strtotime($b['createdAt']) : (isset($b['questionChatID']) ? $b['questionChatID'] : 0);
+                    return $dateB - $dateA; // DESC order
+                });
+                
+                // Limit to the latest few chats
+                $limitedChats = array_slice($questionChats, 0, $limit);
+                
+                foreach ($limitedChats as $questionChat) {
+                    if (isset($questionChat['userQuestion'])) {
+                        $questions[] = $questionChat['userQuestion'];
+                    }
+                    
+                    $responseChat = $this->getResponseChatByQuestionChat($questionChat['questionChatID']);
+                    if ($responseChat) {
+                        $responseChats[] = $responseChat;
+                    }
                 }
             }
-            return json_encode(['userQuestions' => $questionChats, 'aiResponses' => $responseChats]);
         }
+
+        return [
+            'questions' => $questions,
+            'responseChats' => $responseChats
+        ];
     }
 
 }

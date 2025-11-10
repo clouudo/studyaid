@@ -307,16 +307,16 @@ PROMPT;
         if (empty($raw)) {
             return '';
         }
-        
+
         $clean = trim($raw);
-        
+
         // Remove markdown code blocks (```json or ```)
         $clean = preg_replace('/^```(?:json)?\s*/m', '', $clean);
         $clean = preg_replace('/```\s*$/m', '', $clean);
-        
+
         // Remove any leading/trailing whitespace
         $clean = trim($clean);
-        
+
         // Try to extract JSON if there's extra text
         // Find the first complete JSON object by counting braces
         $jsonStart = strpos($clean, '{');
@@ -334,7 +334,7 @@ PROMPT;
                     }
                 }
             }
-            
+
             if ($jsonEnd > $jsonStart) {
                 $potentialJson = substr($clean, $jsonStart, $jsonEnd - $jsonStart + 1);
                 // Validate it's valid JSON
@@ -343,25 +343,63 @@ PROMPT;
                 }
             }
         }
-        
+
         // Replace escaped newlines and tabs
         $clean = str_replace(["\\n", "\\t"], ["\n", "\t"], $clean);
-        
+
         // Log if cleaning changed the output significantly
         if ($clean !== trim($raw)) {
             error_log('JSON cleaned. Original length: ' . strlen($raw) . ', Cleaned length: ' . strlen($clean));
         }
-        
+
         return $clean;
     }
 
     // ============================================================================
     // CHATBOT PAGE (chatbot.php)
     // ============================================================================
-    public function generateChatbotResponse(string $sourceText, string $question): string
+
+    public function generateChatbotResponse(string $sourceText, string $question, ?string $chatHistory = null): string
     {
         $model = $this->models['chatbot'] ?? $this->defaultModel;
-        $prompt = "Generate a response to the following question. Review the content provided before generating the response. Only return the response. No formatting: " . 'Question: ' . $question . "\n\n" . 'Content: ' . $sourceText;
+
+        // Build base prompt
+        $prompt = "Generate a helpful and accurate response to the user's question using the provided content. "
+            . "If relevant, use information from the chat history for better context. "
+            . "Only return the response. No formatting.\n\n"
+            . "Question: {$question}\n\n"
+            . "Content: {$sourceText}\n\n";
+
+        // Append chat history if available
+        if ($chatHistory != null) {
+            $prompt .= "Chat History:\n{$chatHistory}\n\n";
+        }
+
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents);
+
+        return $this->extractText($result);
+    }
+
+
+    public function compressChatHistory(array $questionChats, array $responseChats): string
+    {
+        $model = $this->models['chatbot'] ?? $this->defaultModel;
+        $message = '';
+
+        foreach ($questionChats as $i => $question) {
+            $message .= "User: {$question}\nAssistant: " . ($responseChats[$i] ?? 'No response found') . "\n\n";
+        }
+
+        $prompt = <<<PROMPT
+Compress the following chat history into a concise summary. 
+Focus on key questions, decisions, and factual context. 
+Avoid repetition and do not include formatting, headers, or markdown.
+
+Chat history:
+$message
+PROMPT;
+
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);

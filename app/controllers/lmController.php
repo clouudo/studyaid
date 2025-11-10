@@ -528,8 +528,8 @@ class LmController
     public function deleteSummary()
     {
         $this->checkSession();
+
         $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
@@ -547,9 +547,13 @@ class LmController
         }
     }
 
+    /**
+     * ACTION: Save summary as file
+     */
     public function saveSummaryAsFile()
     {
         $this->checkSession();
+
         $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
         $fileId = $this->resolveFileId();
         $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
@@ -616,8 +620,8 @@ class LmController
     public function deleteNote()
     {
         $this->checkSession();
+
         $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
@@ -641,6 +645,7 @@ class LmController
     public function saveNoteAsFile()
     {
         $this->checkSession();
+
         $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
         $fileId = $this->resolveFileId();
         $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
@@ -674,7 +679,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
 
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
@@ -922,8 +926,8 @@ class LmController
     public function deleteMindmap()
     {
         $this->checkSession();
+
         $mindmapId = isset($_POST['mindmap_id']) ? (int)$_POST['mindmap_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($mindmapId === 0) {
             $_SESSION['error'] = "Mindmap ID not provided.";
@@ -972,7 +976,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
@@ -1005,7 +1008,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
@@ -1038,7 +1040,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($summaryId === 0) {
             $_SESSION['error'] = "Summary ID not provided.";
@@ -1071,7 +1072,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
@@ -1104,7 +1104,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
@@ -1137,7 +1136,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
-        $fileId = $this->resolveFileId();
 
         if ($noteId === 0) {
             $_SESSION['error'] = "Note ID not provided.";
@@ -1552,9 +1550,13 @@ class LmController
     // CHATBOT PAGE (chatbot.php)
     // ============================================================================
 
+    /**
+     * VIEW: Display chatbot interface for a document
+     */
     public function chatbot()
     {
         $this->checkSession();
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
         $file = $this->lmModel->getFile($userId, $fileId);
@@ -1563,49 +1565,91 @@ class LmController
         $newChatbot = $this->saveChatbot($fileId, $userId);
         $chatbot = $this->lmModel->getChatBotByFile($fileId);
         $responseChats = [];
+
         if ($chatbot) {
             $chatbotId = $chatbot['chatbotID'];
-            if($chatbotId){
+            if ($chatbotId) {
                 $questionChats = $this->lmModel->getQuestionChatByChatbot($chatbotId);
-                foreach($questionChats as $questionChat){
+                foreach ($questionChats as $questionChat) {
                     $responseChats[] = $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']) . "\n";
                 }
             }
         } else {
             $_SESSION['error'] = "Failed to save chatbot";
             header('Location: ' . DISPLAY_DOCUMENT);
+            exit();
         }
+
         require_once VIEW_CHATBOT;
     }
 
+    /**
+     * ACTION (JSON API): Send a question to the chatbot and get response
+     */
     public function sendQuestionChat()
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
-
-        $chatbot = $this->lmModel->getChatBotByFile($fileId);
         $question = isset($_POST['question']) ? trim($_POST['question']) : '';
-        $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
 
-        $response = $this->gemini->generateChatbotResponse($file['extracted_text'], $question);
-        $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
-        $response = $this->lmModel->getResponseChatById($responseChatId);
-        echo json_encode(['success' => true, 'response' => $response['response']]);
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        if (empty($question)) {
+            echo json_encode(['success' => false, 'message' => 'Question cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                echo json_encode(['success' => false, 'message' => 'File not found.']);
+                exit();
+            }
+
+            $chatbot = $this->lmModel->getChatBotByFile($fileId);
+            if (!$chatbot) {
+                echo json_encode(['success' => false, 'message' => 'Chatbot not found.']);
+                exit();
+            }
+
+            $chatHistory = $this->lmModel->chatHistory($fileId);
+            $userQuestions = $chatHistory['questions'];
+            $aiResponse = $chatHistory['responseChats'];
+
+            $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
+
+            $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
+            $response = $this->gemini->generateChatbotResponse($file['extracted_text'], $question, $compressedChatHistory);
+            $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
+            $response = $this->lmModel->getResponseChatById($responseChatId);
+
+            echo json_encode(['success' => true, 'response' => $response['response']]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
         exit();
     }
 
-    public function saveChatbot($fileId, $userId)
+    /**
+     * Helper: Save or retrieve chatbot for a file
+     */
+    private function saveChatbot($fileId, $userId)
     {
         $file = $this->lmModel->getFile($userId, $fileId);
         $chatbotId = $this->lmModel->getChatBotByFile($fileId);
+
         if (!$chatbotId) {
             $generateSummary = $this->gemini->generateSummary($file['extracted_text'], "A very short summary of the content");
             $title = $this->gemini->generateTitle($generateSummary);
             $chatbotId = $this->lmModel->saveChatbot($fileId, $title);
         }
+
         return $chatbotId;
     }
 
@@ -1613,22 +1657,50 @@ class LmController
     // QUIZ PAGE (quiz.php)
     // ============================================================================
 
+    /**
+     * VIEW: Display quizzes for a document
+     */
     public function quiz()
     {
         $this->checkSession();
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
-        $user = $this->getUserInfo();
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        $quizList = $this->lmModel->getQuizByFile($fileId);
-        require_once VIEW_QUIZ;
+
+        if ($fileId === 0) {
+            $_SESSION['error'] = "File ID not provided.";
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+            exit();
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                $_SESSION['error'] = "File not found.";
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+                exit();
+            }
+
+            $user = $this->getUserInfo();
+            $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+            $quizList = $this->lmModel->getQuizByFile($fileId);
+
+            require_once VIEW_QUIZ;
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+            exit();
+        }
     }
 
+    /**
+     * ACTION (JSON API): Save quiz score
+     */
     public function saveScore()
     {
         header('Content-Type: application/json');
-        $this->checkSession();
+        $this->checkSession(true);
+
         $userId = (int)$_SESSION['user_id'];
         $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
         $percentageScore = isset($_POST['percentage_score']) ? trim($_POST['percentage_score']) : '0';
@@ -1651,50 +1723,61 @@ class LmController
         exit();
     }
 
+    /**
+     * ACTION (JSON API): Retrieve a specific quiz by ID
+     */
     public function viewQuiz()
     {
         header('Content-Type: application/json');
-        $this->checkSession();
+        $this->checkSession(true);
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
-        $user = $this->getUserInfo();
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
 
-        $questions = $this->lmModel->getQuestionByQuiz($quizId);
-
-        if (!$questions || empty($questions['question'])) {
-            echo json_encode(['success' => false, 'message' => 'No questions found']);
+        if ($quizId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Quiz ID not provided.']);
             exit();
         }
 
-        $quesArray = json_decode($questions['question'], true);
+        try {
+            $questions = $this->lmModel->getQuestionByQuiz($quizId);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            echo json_encode(['success' => false, 'message' => 'Invalid quiz data format']);
-            exit();
+            if (!$questions || empty($questions['question'])) {
+                echo json_encode(['success' => false, 'message' => 'No questions found']);
+                exit();
+            }
+
+            $quesArray = json_decode($questions['question'], true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode(['success' => false, 'message' => 'Invalid quiz data format']);
+                exit();
+            }
+
+            $quizData = isset($quesArray['quiz']) ? $quesArray['quiz'] : $quesArray;
+
+            echo json_encode(['success' => true, 'quiz' => $quizData]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
-
-        $quizData = isset($quesArray['quiz']) ? $quesArray['quiz'] : $quesArray;
-
-        echo json_encode(['success' => true, 'quiz' => $quizData]);
         exit();
     }
 
+    /**
+     * ACTION (JSON API): Generate a quiz using AI
+     */
     public function generateQuiz()
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
-        $user = $this->getUserInfo();
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-
         $questionAmount = '';
         $questionDifficulty = '';
         $instructions = '';
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionAmount'])) {
             $questionAmount = trim($_POST['questionAmount']);
         }
@@ -1704,16 +1787,34 @@ class LmController
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
         }
-        $sourceText = $file['extracted_text'] ?? '';
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
 
         try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                echo json_encode(['success' => false, 'message' => 'File not found.']);
+                exit();
+            }
+
+            $sourceText = $file['extracted_text'] ?? '';
+            if (empty($sourceText)) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
+                exit();
+            }
+
             $context = !empty($instructions) ? $instructions : '';
             $mcq = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
             $decodedMcq = json_decode($mcq, true);
             $totalQuestions = 0;
+
             foreach ($decodedMcq['quiz'] as $question) {
                 $totalQuestions++;
             }
+
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
@@ -1734,26 +1835,44 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display the flashcard page
+     * VIEW: Display flashcards for a document
      */
-
     public function flashcard()
     {
         $this->checkSession();
+
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $file = $this->lmModel->getFile($userId, $fileId);
-        $user = $this->getUserInfo();
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
-        $flashcards = $this->lmModel->getFlashcardsByFile($fileId);
-        require_once VIEW_FLASHCARD;
+        if ($fileId === 0) {
+            $_SESSION['error'] = "File ID not provided.";
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+            exit();
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                $_SESSION['error'] = "File not found.";
+                header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+                exit();
+            }
+
+            $user = $this->getUserInfo();
+            $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+            $flashcards = $this->lmModel->getFlashcardsByFile($fileId);
+
+            require_once VIEW_FLASHCARD;
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+            exit();
+        }
     }
 
     /**
-     * ACTION: Generate flashcards
+     * ACTION (JSON API): Generate flashcards using AI
      */
-
     public function generateFlashcards()
     {
         header('Content-Type: application/json');
@@ -1761,10 +1880,10 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-
         $flashcardAmount = '';
         $flashcardType = '';
         $instructions = '';
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
             $flashcardAmount = trim($_POST['flashcardAmount']);
         }
@@ -1774,7 +1893,11 @@ class LmController
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
         }
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
 
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
@@ -1795,14 +1918,17 @@ class LmController
             $decodedFlashcards = json_decode($flashcards, true);
             $term = '';
             $definition = '';
+
             foreach ($decodedFlashcards['flashcards'] as $flashcard) {
                 $term .= $flashcard['term'] . "\n";
                 $definition .= $flashcard['definition'] . "\n";
             }
+
             $terms = json_encode($term);
             $definitions = json_encode($definition);
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $flashcardId = $this->lmModel->saveFlashcards($fileId, $title, $terms, $definitions);
+
             echo json_encode(['success' => true, 'term' => $terms, 'definition' => $definitions]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -1810,6 +1936,9 @@ class LmController
         exit();
     }
 
+    /**
+     * ACTION (JSON API): Retrieve a specific flashcard by ID
+     */
     public function viewFlashcard()
     {
         header('Content-Type: application/json');
@@ -1819,8 +1948,18 @@ class LmController
         $fileId = $this->resolveFileId();
         $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
 
+        if ($flashcardId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Flashcard ID not provided.']);
+            exit();
+        }
+
         try {
             $flashcard = $this->lmModel->getFlashcardsById($flashcardId);
+            if (!$flashcard) {
+                echo json_encode(['success' => false, 'message' => 'Flashcard not found.']);
+                exit();
+            }
+
             echo json_encode(['success' => true, 'flashcard' => $flashcard]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
