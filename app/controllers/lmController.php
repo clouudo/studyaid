@@ -75,45 +75,101 @@ class LmController
     public function uploadDocument()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['document'])) {
-            if (!isset($_FILES['document']) || $_FILES['document']['error'] !== UPLOAD_ERR_OK) {
-                $_SESSION['error'] = "Missing Information. Please try again.";
-                header('Location: ' . NEW_DOCUMENT);
-                exit();
-            }
-
             $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 'guest';
             $folderId = isset($_POST['folderSelect']) && !empty($_POST['folderSelect']) && $_POST['folderSelect'] != '0'
                 ? (int)$_POST['folderSelect']
                 : null;
 
-            $file = $_FILES['document'];
-            $uploadedFileName = $file['name'];
-            $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
-            $tmpName = $file['tmp_name'];
+            $files = $_FILES['document'];
+            $uploadedCount = 0;
+            $failedCount = 0;
+            $errors = [];
 
-            $documentNameFromPost = isset($_POST['documentName']) ? trim($_POST['documentName']) : '';
-            $originalFileName = !empty($documentNameFromPost) ? $documentNameFromPost : $uploadedFileName;
+            // Handle multiple files
+            $fileCount = is_array($files['name']) ? count($files['name']) : 1;
 
-            $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
-            $fileContent = file_get_contents($tmpName);
+            for ($i = 0; $i < $fileCount; $i++) {
+                // Check if this is a single file upload (backward compatibility)
+                if (!is_array($files['name'])) {
+                    $file = [
+                        'name' => $files['name'],
+                        'type' => $files['type'],
+                        'tmp_name' => $files['tmp_name'],
+                        'error' => $files['error'],
+                        'size' => $files['size']
+                    ];
+                    $i = $fileCount; // Exit loop after processing single file
+                } else {
+                    // Multiple files
+                    if ($files['error'][$i] !== UPLOAD_ERR_OK) {
+                        $errors[] = "Error uploading {$files['name'][$i]}: Upload error code {$files['error'][$i]}";
+                        $failedCount++;
+                        continue;
+                    }
 
-            if ($fileContent === false) {
-                $_SESSION['error'] = "Error reading uploaded file.";
-                header('Location: ' . NEW_DOCUMENT);
-                exit();
+                    $file = [
+                        'name' => $files['name'][$i],
+                        'type' => $files['type'][$i],
+                        'tmp_name' => $files['tmp_name'][$i],
+                        'error' => $files['error'][$i],
+                        'size' => $files['size'][$i]
+                    ];
+                }
+
+                $uploadedFileName = $file['name'];
+                $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
+                $tmpName = $file['tmp_name'];
+
+                // Use the original filename (no custom document name for multiple uploads)
+                $originalFileName = $uploadedFileName;
+
+                $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
+                $fileContent = file_get_contents($tmpName);
+
+                if ($fileContent === false) {
+                    $errors[] = "Error reading file: {$uploadedFileName}";
+                    $failedCount++;
+                    continue;
+                }
+
+                try {
+                    $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $extractedText, $fileContent, $file, $originalFileName);
+                    $uploadedCount++;
+                } catch (\Exception $e) {
+                    $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
+                    $failedCount++;
+                }
             }
 
-            try {
-                $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $extractedText, $fileContent, $file, $originalFileName);
-                $_SESSION['message'] = "File uploaded successfully!";
-                $_SESSION[self::SESSION_CURRENT_FILE_ID] = $newFileId;
-                header('Location: ' . DISPLAY_DOCUMENT);
-                exit();
-            } catch (\Exception $e) {
-                $_SESSION['error'] = "Error uploading file: " . $e->getMessage();
-                header('Location: ' . NEW_DOCUMENT);
-                exit();
+            // Set appropriate session messages
+            if ($uploadedCount > 0 && $failedCount === 0) {
+                $_SESSION['message'] = $uploadedCount === 1 
+                    ? "File uploaded successfully!" 
+                    : "{$uploadedCount} files uploaded successfully!";
+                
+                // If only one file was uploaded, redirect to display it
+                if ($uploadedCount === 1) {
+                    // Get the last uploaded file ID
+                    $lastFile = $this->lmModel->getLatestFileForUser($userId);
+                    if ($lastFile) {
+                        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
+                        header('Location: ' . DISPLAY_DOCUMENT);
+                        exit();
+                    }
+                }
+            } elseif ($uploadedCount > 0 && $failedCount > 0) {
+                $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
+                if (!empty($errors)) {
+                    $_SESSION['error'] = implode('<br>', $errors);
+                }
+            } else {
+                $_SESSION['error'] = !empty($errors) 
+                    ? implode('<br>', $errors) 
+                    : "Failed to upload files. Please try again.";
             }
+
+            header('Location: ' . NEW_DOCUMENT);
+            exit();
         }
 
         $this->checkSession();

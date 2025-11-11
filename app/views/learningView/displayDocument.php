@@ -12,7 +12,7 @@
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
                 <?php if (isset($documentData)): ?>
                     <h3 class="mb-4"><?php echo $file['name'] ?></h3>

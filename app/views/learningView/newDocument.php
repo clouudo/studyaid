@@ -27,13 +27,55 @@ function buildFolderTree($folders, $parentId = null)
         .folder-item {
             text-decoration: none;
         }
+        .file-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+        }
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-name {
+            font-weight: 500;
+            word-break: break-word;
+            margin-bottom: 0.25rem;
+        }
+        .file-size {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        #dropZone {
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        #dropZone:not(.has-files) {
+            min-height: 200px;
+        }
+        .drop-zone-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        #dropZone.has-files {
+            min-height: 150px;
+            height: auto;
+            justify-content: flex-start;
+            padding-top: 1rem;
+        }
+        #dropZone.has-files .drop-zone-content {
+            justify-content: flex-start;
+        }
     </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
-        <main class="flex-grow-1 p-3">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
                 <?php
                 if (isset($_SESSION['message'])):
@@ -54,13 +96,9 @@ function buildFolderTree($folders, $parentId = null)
                     unset($_SESSION['error']);
                 endif;
                 ?>
-                <h3 class="mb-4">Upload Document</h3>
+                <h3 class="mb-4">Upload Documents</h3>
                 <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="folderSelect" id="folderSelect">
-                    <div class="mb-3">
-                        <label for="documentName" class="form-label">Document Name</label>
-                        <input type="text" class="form-control" id="documentName" name="documentName" placeholder="Enter document name">
-                    </div>
                     <div class="mb-3">
                         <label class="form-label">Add to Folder</label>
                         <div>
@@ -72,12 +110,20 @@ function buildFolderTree($folders, $parentId = null)
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="dragDropArea" class="form-label">Drag and Drop Document</label>
-                        <div id="dragDropArea" class="border rounded p-5 text-center bg-light d-flex flex-column justify-content-center align-items-center" style="min-height: 550px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
-                            <span id="fileNameDisplay">Drag and drop your files here or click to upload</span>
-                            <input type="file" id="documentFile" name="document" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx">
-                            <p class="mt-3">Or</p>
-                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('documentFile').click();">Browse Files</button>
+                        <label for="dragDropArea" class="form-label">Drag and Drop Documents</label>
+                        <div id="dragDropArea" class="border rounded p-5 bg-light">
+                            <div id="dropZone" class="text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 200px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
+                                <div class="drop-zone-content">
+                                    <span id="dropZoneText" class="d-block">Drag and drop your files here or click to upload (Multiple files supported)</span>
+                                    <p class="mt-3 mb-0">Or</p>
+                                    <button type="button" class="btn btn-outline-primary mt-2" onclick="event.stopPropagation(); document.getElementById('documentFile').click();">Browse Files</button>
+                                </div>
+                                <input type="file" id="documentFile" name="document[]" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
+                            </div>
+                            <div id="fileListContainer" class="mt-4" style="display: none;">
+                                <h6 class="mb-3">Selected Files:</h6>
+                                <div id="fileList" class="list-group"></div>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Upload</button>
@@ -108,13 +154,129 @@ function buildFolderTree($folders, $parentId = null)
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        document.getElementById('documentFile').addEventListener('change', function() {
-            const fileNameDisplay = document.getElementById('fileNameDisplay');
-            if (this.files && this.files.length > 0) {
-                fileNameDisplay.textContent = this.files[0].name;
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function updateFileList(files) {
+            const fileListContainer = document.getElementById('fileListContainer');
+            const fileList = document.getElementById('fileList');
+            const dropZone = document.getElementById('dropZone');
+            const dropZoneText = document.getElementById('dropZoneText');
+
+            if (files && files.length > 0) {
+                fileList.innerHTML = '';
+                
+                Array.from(files).forEach((file, index) => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'list-group-item file-list-item';
+                    listItem.setAttribute('data-file-index', index);
+                    listItem.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2 remove-file-btn" data-file-index="${index}" title="Remove file">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    `;
+                    fileList.appendChild(listItem);
+                });
+
+                fileListContainer.style.display = 'block';
+                dropZone.classList.add('has-files');
+                dropZone.style.minHeight = '150px';
+                dropZoneText.textContent = `${files.length} file(s) selected. Click to add more files.`;
             } else {
-                fileNameDisplay.textContent = 'Drag and drop your files here or click to upload';
+                fileListContainer.style.display = 'none';
+                dropZone.classList.remove('has-files');
+                dropZone.style.minHeight = '200px';
+                dropZoneText.textContent = 'Drag and drop your files here or click to upload (Multiple files supported)';
             }
+        }
+
+        function removeFile(index) {
+            const fileInput = document.getElementById('documentFile');
+            const files = Array.from(fileInput.files);
+            
+            if (index >= 0 && index < files.length) {
+                files.splice(index, 1);
+                
+                // Create a new FileList-like object
+                const dt = new DataTransfer();
+                files.forEach(file => dt.items.add(file));
+                fileInput.files = dt.files;
+                
+                // Update display
+                updateFileList(fileInput.files);
+            }
+        }
+
+        // Use event delegation for remove buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-file-btn')) {
+                const btn = e.target.closest('.remove-file-btn');
+                const index = parseInt(btn.getAttribute('data-file-index'));
+                removeFile(index);
+            }
+        });
+
+        document.getElementById('documentFile').addEventListener('change', function() {
+            updateFileList(this.files);
+        });
+
+        // Handle drag and drop
+        const dragDropArea = document.getElementById('dragDropArea');
+        const dropZone = document.getElementById('dropZone');
+        
+        dragDropArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.backgroundColor = '#e9ecef';
+        });
+
+        dragDropArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!dragDropArea.contains(e.relatedTarget)) {
+                dropZone.style.backgroundColor = '';
+            }
+        });
+
+        dragDropArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.backgroundColor = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const fileInput = document.getElementById('documentFile');
+                
+                // Merge with existing files
+                const existingFiles = Array.from(fileInput.files);
+                const newFiles = Array.from(files);
+                const allFiles = [...existingFiles, ...newFiles];
+                
+                // Create a new FileList-like object
+                const dt = new DataTransfer();
+                allFiles.forEach(file => dt.items.add(file));
+                fileInput.files = dt.files;
+                
+                // Update display
+                updateFileList(fileInput.files);
+            }
+        });
+
+        // Prevent default drag behaviors on the entire area
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragDropArea.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
         });
 
         $(document).ready(function() {

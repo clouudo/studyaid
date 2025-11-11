@@ -12,7 +12,7 @@
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Generate Summary</h3>
 
