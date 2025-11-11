@@ -51,7 +51,7 @@
                 <!-- Saved Mindmaps -->
                 <div class="card mt-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Saved Mindmaps</h5>
+                        <h5 class="mb-0">Generated Mindmaps</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="mindmapList">
@@ -85,7 +85,7 @@
                                     </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
-                                <div class="list-group-item text-muted text-center">No saved mindmaps</div>
+                                <div class="list-group-item text-muted text-center">No generated mindmaps</div>
                             <?php endif; ?>
                         </div>
                     </div>

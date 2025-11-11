@@ -158,9 +158,15 @@ class GeminiService
     public function generateNotes(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
+        
+        // Increase maxOutputTokens for notes generation to allow for longer, more detailed notes
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 8192, // Increased from default for comprehensive notes
+        ]);
+        
         $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         $contents = [$this->buildUserContent($prompt)];
-        $result = $this->postGenerate($model, $contents);
+        $result = $this->postGenerate($model, $contents, $generationConfig);
         return $this->extractText($result);
     }
 

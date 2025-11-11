@@ -28,63 +28,59 @@
                         </form>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="card-header d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="mb-0">Saved Summaries</h5>
+                    <!-- Saved Summaries -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Generated Summaries</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="summaryList">
                             <?php if ($summaryList): ?>
                                 <?php foreach ($summaryList as $summary): ?>
-                                    <div class="card mb-3">
-                                        <div class="card-header d-flex justify-content-between align-items-center">
-                                            <span><?php echo $summary['title'] . ' - ' . $summary['createdAt']; ?></span>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <div class="dropdown">
-                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                        Actions
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
-                                                        <li>
-                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a>
-                                                        </li>
-                                                        <li>
-                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a>
-                                                        </li>
-                                                        <li>
-                                                            <hr class="dropdown-divider">
-                                                        </li>
-                                                        <li>
-                                                            <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;">
-                                                                <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                            </form>
-                                                        </li>
-                                                        <li>
-                                                            <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;">
-                                                                <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
-                                                            </form>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" aria-expanded="false" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">
-                                                    <i class="bi bi-chevron-down"></i>
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="flex-grow-1">
+                                                <strong><?= htmlspecialchars($summary['title']) ?></strong><br>
+                                                <small class="text-muted">Updated: <?= htmlspecialchars($summary['createdAt']) ?></small>
+                                            </div>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
                                                 </button>
+                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
+                                                    <li><a class="dropdown-item view-summary-btn" href="#" data-bs-toggle="collapse" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">View</a></li>
+                                                    <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
+                                                    <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
+                                                    <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
+                                                    <li>
+                                                        <hr class="dropdown-divider">
+                                                    </li>
+                                                    <li>
+                                                        <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;">
+                                                            <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                            <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                        </form>
+                                                    </li>
+                                                    <li>
+                                                        <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;">
+                                                            <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                            <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
                                             </div>
                                         </div>
-                                        <div class="card-body collapse" id="summaryContent-<?php echo $summary['summaryID']; ?>">
-                                            <div class="summaryContent" style="white-space: pre-wrap;"><?php echo htmlspecialchars($summary['content']); ?></div>
+                                        <div class="collapse mt-2" id="summaryContent-<?php echo $summary['summaryID']; ?>">
+                                            <div class="summaryContent border-top pt-2" style="white-space: pre-wrap;"><?php echo htmlspecialchars($summary['content']); ?></div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
+                            <?php else : ?>
+                                <div class="list-group-item text-muted text-center">No saved summaries</div>
+                            <?php endif; ?>
                         </div>
-                    <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -93,8 +89,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
-        .list-group-item { overflow: visible; }
-        .dropdown-menu { z-index: 1060; }
+        .list-group-item { 
+            overflow: visible; 
+        }
+        .dropdown-menu { 
+            z-index: 1060; 
+        }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

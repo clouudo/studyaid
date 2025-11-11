@@ -214,7 +214,7 @@
 
                 <div class="card mt-4">
                     <div class="card-header de-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Saved Flashcards</h5>
+                        <h5 class="mb-0">Generated Flashcards</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="flashcardList">
@@ -247,7 +247,7 @@
                                 <?php endforeach; ?>
                         </div>
                 <?php else: ?>
-                    <div class="list-group-item text-muted text-center">No saved flashcards</div>
+                    <div class="list-group-item text-muted text-center">No generated flashcards</div>
                 <?php endif; ?>
                     </div>
                 </div>

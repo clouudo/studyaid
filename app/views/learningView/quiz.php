@@ -164,6 +164,7 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="quizList">
+                            <?php if ($quizList): ?>
                             <?php foreach ($quizList as $quiz): ?>
                                 <div class="list-group-item d-flex justify-content-between align-items-center">
                                     <div class="flex-grow-1" style="min-width: 0;">
@@ -190,6 +191,9 @@
                                     </div>
                                 </div>
                             <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="list-group-item text-muted text-center">No generated quizzes</div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
