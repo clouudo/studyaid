@@ -111,7 +111,7 @@ function buildFolderTree($folders, $parentId = null)
                     </div>
                     <div class="mb-3">
                         <label for="dragDropArea" class="form-label">Drag and Drop Documents</label>
-                        <div id="dragDropArea" class="border rounded p-5 bg-light">
+                        <div id="dragDropArea" class="border rounded p-5" style="background-color: #d4b5ff;">
                             <div id="dropZone" class="text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 200px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
                                 <div class="drop-zone-content">
                                     <span id="dropZoneText" class="d-block">Drag and drop your files here or click to upload (Multiple files supported)</span>
@@ -236,7 +236,7 @@ function buildFolderTree($folders, $parentId = null)
         dragDropArea.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            dropZone.style.backgroundColor = '#e9ecef';
+            dropZone.style.backgroundColor = '#e7d5ff';
         });
 
         dragDropArea.addEventListener('dragleave', function(e) {

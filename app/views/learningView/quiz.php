@@ -9,9 +9,6 @@
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <style>
-        /* Ensure dropdowns are not clipped and float above cards */
-        .list-group-item { overflow: visible; }
-        .dropdown-menu { z-index: 1060; }
         .quiz-question {
             margin-bottom: 2rem;
             padding: 1.5rem;
@@ -43,11 +40,13 @@
         .quiz-option.correct {
             border-color: #28a745;
             background-color: #d4edda;
+            color: #000000;
         }
 
         .quiz-option.incorrect {
             border-color: #dc3545;
             background-color: #f8d7da;
+            color: #000000;
         }
 
         .short-answer-input {
@@ -105,7 +104,7 @@
     ?>
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
+        <main class="flex-grow-1 p-3">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Quiz</h3>
                 <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
@@ -164,7 +163,6 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="quizList">
-                            <?php if ($quizList): ?>
                             <?php foreach ($quizList as $quiz): ?>
                                 <div class="list-group-item d-flex justify-content-between align-items-center">
                                     <div class="flex-grow-1" style="min-width: 0;">
@@ -191,9 +189,6 @@
                                     </div>
                                 </div>
                             <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="list-group-item text-muted text-center">No generated quizzes</div>
-                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

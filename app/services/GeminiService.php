@@ -291,7 +291,6 @@ PROMPT;
         $output = $this->extractText($result);
         return $this->cleanJsonOutput($output);
     }
-
     public function generateShortQuestion(string $sourceText, ?string $instructions = null, ?string $questionAmount = null, ?string $questionDifficulty = null){
         if ($questionAmount == null) {
             $questionAmount = 'standard, (10-20 questions)';
