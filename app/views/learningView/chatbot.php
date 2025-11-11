@@ -8,9 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .chat-container {
-            height: 500px;
+            height: 650px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
@@ -125,6 +126,8 @@
                 <div>${text}</div>
                 <div class="message-time">${time}</div>
             `;
+
+            messageDiv.innerHTML = marked.parse(text);
 
             chatContainer.appendChild(messageDiv);
             scrollToBottom();
