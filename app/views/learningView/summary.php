@@ -46,25 +46,13 @@
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_SUMMARY_PDF ?>" style="display: inline;">
-                                                                <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as PDF</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_SUMMARY_DOCX ?>" style="display: inline;">
-                                                                <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as DOCX</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a>
                                                         </li>
                                                         <li>
-                                                            <form method="POST" action="<?= EXPORT_SUMMARY_TXT ?>" style="display: inline;">
-                                                                <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
-                                                                <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Export as TXT</button>
-                                                            </form>
+                                                            <a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a>
                                                         </li>
                                                         <li>
                                                             <hr class="dropdown-divider">
@@ -103,6 +91,11 @@
         </main>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <style>
+        /* Prevent dropdowns from being clipped by list container */
+        .list-group-item { overflow: visible; }
+        .dropdown-menu { z-index: 1060; }
+    </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Handle generate summary form submission
@@ -153,6 +146,76 @@
             // Parse markdown for summary content
             document.querySelectorAll('.summaryContent').forEach(function(div) {
                 div.innerHTML = marked.parse(div.textContent);
+            });
+
+            // Handle export summary buttons (mirror note.php behavior)
+            document.querySelectorAll('.export-summary-btn').forEach(function(btn) {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const exportType = this.dataset.exportType;
+                    const summaryId = this.dataset.summaryId;
+                    const fileId = this.dataset.fileId;
+
+                    let exportUrl = '';
+                    if (exportType === 'pdf') {
+                        exportUrl = '<?= EXPORT_SUMMARY_PDF ?>';
+                    } else if (exportType === 'docx') {
+                        exportUrl = '<?= EXPORT_SUMMARY_DOCX ?>';
+                    } else if (exportType === 'txt') {
+                        exportUrl = '<?= EXPORT_SUMMARY_TXT ?>';
+                    }
+                    if (!exportUrl) {
+                        alert('Invalid export type');
+                        return;
+                    }
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('summary_id', summaryId);
+                        formData.append('file_id', fileId);
+
+                        const response = await fetch(exportUrl, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const contentType = response.headers.get('content-type') || '';
+                        if (contentType.includes('text/html')) {
+                            const text = await response.text();
+                            alert('Export failed. Please check if the summary exists and try again.');
+                            console.error('Export error response:', text);
+                            return;
+                        }
+                        if (!response.ok) {
+                            throw new Error('Export failed: ' + response.statusText);
+                        }
+
+                        const blob = await response.blob();
+                        if (blob.size === 0) {
+                            throw new Error('Empty file received from server');
+                        }
+
+                        let extension = exportType;
+                        let filename = 'summary_' + summaryId;
+                        if (exportType === 'pdf' && !blob.type.includes('pdf') && !contentType.includes('pdf')) {
+                            throw new Error('Invalid PDF file received');
+                        }
+
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename + '.' + extension;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    } catch (error) {
+                        console.error('Export error:', error);
+                        alert('Error exporting summary: ' + error.message);
+                    }
+                });
             });
         });
     </script>
