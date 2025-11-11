@@ -238,6 +238,10 @@
                         <button type="submit" class="btn btn-login">Login</button>
                     </form>
                     
+                    <p class="text-center mt-3 mb-0">
+                        <a href="<?= BASE_PATH ?>auth/forgotPassword" class="register-link">Forgot your password?</a>
+                    </p>
+                    
                     <p class="text-center mt-4 mb-0">
                         Don't have an account? 
                         <a href="<?= BASE_PATH ?>auth/register" class="register-link">Register here</a>

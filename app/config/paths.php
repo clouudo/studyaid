@@ -3,7 +3,9 @@
 namespace App\Config;
 
 // Base paths
+define('BASE_URL', 'http://localhost'); // Absolute base URL for local development
 define('BASE_PATH', '/studyaid/');
+define('APP_URL', BASE_URL . BASE_PATH); // Convenience absolute URL prefix
 define('APP_PATH', 'app/views/');
 define('VIEWS_PATH', 'app/views/');
 define('LEARNING_VIEWS_PATH', VIEWS_PATH . 'learningView/');
@@ -30,6 +32,8 @@ define('LOGIN', BASE_PATH . 'auth/login');
 define('REGISTER', BASE_PATH . 'auth/register');
 define('LOGOUT', BASE_PATH . 'auth/logout');
 
+//Email
+define('EMAIL_FORGOT_PASSWORD', BASE_PATH . 'auth/forgotPassword');
 // ============================================================================
 // USER ROUTES
 // ============================================================================
