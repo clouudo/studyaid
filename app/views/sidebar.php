@@ -18,7 +18,7 @@ function isActive($link_url, $current_url)
 ?>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <div class="d-flex flex-column flex-shrink-0 p-3 text-dark bg-white" style="width: 280px;">
-  <a href="<?= HOME ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+  <a href="<?= DASHBOARD ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
     <div class="logo-box"><img src="<?= IMG_LOGO ?>" alt="StudyAids Logo"></div>
     <strong class="fs-4">StudyAid</strong>
   </a>
