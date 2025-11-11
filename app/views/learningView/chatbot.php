@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .chat-container {
-            height: 500px;
+            height: 650px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;

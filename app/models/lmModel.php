@@ -152,7 +152,7 @@ class LmModel
      */
     public function uploadFileToGCS($userId, $folderId, $extractedText, $fileContent = null, $file = null, $originalFileName = null)
     {
-        if($file != null) {
+        if ($file != null) {
             $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
             $uniqueFileName = $this->generateUniqueFileName($fileExtension);
         } else {
@@ -173,12 +173,12 @@ class LmModel
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
         $fileName = !empty($originalFileName) ? $originalFileName : ($file != null ? $file['name'] : $uniqueFileName);
 
-        if($fileContent != null) { //If file is uploaded, upload to GCS 
+        if ($fileContent != null) { // If file is uploaded, upload to GCS
             $options = [
                 'name' => $gcsObjectName,
                 'metadata' => ['contentType' => 'text/plain']
             ];
-        }else{
+        } else {
             $options = [
                 'name' => $gcsObjectName
             ];
@@ -584,12 +584,12 @@ class LmModel
         if ($parentFolderId == null) {
             $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderName . '/';
 
-            if(!$bucket->object($gcsFolderName)->exists()) {
+            if (!$bucket->object($gcsFolderName)->exists()) {
                 $bucket->upload('', ['name' => $gcsFolderName]);
             }
         }
 
-        if($parentFolderId != null) {
+        if ($parentFolderId != null) {
             $parentFolderInfo = $this->getFolderInfo($parentFolderId);
             if (!$parentFolderInfo) {
                 throw new \Exception("Parent folder not found or access denied.");
@@ -598,7 +598,7 @@ class LmModel
             $logicalPath = $this->getLogicalFolderPath($parentFolderId, $userId);
             $gcsFolderName = 'user_upload/' . $userId . '/content/' . $logicalPath . $folderName . '/';
 
-            if(!$bucket->object($gcsFolderName)->exists()) {
+            if (!$bucket->object($gcsFolderName)->exists()) {
                 $bucket->upload('', ['name' => $gcsFolderName]);
             }
         }
@@ -655,31 +655,37 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-     /**
+    /**
      * Delete summary from database
      */
-    public function deleteSummary(int $summaryId){
+    public function deleteSummary(int $summaryId)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("DELETE FROM summary WHERE summaryID = :summaryID");
         $stmt->bindParam(':summaryID', $summaryId);
         return $stmt->execute();
     }
 
-     /**
+    /**
      * Save summary as file from database and upload to GCS
      */
-    public function saveSummaryAsFile(int $summaryId, $filePath, $folderId){
+    public function saveSummaryAsFile(int $summaryId, $filePath, $folderId)
+    {
         $conn = $this->db->connect();
-        $summary = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID");
+        // Get summary with file info to get userId
+        $summary = $conn->prepare("SELECT s.*, f.userID FROM summary s 
+                                    INNER JOIN file f ON s.fileID = f.fileID 
+                                    WHERE s.summaryID = :summaryID");
         $summary->bindParam(':summaryID', $summaryId);
         $summary->execute();
         $summaryData = $summary->fetch(\PDO::FETCH_ASSOC);
 
         $sourceText = $summaryData['content'];
         $title = $summaryData['title'];
+        $userId = $summaryData['userID'];
 
-        //Upload to GCS
-        $this->uploadFileToGCS($folderId, $sourceText, null, null, $title);
+        // Upload to GCS
+        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
     }
 
     // ============================================================================
@@ -727,20 +733,22 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-     /**
+    /**
      * Delete note from database
      */
-    public function deleteNote(int $noteId){
+    public function deleteNote(int $noteId)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("DELETE FROM note WHERE noteID = :noteID");
         $stmt->bindParam(':noteID', $noteId);
         return $stmt->execute();
     }
 
-     /**
+    /**
      * Save note as file from database and upload to GCS
      */
-    public function saveNoteAsFile(int $noteId, $filePath, $folderId){
+    public function saveNoteAsFile(int $noteId, $filePath, $folderId)
+    {
         $conn = $this->db->connect();
         // Get note with file info to get userId
         $note = $conn->prepare("SELECT n.*, f.userID FROM note n 
@@ -814,10 +822,11 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-     /**
+    /**
      * Delete mindmap from database
      */
-    public function deleteMindmap(int $mindmapId){
+    public function deleteMindmap(int $mindmapId)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("DELETE FROM mindmap WHERE mindmapID = :mindmapID");
         $stmt->bindParam(':mindmapID', $mindmapId);
@@ -913,6 +922,9 @@ class LmModel
         return (int)$conn->lastInsertId();
     }
 
+    /**
+     * Get all quizzes for a specific file
+     */
     public function getQuizByFile(int $fileId)
     {
         $conn = $this->db->connect();
@@ -922,6 +934,9 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get a specific quiz by ID
+     */
     public function getQuizById(int $quizId)
     {
         $conn = $this->db->connect();
@@ -931,6 +946,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get question data for a specific quiz
+     */
     public function getQuestionByQuiz(int $quizId)
     {
         $conn = $this->db->connect();
@@ -940,6 +958,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Save quiz score to database
+     */
     public function saveScore(int $quizId, string $percentageScore): bool
     {
         $conn = $this->db->connect();
@@ -949,15 +970,23 @@ class LmModel
         return $stmt->execute();
     }
 
-    public function getSuggestedAnswers(int $questionId){
+    /**
+     * Get suggested answers for a question
+     */
+    public function getSuggestedAnswers(int $questionId)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT question FROM suggestedAnswers WHERE questionID = :questionID");
         $stmt->bindParam(':questionID', $questionId);
         $stmt->execute();
-        $stmt->fetch(\PDO::FETCH_ASSOC);
-        $answer = json_decode($stmt, true);
-
-        error_log(json_encode($answer));
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if ($result && isset($result['question'])) {
+            $answer = json_decode($result['question'], true);
+            return $answer;
+        }
+        
+        return null;
     }
 
     // ============================================================================
@@ -967,16 +996,21 @@ class LmModel
     /**
      * Save a chat message to database
      */
-    public function saveChatbot(int $fileID, string $title){
+    public function saveChatbot(int $fileId, string $title)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("INSERT INTO chatbot (fileID, title) VALUES (:fileID, :title)");
-        $stmt->bindParam(':fileID', $fileID);
+        $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':title', $title);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
 
-    public function saveQuestionChat(int $chatbotId, string $question){
+    /**
+     * Save a user question in chat
+     */
+    public function saveQuestionChat(int $chatbotId, string $question)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("INSERT INTO questionChat (chatbotID, userQuestion) VALUES (:chatbotID, :userQuestion)");
         $stmt->bindParam(':chatbotID', $chatbotId);
@@ -985,7 +1019,11 @@ class LmModel
         return (int)$conn->lastInsertId();
     }
 
-    public function saveResponseChat(int $questionChatId, string $response){
+    /**
+     * Save a chatbot response
+     */
+    public function saveResponseChat(int $questionChatId, string $response)
+    {
         $conn = $this->db->connect();
         $stmt = $conn->prepare("INSERT INTO responseChat (questionChatID, response) VALUES (:questionChatID, :response)");
         $stmt->bindParam(':questionChatID', $questionChatId);
@@ -994,6 +1032,9 @@ class LmModel
         return (int)$conn->lastInsertId();
     }
 
+    /**
+     * Get chatbot by file ID
+     */
     public function getChatBotByFile(int $fileId)
     {
         $conn = $this->db->connect();
@@ -1003,6 +1044,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all question chats for a specific chatbot
+     */
     public function getQuestionChatByChatbot(int $chatbotId)
     {
         $conn = $this->db->connect();
@@ -1012,6 +1056,9 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get response chat by question chat ID
+     */
     public function getResponseChatByQuestionChat(int $questionChatId)
     {
         $conn = $this->db->connect();
@@ -1021,6 +1068,9 @@ class LmModel
         return $stmt->fetchColumn();
     }
 
+    /**
+     * Get response chat by ID
+     */
     public function getResponseChatById(int $responseChatId)
     {
         $conn = $this->db->connect();
@@ -1030,6 +1080,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get chat history for a file
+     */
     public function chatHistory($fileId, int $limit = 5)
     {
         $chatbot = $this->getChatBotByFile($fileId);
