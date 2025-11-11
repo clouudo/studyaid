@@ -949,7 +949,17 @@ class LmModel
         return $stmt->execute();
     }
 
-    
+    public function getSuggestedAnswers(int $questionId){
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT question FROM suggestedAnswers WHERE questionID = :questionID");
+        $stmt->bindParam(':questionID', $questionId);
+        $stmt->execute();
+        $stmt->fetch(\PDO::FETCH_ASSOC);
+        $answer = json_decode($stmt, true);
+
+        error_log(json_encode($answer));
+    }
+
     // ============================================================================
     // CHATBOT PAGE (chatbot.php)
     // ============================================================================

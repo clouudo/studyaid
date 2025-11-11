@@ -210,9 +210,14 @@
                                 <button class="btn btn-outline-secondary" id="resetQuizBtn">
                                     <i class="bi bi-arrow-counterclockwise me-2"></i>Reset Quiz
                                 </button>
-                                <button class="btn btn-primary" id="submitQuizBtn" style="background-color: #A855F7; border: none;">
-                                    <i class="bi bi-check-circle me-2"></i>Submit Quiz
-                                </button>
+                                <div>
+                                    <button class="btn btn-outline-info me-2" id="checkAnswersBtn" style="display: none;">
+                                        <i class="bi bi-lightbulb me-2"></i>Check Suggested Answers
+                                    </button>
+                                    <button class="btn btn-primary" id="submitQuizBtn" style="background-color: #A855F7; border: none;">
+                                        <i class="bi bi-check-circle me-2"></i>Submit Quiz
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -257,6 +262,7 @@
         const questionCounter = document.getElementById('questionCounter');
         const submitQuizBtn = document.getElementById('submitQuizBtn');
         const resetQuizBtn = document.getElementById('resetQuizBtn');
+        const checkAnswersBtn = document.getElementById('checkAnswersBtn');
         const resultsCard = document.getElementById('resultsCard');
         const generateQuizForm = document.getElementById('generateQuizForm');
         const newQuizBtn = document.getElementById('newQuizBtn');
@@ -312,6 +318,13 @@
                     generateQuizCard.style.display = 'none';
                     quizSection.style.display = 'block';
                     resultsCard.style.display = 'none';
+                    
+                    // Show/hide check answers button based on quiz type
+                    if (isShortQuestion) {
+                        checkAnswersBtn.style.display = 'inline-block';
+                    } else {
+                        checkAnswersBtn.style.display = 'none';
+                    }
                     
                     // Restore button (though it's hidden now)
                     submitButton.disabled = false;
@@ -413,6 +426,46 @@
             }
         }
 
+        // Check Suggested Answers button handler (for short questions)
+        checkAnswersBtn.addEventListener('click', () => {
+            if (!isShortQuestion) return;
+            
+            // Show suggested answers (correct answers) for each question
+            quizData.forEach((question, index) => {
+                const questionDiv = document.getElementById(`question-${index}`);
+                if (!questionDiv) return;
+                
+                // Check if answer comparison already exists
+                const existingComparison = questionDiv.querySelector('.answer-comparison');
+                if (existingComparison) {
+                    // Toggle visibility
+                    existingComparison.style.display = existingComparison.style.display === 'none' ? 'block' : 'none';
+                    return;
+                }
+                
+                const correctAnswer = question.answer;
+                const userAnswer = userAnswers[index] || '';
+                
+                // Create answer comparison div
+                const comparisonDiv = document.createElement('div');
+                comparisonDiv.className = 'answer-comparison';
+                comparisonDiv.innerHTML = `
+                    <div class="answer-comparison correct-answer mt-3">
+                        <strong><i class="bi bi-check-circle me-2"></i>Suggested Answer:</strong>
+                        <p class="mb-0">${correctAnswer}</p>
+                    </div>
+                `;
+                
+                // Insert after the textarea
+                const textarea = questionDiv.querySelector('.short-answer-input');
+                if (textarea) {
+                    textarea.parentNode.insertBefore(comparisonDiv, textarea.nextSibling);
+                } else {
+                    questionDiv.appendChild(comparisonDiv);
+                }
+            });
+        });
+
         // Submit quiz
         submitQuizBtn.addEventListener('click', async () => {
             if (Object.keys(userAnswers).length < quizData.length) {
@@ -421,15 +474,18 @@
                 }
             }
 
-            // Calculate score client-side
-            let score = 0;
-            const total = quizData.length;
-
             if (isShortQuestion) {
-                // For short questions, we'll show answers but not auto-grade (manual review needed)
-                score = 0; // Short questions need manual grading
+                // For short questions: Pass answers to server, no score calculation, no results display
+                if (currentQuizId) {
+                    await submitAnswers(currentQuizId, userAnswers);
+                }
+                // Show answer comparison inline without results card
+                showAnswerComparison();
             } else {
-                // Multiple choice - exact match
+                // For MCQ: Calculate score and save it
+                let score = 0;
+                const total = quizData.length;
+
                 quizData.forEach((question, index) => {
                     const correctAnswer = question.answer;
                     const userAnswer = userAnswers[index];
@@ -438,14 +494,76 @@
                         score++;
                     }
                 });
-            }
 
-            const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-            if (currentQuizId) {
-                await saveScore(currentQuizId, percentage);
+                const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+                if (currentQuizId) {
+                    await saveScore(currentQuizId, percentage);
+                }
+                displayResults(score, total, percentage, false);
             }
-            displayResults(score, total, percentage, isShortQuestion);
         });
+
+        function showAnswerComparison() {
+            // Show answer comparison for short questions without results card
+            quizData.forEach((question, index) => {
+                const correctAnswer = question.answer;
+                const userAnswer = userAnswers[index] || 'No answer provided';
+                const questionDiv = document.getElementById(`question-${index}`);
+                
+                if (!questionDiv) return;
+                
+                // Hide the textarea
+                const textarea = questionDiv.querySelector('.short-answer-input');
+                if (textarea) {
+                    textarea.style.display = 'none';
+                }
+                
+                // Remove existing comparison if any
+                const existingComparison = questionDiv.querySelector('.answer-comparison');
+                if (existingComparison) {
+                    existingComparison.remove();
+                }
+                
+                // Add answer comparison
+                const comparisonDiv = document.createElement('div');
+                comparisonDiv.innerHTML = `
+                    <div class="answer-comparison user-answer">
+                        <strong>Your Answer:</strong>
+                        <p class="mb-0">${userAnswer}</p>
+                    </div>
+                    <div class="answer-comparison correct-answer">
+                        <strong>Correct Answer:</strong>
+                        <p class="mb-0">${correctAnswer}</p>
+                    </div>
+                `;
+                questionDiv.appendChild(comparisonDiv);
+            });
+            
+            // Disable submit button
+            submitQuizBtn.disabled = true;
+        }
+
+        async function submitAnswers(quizId, answers) {
+            try {
+                const formData = new FormData();
+                formData.append('quiz_id', quizId);
+                formData.append('user_answers', JSON.stringify(answers));
+
+                const response = await fetch('<?= SUBMIT_QUIZ ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Answers saved successfully');
+                } else {
+                    console.error('Failed to save answers:', result.message);
+                }
+            } catch (error) {
+                console.error('Error saving answers:', error);
+            }
+        }
 
         async function saveScore(quizId, percentageScore) {
             try {
@@ -475,7 +593,7 @@
             document.getElementById('totalQuestions').textContent = total;
             
             if (isShortQuestion) {
-                document.getElementById('scorePercentage').textContent = 'Review your answers below. Compare your responses with the correct answers.';
+                document.getElementById('scorePercentage').textContent = 'Review your answers `below. Compare your responses with the correct answers.';
             } else {
                 document.getElementById('scorePercentage').textContent = `You scored ${percentage}%`;
             }
@@ -545,6 +663,10 @@
             renderQuiz();
             resultsCard.style.display = 'none';
             submitQuizBtn.disabled = false;
+            // Show check answers button if it's a short question quiz
+            if (isShortQuestion) {
+                checkAnswersBtn.style.display = 'inline-block';
+            }
         });
 
         // New quiz
@@ -552,6 +674,8 @@
             quizData = [];
             userAnswers = {};
             currentQuizId = null;
+            isShortQuestion = false;
+            checkAnswersBtn.style.display = 'none';
             generateQuizCard.style.display = 'block';
             quizSection.style.display = 'none';
             resultsCard.style.display = 'none';
@@ -587,6 +711,13 @@
                 quizListCard.style.display = 'none';
                 generateQuizCard.style.display = 'none';
                 resultsCard.style.display = 'none';
+                
+                // Show/hide check answers button based on quiz type
+                if (isShortQuestion) {
+                    checkAnswersBtn.style.display = 'inline-block';
+                } else {
+                    checkAnswersBtn.style.display = 'none';
+                }
             } else {
                 container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load quiz'}</div>`;
             }

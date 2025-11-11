@@ -1828,7 +1828,6 @@ class LmController
                 $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
             }
 
-            // Return decoded quiz array, not the raw JSON string
             $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
             if($questionType == 'mcq') {
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
@@ -1858,7 +1857,31 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'User answers not provided.']);
             exit();
         }
-        
+
+        try {
+            $questionData = $this->lmModel->getQuestionByQuiz($quizId);
+            if (!$questionData) {
+                echo json_encode(['success' => false, 'message' => 'Quiz questions not found.']);
+                exit();
+            }
+
+            $questions = json_decode($questionData['question'], true);
+            $quizArray = isset($questions['quiz']) ? $questions['quiz'] : $questions;
+
+            foreach ($userAnswers as $index => $answer) {
+                if (isset($quizArray[$index])) {
+                    $this->lmModel->saveUserAnswer($questionData['questionID'], json_encode([
+                        'questionIndex' => $index,
+                        'userAnswer' => $answer
+                    ]));
+                }
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Answers saved successfully']);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
     }
 
     // ============================================================================
