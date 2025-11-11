@@ -16,6 +16,9 @@ define('JS_PATH', PUBLIC_PATH . 'js/');
 define('ASSET_PATH', PUBLIC_PATH . 'asset/');
 
 // Images
+define('IMG_VISIBLE', ASSET_PATH . 'visible.png');
+define('IMG_INVISIBLE', ASSET_PATH . 'invisible.png');
+define('IMG_LOGO', ASSET_PATH . 'logo.png');
 define('IMG_SETTING', ASSET_PATH . 'setting.png');
 define('IMG_CARET_DOWN', ASSET_PATH . 'down-chevron.png');
 

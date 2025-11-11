@@ -19,6 +19,7 @@ function isActive($link_url, $current_url)
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <div class="d-flex flex-column flex-shrink-0 p-3 text-dark bg-white" style="width: 280px;">
   <a href="<?= HOME ?>" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+    <div class="logo-box"><img src="<?= IMG_LOGO ?>" alt="StudyAids Logo"></div>
     <strong class="fs-4">StudyAid</strong>
   </a>
   <hr>
@@ -74,6 +75,19 @@ function isActive($link_url, $current_url)
 </div>
 
 <style>
+  .logo-box {
+            background-color: #00000000;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            font-size: 14px;
+        }
+        .logo-box img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+        }
   .sidebarlist.active {
     background-color: #A855F7 !important;
   }
