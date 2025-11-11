@@ -10,7 +10,7 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include 'app\views\sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3">
             <div class="container">
                 <?php
