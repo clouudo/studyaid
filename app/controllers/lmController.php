@@ -1786,6 +1786,8 @@ class LmController
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
+        }if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
+            $questionType = trim($_POST['questionType']);
         }
 
         if ($fileId === 0) {
@@ -1807,27 +1809,56 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            $mcq = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            $decodedMcq = json_decode($mcq, true);
-            $totalQuestions = 0;
-
-            foreach ($decodedMcq['quiz'] as $question) {
-                $totalQuestions++;
+            if($questionType == 'mcq') {
+                $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
+            }elseif($questionType == 'shortQuestion') {
+                $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
             }
+
+            $decodedQuiz = json_decode($quizData, true);
+            $totalQuestions = count($decodedQuiz['quiz']);            
 
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
-
-            $this->lmModel->saveQuestion($quizId, 'MCQ', $mcq);
+            $encodedQuiz = json_encode($decodedQuiz['quiz']);
+            if($questionType == 'mcq') {
+                $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
+            }elseif($questionType == 'shortQuestion') {
+                $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
+            }
 
             // Return decoded quiz array, not the raw JSON string
-            $quizArray = $decodedMcq['quiz'] ?? $decodedMcq['questions'] ?? [];
-            echo json_encode(['success' => true, 'quiz' => $quizArray, 'quizId' => $quizId]);
+            $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
+            if($questionType == 'mcq') {
+                echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+            }elseif($questionType == 'shortQuestion') {
+                echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+            }
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();
+    }
+
+    public function submitQuiz(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        $userAnswers = isset($_POST['user_answers']) ? json_decode($_POST['user_answers'], true) : [];
+
+        if ($quizId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Quiz ID not provided.']);
+            exit();
+        }
+
+        if (empty($userAnswers)) {
+            echo json_encode(['success' => false, 'message' => 'User answers not provided.']);
+            exit();
+        }
+        
     }
 
     // ============================================================================

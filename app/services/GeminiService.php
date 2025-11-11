@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Services;
 
 use GuzzleHttp\Client;
@@ -30,7 +31,7 @@ class GeminiService
     // ============================================================================
     // UTILITY METHODS (Internal use only)
     // ============================================================================
-
+    
     private function requireKey()
     {
         if (!$this->apiKey) {
@@ -279,6 +280,43 @@ PROMPT;
         Output ONLY valid JSON, no markdown, no extra text.
         PROMPT;
         $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . "Question Amount: " . $questionAmount . "\n\n" . "Question Difficulty: " . $questionDifficulty . "\n\n" . 'Content: ' . $sourceText;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents, $generationConfig);
+        $output = $this->extractText($result);
+        return $this->cleanJsonOutput($output);
+    }
+
+    public function generateShortQuestion(string $sourceText, ?string $instructions = null, ?string $questionAmount = null, ?string $questionDifficulty = null){
+        if ($questionAmount == null) {
+            $questionAmount = 'standard, (10-20 questions)';
+        }
+        if ($questionDifficulty == null) {
+            $questionDifficulty = 'medium';
+        }
+        $model = $this->models['quiz'] ?? $this->defaultModel;
+
+        // Increase maxOutputTokens for quiz generation to handle multiple questions
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 8192,
+        ]);
+
+        $prompt = <<<PROMPT
+        Create a short question based on the content provided.
+        Each question should have a question and answer.
+        
+        Return in exact JSON format and structure:
+            {
+                "quiz": [
+                    {
+                        "question": "Question",
+                        "answer": "Answer"
+                    }
+                ]
+            }
+
+        Output ONLY valid JSON, no markdown, no extra text.
+        PROMPT;
+        $prompt = $prompt . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . "Question Amount: " . $questionAmount . "\n\n" . "Question Difficulty: " . $questionDifficulty . "\n\n" . 'Content: ' . $sourceText;
         $contents = [$this->buildUserContent($prompt)];
         $result = $this->postGenerate($model, $contents, $generationConfig);
         $output = $this->extractText($result);

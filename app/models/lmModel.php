@@ -874,13 +874,12 @@ class LmModel
     /**
      * Save a quiz to database
      */
-    public function saveQuiz(int $fileId, int $totalQuestions, string $title, ?int $totalScore = null, ?string $examMode = null): int
+    public function saveQuiz(int $fileId, int $totalQuestions, string $title, ?int $totalScore = null): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, examMode, title, totalScore) VALUES (:fileID, :totalQuestions, :examMode, :title, :totalScore)");
+        $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, title, totalScore) VALUES (:fileID, :totalQuestions, :title, :totalScore)");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':totalQuestions', $totalQuestions);
-        $stmt->bindParam(':examMode', $examMode);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':totalScore', $totalScore);
         $stmt->execute();

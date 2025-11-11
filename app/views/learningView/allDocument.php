@@ -94,7 +94,7 @@ ob_start();
                                     <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-name="<?php echo htmlspecialchars($folder['name']); ?>" data-item-type="folder">Rename</a></li>
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-type="folder">Move</a></li>
-                                        <li><a class="dropdown-item" href="<?= BASE_PATH ?>lm/deleteFolder?folderID=<?php echo $folder['folderID'] ?>">Delete</a></li>
+                                        <li><a class="dropdown-item delete-folder-btn" href="#" data-folder-id="<?php echo $folder['folderID']; ?>">Delete</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -134,7 +134,7 @@ ob_start();
                                         <li>
                                             <form method="POST" action="<?= DELETE_DOCUMENT ?>" style="display: inline;">
                                                 <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
-                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                <button type="submit" id="deleteFileBtn" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                             </form>
                                         </li>
                                     </ul>
@@ -252,6 +252,28 @@ ob_start();
             $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
                 success: function(response) { location.reload(); },
                 error: function() { alert('An error occurred during the move.'); }
+            });
+        });
+
+        // Delete folder handler
+        $(document).on('click', '.delete-folder-btn', function(e) {
+            e.preventDefault();
+            if (!confirm('Are you sure you want to delete this folder? This action cannot be undone.')) {
+                return;
+            }
+            var folderId = $(this).data('folder-id');
+            var url = '<?= BASE_PATH ?>lm/deleteFolder';
+            var data = { folder_id: folderId };
+            $.ajax({ 
+                url: url, 
+                type: 'POST', 
+                data: data,
+                success: function(response) { 
+                    location.reload(); 
+                },
+                error: function() { 
+                    alert('An error occurred during the deletion.'); 
+                }
             });
         });
     });

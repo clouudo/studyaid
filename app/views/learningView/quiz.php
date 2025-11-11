@@ -47,6 +47,38 @@
             background-color: #f8d7da;
         }
 
+        .short-answer-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 0.75rem;
+            border: 2px solid #dee2e6;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            resize: vertical;
+        }
+
+        .short-answer-input:focus {
+            border-color: #A855F7;
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(168, 85, 247, 0.25);
+        }
+
+        .answer-comparison {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.375rem;
+        }
+
+        .answer-comparison.user-answer {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .answer-comparison.correct-answer {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
         .score-display {
             font-size: 2rem;
             font-weight: bold;
@@ -101,6 +133,15 @@
                                 <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
                                 <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" value="hard" id="hard">
                                 <label class="btn btn-outline-secondary" for="hard">Hard</label>
+                            </div>
+                            <br>
+                            <label for="questionType" class="form-label">Type of Question</label>
+                            <br>
+                            <div class="btn-group mb-3" role="group">
+                                <input type="radio" class="btn-check" name="questionType" autcomplete="off" checked value="mcq" id="multipleChoice">
+                                <label class="btn btn-outline-secondary" for="multipleChoice">Multiple Choice (Default)</label>
+                                <input type="radio" class="btn-check" name="questionType" autcomplete="off" value="shortQuestion" id="shortQuestion">
+                                <label class="btn btn-outline-secondary" for="shortQuestion">Short Question</label>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Instructions (optional)</label>
@@ -208,6 +249,7 @@
         let quizData = [];
         let userAnswers = {};
         let currentQuizId = null;
+        let isShortQuestion = false;
 
         const generateQuizCard = document.getElementById('generateQuizCard');
         const quizSection = document.getElementById('quizSection');
@@ -234,6 +276,7 @@
             const formData = new FormData(generateQuizForm);
             formData.append('questionAmount', document.querySelector('input[name="questionAmount"]:checked').value);
             formData.append('questionDifficulty', document.querySelector('input[name="questionDifficulty"]:checked').value);
+            formData.append('questionType', document.querySelector('input[name="questionType"]:checked').value);
             formData.append('instructions', document.querySelector('input[name="instructions"]').value);
 
             try {
@@ -244,8 +287,25 @@
 
                 const data = await response.json();
 
-                if (data.success && data.quiz && Array.isArray(data.quiz)) {
-                    quizData = data.quiz;
+                if (data.success) {
+                    // Handle both MCQ and short question formats from controller
+                    if (data.mcq && Array.isArray(data.mcq)) {
+                        quizData = data.mcq;
+                        isShortQuestion = false;
+                    } else if (data.shortQuestion && Array.isArray(data.shortQuestion)) {
+                        quizData = data.shortQuestion;
+                        isShortQuestion = true;
+                    } else if (data.quiz && Array.isArray(data.quiz)) {
+                        quizData = data.quiz;
+                        // Detect type by checking if first question has options
+                        isShortQuestion = !quizData[0] || !quizData[0].options || quizData[0].options.length === 0;
+                    } else {
+                        alert('Error: Invalid quiz data format');
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonText;
+                        return;
+                    }
+                    
                     currentQuizId = data.quizId || null; // Store quiz ID if provided
                     userAnswers = {};
                     renderQuiz();
@@ -278,6 +338,11 @@
                 return;
             }
 
+            // Detect quiz type if not already set
+            if (isShortQuestion === undefined || isShortQuestion === null) {
+                isShortQuestion = !quizData[0] || !quizData[0].options || quizData[0].options.length === 0;
+            }
+
             questionCounter.textContent = `Question 1 of ${quizData.length}`;
 
             quizData.forEach((question, index) => {
@@ -285,37 +350,67 @@
                 questionDiv.className = 'quiz-question';
                 questionDiv.id = `question-${index}`;
 
-                questionDiv.innerHTML = `
-                    <h5>Question ${index + 1}</h5>
-                    <p class="mb-3">${question.question || ''}</p>
-                    <div class="quiz-options">
-                        ${question.options.map((option, optIndex) => `
-                            <div class="quiz-option" data-question="${index}" data-option="${option}">
-                                ${option}
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+                if (isShortQuestion) {
+                    // Render short answer question with text area
+                    questionDiv.innerHTML = `
+                        <h5>Question ${index + 1}</h5>
+                        <p class="mb-3">${question.question || ''}</p>
+                        <div class="mb-3">
+                            <label for="answer-${index}" class="form-label">Your Answer:</label>
+                            <textarea 
+                                class="short-answer-input" 
+                                id="answer-${index}" 
+                                data-question="${index}"
+                                placeholder="Write your answer here..."
+                                rows="4">${userAnswers[index] || ''}</textarea>
+                        </div>
+                    `;
+                } else {
+                    // Render multiple choice question
+                    questionDiv.innerHTML = `
+                        <h5>Question ${index + 1}</h5>
+                        <p class="mb-3">${question.question || ''}</p>
+                        <div class="quiz-options">
+                            ${question.options.map((option, optIndex) => `
+                                <div class="quiz-option ${userAnswers[index] === option ? 'selected' : ''}" 
+                                     data-question="${index}" 
+                                     data-option="${option}">
+                                    ${option}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
 
                 quizQuestions.appendChild(questionDiv);
             });
 
-            // Add click handlers for options
-            document.querySelectorAll('.quiz-option').forEach(option => {
-                option.addEventListener('click', function() {
-                    const questionId = parseInt(this.dataset.question);
-                    const selectedOption = this.dataset.option;
-
-                    // Remove selected class from other options in same question
-                    document.querySelectorAll(`[data-question="${questionId}"]`).forEach(opt => {
-                        opt.classList.remove('selected');
+            if (isShortQuestion) {
+                // Add input handlers for short answer questions
+                document.querySelectorAll('.short-answer-input').forEach(textarea => {
+                    textarea.addEventListener('input', function() {
+                        const questionId = parseInt(this.dataset.question);
+                        userAnswers[questionId] = this.value.trim();
                     });
-
-                    // Add selected class to clicked option
-                    this.classList.add('selected');
-                    userAnswers[questionId] = selectedOption;
                 });
-            });
+            } else {
+                // Add click handlers for multiple choice options
+                document.querySelectorAll('.quiz-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        const questionId = parseInt(this.dataset.question);
+                        const selectedOption = this.dataset.option;
+
+                        // Remove selected class from other options in same question
+                        document.querySelectorAll(`[data-question="${questionId}"]`).forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+
+                        // Add selected class to clicked option
+                        this.classList.add('selected');
+                        userAnswers[questionId] = selectedOption;
+                    });
+                });
+            }
         }
 
         // Submit quiz
@@ -330,20 +425,26 @@
             let score = 0;
             const total = quizData.length;
 
-            quizData.forEach((question, index) => {
-                const correctAnswer = question.answer;
-                const userAnswer = userAnswers[index];
+            if (isShortQuestion) {
+                // For short questions, we'll show answers but not auto-grade (manual review needed)
+                score = 0; // Short questions need manual grading
+            } else {
+                // Multiple choice - exact match
+                quizData.forEach((question, index) => {
+                    const correctAnswer = question.answer;
+                    const userAnswer = userAnswers[index];
 
-                if (userAnswer && userAnswer === correctAnswer) {
-                    score++;
-                }
-            });
+                    if (userAnswer && userAnswer === correctAnswer) {
+                        score++;
+                    }
+                });
+            }
 
             const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
             if (currentQuizId) {
                 await saveScore(currentQuizId, percentage);
             }
-            displayResults(score, total, percentage);
+            displayResults(score, total, percentage, isShortQuestion);
         });
 
         async function saveScore(quizId, percentageScore) {
@@ -369,28 +470,62 @@
         }
 
         // Display results
-        function displayResults(score, total, percentage) {
+        function displayResults(score, total, percentage, isShortQuestion = false) {
             document.getElementById('quizScore').textContent = score;
             document.getElementById('totalQuestions').textContent = total;
-            document.getElementById('scorePercentage').textContent = `You scored ${percentage}%`;
+            
+            if (isShortQuestion) {
+                document.getElementById('scorePercentage').textContent = 'Review your answers below. Compare your responses with the correct answers.';
+            } else {
+                document.getElementById('scorePercentage').textContent = `You scored ${percentage}%`;
+            }
 
             const progressBar = document.getElementById('scoreProgressBar');
             progressBar.style.width = percentage + '%';
             progressBar.textContent = percentage + '%';
 
-            // Highlight correct/incorrect answers
-            quizData.forEach((question, index) => {
-                const correctAnswer = question.answer;
-                const userAnswer = userAnswers[index];
-
-                document.querySelectorAll(`[data-question="${index}"]`).forEach(option => {
-                    if (option.dataset.option === correctAnswer) {
-                        option.classList.add('correct');
-                    } else if (option.dataset.option === userAnswer && userAnswer !== correctAnswer) {
-                        option.classList.add('incorrect');
+            if (isShortQuestion) {
+                // Display answer comparison for short questions
+                quizData.forEach((question, index) => {
+                    const correctAnswer = question.answer;
+                    const userAnswer = userAnswers[index] || 'No answer provided';
+                    const questionDiv = document.getElementById(`question-${index}`);
+                    
+                    // Hide the textarea
+                    const textarea = questionDiv.querySelector('.short-answer-input');
+                    if (textarea) {
+                        textarea.style.display = 'none';
                     }
+                    
+                    // Add answer comparison
+                    const comparisonDiv = document.createElement('div');
+                    comparisonDiv.innerHTML = `
+                        <div class="answer-comparison user-answer">
+                            <strong>Your Answer:</strong>
+                            <p class="mb-0">${userAnswer}</p>
+                        </div>
+                        <div class="answer-comparison correct-answer">
+                            <strong>Correct Answer:</strong>
+                            <p class="mb-0">${correctAnswer}</p>
+                        </div>
+                    `;
+                    questionDiv.appendChild(comparisonDiv);
                 });
-            });
+            } else {
+                // Highlight correct/incorrect answers for multiple choice
+                quizData.forEach((question, index) => {
+                    const correctAnswer = question.answer;
+                    const userAnswer = userAnswers[index];
+
+                    document.querySelectorAll(`[data-question="${index}"]`).forEach(option => {
+                        if (option.dataset.option === correctAnswer) {
+                            option.classList.add('correct');
+                        } else if (option.dataset.option === userAnswer && userAnswer !== correctAnswer) {
+                            option.classList.add('incorrect');
+                        }
+                    });
+                });
+            }
 
             resultsCard.style.display = 'block';
             submitQuizBtn.disabled = true;
@@ -399,6 +534,14 @@
         // Reset quiz
         resetQuizBtn.addEventListener('click', () => {
             userAnswers = {};
+            // Remove any answer comparison divs from short questions
+            document.querySelectorAll('.answer-comparison').forEach(div => {
+                div.remove();
+            });
+            // Show textareas again if they were hidden
+            document.querySelectorAll('.short-answer-input').forEach(textarea => {
+                textarea.style.display = 'block';
+            });
             renderQuiz();
             resultsCard.style.display = 'none';
             submitQuizBtn.disabled = false;
@@ -435,12 +578,15 @@
             console.log('Quiz data:', json);
             if (json.success && json.quiz) {
                 quizData = json.quiz;
+                // Detect quiz type by checking if first question has options
+                isShortQuestion = !quizData[0] || !quizData[0].options || quizData[0].options.length === 0;
                 currentQuizId = id; // Store the quiz ID for saving score
                 userAnswers = {};
                 renderQuiz();
                 quizSection.style.display = 'block';
                 quizListCard.style.display = 'none';
                 generateQuizCard.style.display = 'none';
+                resultsCard.style.display = 'none';
             } else {
                 container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load quiz'}</div>`;
             }
