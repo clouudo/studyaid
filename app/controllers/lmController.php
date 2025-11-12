@@ -89,7 +89,7 @@ class LmController
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
 
             for ($i = 0; $i < $fileCount; $i++) {
-                // Check if this is a single file upload (backward compatibility)
+                // Check if this is a single file upload
                 if (!is_array($files['name'])) {
                     $file = [
                         'name' => $files['name'],
@@ -98,7 +98,7 @@ class LmController
                         'error' => $files['error'],
                         'size' => $files['size']
                     ];
-                    $i = $fileCount; // Exit loop after processing single file
+                    $i = $fileCount;
                 } else {
                     // Multiple files
                     if ($files['error'][$i] !== UPLOAD_ERR_OK) {
@@ -124,6 +124,7 @@ class LmController
                 $originalFileName = $uploadedFileName;
 
                 $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
+                $formattedText = $this->gemini->formatContent($extractedText);
                 $fileContent = file_get_contents($tmpName);
 
                 if ($fileContent === false) {
@@ -133,7 +134,7 @@ class LmController
                 }
 
                 try {
-                    $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $extractedText, $fileContent, $file, $originalFileName);
+                    $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
@@ -141,7 +142,7 @@ class LmController
                 }
             }
 
-            // Set appropriate session messages
+            // Set session messages
             if ($uploadedCount > 0 && $failedCount === 0) {
                 $_SESSION['message'] = $uploadedCount === 1 
                     ? "File uploaded successfully!" 

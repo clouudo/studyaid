@@ -130,6 +130,23 @@ class GeminiService
         return $buffer;
     }
 
+    public function formatContent(string $content): string{
+        $model = $this->model['default'] ?? $this->defaultModel;
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 16384,
+        ]);
+        $schema = <<<PROMPT
+        Format the following content into organised and structured content. 
+        Do not change the content of the original text.
+        Do not add any extra text and only organise the content into logical chapters and sections.
+        Return the content in markdown format.
+        PROMPT;
+        $prompt = $schema . "\n\n" . 'Content: ' . $content;
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents, $generationConfig);
+        return $this->extractText($result);
+    }
+
     // ============================================================================
     // SUMMARY PAGE (summary.php)
     // ============================================================================
@@ -258,9 +275,8 @@ PROMPT;
         }
         $model = $this->models['quiz'] ?? $this->defaultModel;
 
-        // Increase maxOutputTokens for quiz generation to handle multiple questions
         $generationConfig = array_merge($this->generationConfig, [
-            'maxOutputTokens' => 8192, // Increased from default 2048 for quiz generation
+            'maxOutputTokens' => 8192, 
         ]);
 
         $schema = <<<PROMPT
