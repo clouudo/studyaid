@@ -6,6 +6,7 @@ $defaults = [
         ?: ($_SERVER['GEMINI_API_KEY'] ?? ''),
     'model' => 'gemini-2.5-flash-lite',
     'models' => [
+        'default' => 'gemini-2.5-flash-lite',
         'summary' => 'gemini-2.5-flash-lite',
         'notes' => 'gemini-2.5-flash-lite',
         'mindmap' => 'gemini-2.5-flash-lite',

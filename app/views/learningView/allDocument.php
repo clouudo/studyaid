@@ -219,8 +219,8 @@ ob_start();
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
-        <main class="flex-grow-1 p-3">
-            <div class="container-fluid upload-container">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
+            <div class="container">
                 <?php
                 if (isset($_SESSION['message'])):
                 ?>

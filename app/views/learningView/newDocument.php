@@ -253,14 +253,56 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             max-height: 400px;
             overflow-y: auto;
         }
+        .file-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+        }
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-name {
+            font-weight: 500;
+            word-break: break-word;
+            margin-bottom: 0.25rem;
+        }
+        .file-size {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        #dropZone {
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        #dropZone:not(.has-files) {
+            min-height: 200px;
+        }
+        .drop-zone-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        #dropZone.has-files {
+            min-height: 150px;
+            height: auto;
+            justify-content: flex-start;
+            padding-top: 1rem;
+        }
+        #dropZone.has-files .drop-zone-content {
+            justify-content: flex-start;
+        }
     </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
-        <main class="flex-grow-1 p-3">
-            <div class="container-fluid upload-container">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
+            <div class="container">
                 <?php
                 if (isset($_SESSION['message'])):
                 ?>
@@ -280,46 +322,32 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     unset($_SESSION['error']);
                 endif;
                 ?>
-                <h3 class="mb-4" style="color: #212529;">Upload Document</h3>
-                <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <h3 class="mb-4">Upload Documents</h3>
+                <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="folderSelect" id="folderSelect">
-                    
-                    <div class="form-row">
-                        <div>
-                            <label for="documentName" class="form-label fw-semibold">Document Name</label>
-                            <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here...">
-                        </div>
-                        <div>
-                            <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
-                            <div class="folder-select-wrapper">
-                                <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose folder to add" readonly onclick="openFolderModal()">
-                                <i class="bi bi-chevron-expand folder-select-icon"></i>
-                            </div>
+                    <div class="mb-3">
+                        <label for="folderSelectInput" class="form-label">Add to Folder</label>
+                        <div class="folder-select-wrapper">
+                            <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose folder to add" readonly onclick="openFolderModal()">
+                            <i class="bi bi-chevron-expand folder-select-icon"></i>
                         </div>
                     </div>
-
-                    <div class="mb-4">
-                        <div id="dragDropArea" class="drag-drop-area" onclick="document.getElementById('documentFile').click();">
-                            <div class="upload-icon">📄</div>
-                            <div class="upload-title" id="uploadTitle">Click or drag to upload document</div>
-                            <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT</div>
-                            <input type="file" id="documentFile" name="document" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt">
-                        </div>
-                        
-                        <div id="uploadedFileDisplay" class="uploaded-file-display" style="display: none;">
-                            <div class="file-info">
-                                <i class="bi bi-file-earmark-pdf file-icon"></i>
-                                <span class="file-name" id="displayFileName"></span>
+                    <div class="mb-3">
+                        <label for="dragDropArea" class="form-label">Drag and Drop Documents</label>
+                        <div id="dragDropArea" class="border rounded p-5" style="background-color: #e7d5ff;">
+                            <div id="dropZone" class="text-center d-flex flex-column justify-content-center align-items-center" style="min-height: 200px; cursor: pointer;" onclick="document.getElementById('documentFile').click();">
+                                <div class="drop-zone-content">
+                                    <span id="dropZoneText" class="d-block">Drag and drop your files here or click to upload (Multiple files supported)</span>
+                                    <p class="mt-3 mb-0">Or</p>
+                                    <button type="button" class="btn btn-outline-primary mt-2" onclick="event.stopPropagation(); document.getElementById('documentFile').click();">Browse Files</button>
+                                </div>
+                                <input type="file" id="documentFile" name="document[]" style="display: none;" accept="image/*,.pdf,.txt,.doc,.docx" multiple>
                             </div>
-                            <button type="button" class="remove-file-btn" id="removeFileBtn" onclick="removeFile()">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
+                            <div id="fileListContainer" class="mt-4" style="display: none;">
+                                <h6 class="mb-3">Selected Files:</h6>
+                                <div id="fileList" class="list-group"></div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
-                        <button type="submit" class="btn btn-create">Create</button>
                     </div>
                 </form>
             </div>
@@ -352,90 +380,130 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        const dragDropArea = document.getElementById('dragDropArea');
-        const documentFile = document.getElementById('documentFile');
-        const uploadTitle = document.getElementById('uploadTitle');
-        const uploadedFileDisplay = document.getElementById('uploadedFileDisplay');
-        const displayFileName = document.getElementById('displayFileName');
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
 
-        // Handle file selection
-        documentFile.addEventListener('change', function() {
-            handleFileSelect(this.files);
+        function updateFileList(files) {
+            const fileListContainer = document.getElementById('fileListContainer');
+            const fileList = document.getElementById('fileList');
+            const dropZone = document.getElementById('dropZone');
+            const dropZoneText = document.getElementById('dropZoneText');
+
+            if (files && files.length > 0) {
+                fileList.innerHTML = '';
+                
+                Array.from(files).forEach((file, index) => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'list-group-item file-list-item';
+                    listItem.setAttribute('data-file-index', index);
+                    listItem.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2 remove-file-btn" data-file-index="${index}" title="Remove file">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    `;
+                    fileList.appendChild(listItem);
+                });
+
+                fileListContainer.style.display = 'block';
+                dropZone.classList.add('has-files');
+                dropZone.style.minHeight = '150px';
+                dropZoneText.textContent = `${files.length} file(s) selected. Click to add more files.`;
+            } else {
+                fileListContainer.style.display = 'none';
+                dropZone.classList.remove('has-files');
+                dropZone.style.minHeight = '200px';
+                dropZoneText.textContent = 'Drag and drop your files here or click to upload (Multiple files supported)';
+            }
+        }
+
+        function removeFile(index) {
+            const fileInput = document.getElementById('documentFile');
+            const files = Array.from(fileInput.files);
+            
+            if (index >= 0 && index < files.length) {
+                files.splice(index, 1);
+                
+                // Create a new FileList-like object
+                const dt = new DataTransfer();
+                files.forEach(file => dt.items.add(file));
+                fileInput.files = dt.files;
+                
+                // Update display
+                updateFileList(fileInput.files);
+            }
+        }
+
+        // Use event delegation for remove buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-file-btn')) {
+                const btn = e.target.closest('.remove-file-btn');
+                const index = parseInt(btn.getAttribute('data-file-index'));
+                removeFile(index);
+            }
         });
 
-        // Drag and drop functionality
+        document.getElementById('documentFile').addEventListener('change', function() {
+            updateFileList(this.files);
+        });
+
+        // Handle drag and drop
+        const dragDropArea = document.getElementById('dragDropArea');
+        const dropZone = document.getElementById('dropZone');
+        
         dragDropArea.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            dragDropArea.classList.add('dragover');
+            dropZone.style.backgroundColor = '#e7d5ff';
         });
 
         dragDropArea.addEventListener('dragleave', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            dragDropArea.classList.remove('dragover');
+            if (!dragDropArea.contains(e.relatedTarget)) {
+                dropZone.style.backgroundColor = '#e7d5ff';
+            }
         });
 
         dragDropArea.addEventListener('drop', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            dragDropArea.classList.remove('dragover');
+            dropZone.style.backgroundColor = '';
             
             const files = e.dataTransfer.files;
             if (files.length > 0) {
-                // Create a new FileList-like object and assign to input
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(files[0]);
-                documentFile.files = dataTransfer.files;
-                handleFileSelect(files);
+                const fileInput = document.getElementById('documentFile');
+                
+                // Merge with existing files
+                const existingFiles = Array.from(fileInput.files);
+                const newFiles = Array.from(files);
+                const allFiles = [...existingFiles, ...newFiles];
+                
+                // Create a new FileList-like object
+                const dt = new DataTransfer();
+                allFiles.forEach(file => dt.items.add(file));
+                fileInput.files = dt.files;
+                
+                // Update display
+                updateFileList(fileInput.files);
             }
         });
 
-        function handleFileSelect(files) {
-            if (files && files.length > 0) {
-                const fileName = files[0].name;
-                uploadTitle.textContent = fileName;
-                displayFileName.textContent = fileName;
-                uploadedFileDisplay.style.display = 'flex';
-                
-                // Change icon based on file type
-                const fileIcon = uploadedFileDisplay.querySelector('.file-icon');
-                const extension = fileName.split('.').pop().toLowerCase();
-                fileIcon.className = 'bi file-icon';
-                if (extension === 'pdf') {
-                    fileIcon.classList.add('bi-file-earmark-pdf');
-                } else if (['doc', 'docx'].includes(extension)) {
-                    fileIcon.classList.add('bi-file-earmark-word');
-                } else if (['ppt', 'pptx'].includes(extension)) {
-                    fileIcon.classList.add('bi-file-earmark-ppt');
-                } else {
-                    fileIcon.classList.add('bi-file-earmark-text');
-                }
-            } else {
-                uploadTitle.textContent = 'Click or drag to upload document';
-                uploadedFileDisplay.style.display = 'none';
-            }
-        }
-
-        function removeFile() {
-            documentFile.value = '';
-            uploadTitle.textContent = 'Click or drag to upload document';
-            uploadedFileDisplay.style.display = 'none';
-        }
-
-        function resetForm() {
-            // Reset document name
-            document.getElementById('documentName').value = '';
-            
-            // Reset folder selection
-            document.getElementById('folderSelect').value = '';
-            document.getElementById('folderSelectInput').value = '';
-            
-            // Reset file upload
-            documentFile.value = '';
-            uploadTitle.textContent = 'Click or drag to upload document';
-            uploadedFileDisplay.style.display = 'none';
-        }
+        // Prevent default drag behaviors on the entire area
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragDropArea.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
 
         // Folder selection
         function openFolderModal() {

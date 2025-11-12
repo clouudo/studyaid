@@ -80,10 +80,10 @@
             border-color: #A855F7;
         }
 
-        /* Fix for flashcard list overflow - prevents items from exceeding card body width */
-        #flashcardList {
-            overflow-x: hidden;
-        }
+        /* Ensure dropdowns can render outside of list/card without being clipped */
+        .card { overflow: visible; }
+        .card-body { overflow: visible; }
+        #flashcardList { overflow: visible; }
 
         #flashcardList .list-group-item {
             min-width: 0;
@@ -132,7 +132,7 @@
     ?>
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Flashcards</h3>
                 <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
@@ -214,7 +214,7 @@
 
                 <div class="card mt-4">
                     <div class="card-header de-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Saved Flashcards</h5>
+                        <h5 class="mb-0">Generated Flashcards</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="flashcardList">
@@ -226,7 +226,7 @@
                                             <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($flashcard['createdAt']); ?></small>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
                                                 Actions
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>">
@@ -247,7 +247,7 @@
                                 <?php endforeach; ?>
                         </div>
                 <?php else: ?>
-                    <div class="list-group-item text-muted text-center">No saved flashcards</div>
+                    <div class="list-group-item text-muted text-center">No generated flashcards</div>
                 <?php endif; ?>
                     </div>
                 </div>

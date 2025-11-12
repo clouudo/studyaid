@@ -136,4 +136,86 @@ class AuthController
             require_once 'app/views/authView/register.php';
         }
     }
+
+    public function forgotPassword()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = "Please enter a valid email address";
+                require_once 'app/views/authView/forgotPassword.php';
+                return;
+            }
+
+            // Always show success to prevent email enumeration
+            $message = "If an account exists for that email, a reset link has been sent.";
+
+            $user = $this->authModel->getUserByEmail($email);
+            if ($user) {
+                $token = bin2hex(random_bytes(32));
+                $this->authModel->createPasswordResetToken((int)$user['userID'], $email, $token, date('Y-m-d H:i:s', time() + 3600));
+
+                // Build absolute URL for email clients
+                $resetLink = APP_URL . 'auth/resetPasswordForm/' . $token;
+                // Send email (service may use SMTP if configured)
+                $this->authModel->sendPasswordResetEmail($email, $resetLink);
+            }
+
+            require_once 'app/views/authView/forgotPassword.php';
+            return;
+        }
+
+        require_once 'app/views/authView/forgotPassword.php';
+    }
+
+    public function resetPasswordForm($token = '')
+    {
+        $token = trim($token ?? '');
+        if ($token === '') {
+            $error = "Invalid reset link.";
+            require_once 'app/views/authView/resetPassword.php';
+            return;
+        }
+        $reset = $this->authModel->getPasswordResetByToken($token);
+        if (!$reset || strtotime($reset['expiresAt']) <= time() || !empty($reset['usedAt'])) {
+            $error = "This reset link is invalid or has expired.";
+        }
+        require_once 'app/views/authView/resetPassword.php';
+    }
+
+    public function resetPassword()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_PATH . 'auth/login');
+            return;
+        }
+        $token = trim($_POST['token'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirm = $_POST['confirm_password'] ?? '';
+
+        if ($password !== $confirm) {
+            $error = "Passwords do not match.";
+            require_once 'app/views/authView/resetPassword.php';
+            return;
+        }
+        if (strlen($password) < 8) {
+            $error = "Password must be at least 8 characters.";
+            require_once 'app/views/authView/resetPassword.php';
+            return;
+        }
+
+        $reset = $this->authModel->getPasswordResetByToken($token);
+        if (!$reset || strtotime($reset['expiresAt']) <= time() || !empty($reset['usedAt'])) {
+            $error = "This reset link is invalid or has expired.";
+            require_once 'app/views/authView/resetPassword.php';
+            return;
+        }
+
+        $hashed = password_hash($password, PASSWORD_DEFAULT);
+        $this->authModel->changePassword((int)$reset['userID'], $hashed);
+        $this->authModel->markPasswordResetUsed((int)$reset['resetID']);
+
+        $_SESSION['success_message'] = "Your password has been reset. Please login.";
+        header('Location: ' . BASE_PATH . 'auth/login');
+    }
 }

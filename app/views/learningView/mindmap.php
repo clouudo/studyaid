@@ -24,7 +24,7 @@
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3">
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
                 <h3 class="mb-4" style="color: #A855F7;">Mindmap</h3>
                 <h4 class="mb-4"><?php echo $file['name']; ?></h4>
@@ -51,7 +51,7 @@
                 <!-- Saved Mindmaps -->
                 <div class="card mt-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Saved Mindmaps</h5>
+                        <h5 class="mb-0">Generated Mindmaps</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="mindmapList">
@@ -85,7 +85,7 @@
                                     </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
-                                <div class="list-group-item text-muted text-center">No saved mindmaps</div>
+                                <div class="list-group-item text-muted text-center">No generated mindmaps</div>
                             <?php endif; ?>
                         </div>
                     </div>

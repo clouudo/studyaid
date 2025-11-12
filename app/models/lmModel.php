@@ -200,6 +200,19 @@ class LmModel
         return $conn->lastInsertId();
     }
 
+    /**
+     * Get the latest uploaded file for a user
+     */
+    public function getLatestFileForUser($userId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT * FROM file WHERE userID = :userID ORDER BY fileID DESC LIMIT 1";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
     // ============================================================================
     // ALL DOCUMENTS PAGE (allDocument.php)
     // ============================================================================

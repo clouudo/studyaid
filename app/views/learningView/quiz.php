@@ -40,11 +40,13 @@
         .quiz-option.correct {
             border-color: #28a745;
             background-color: #d4edda;
+            color: #000000;
         }
 
         .quiz-option.incorrect {
             border-color: #dc3545;
             background-color: #f8d7da;
+            color: #000000;
         }
 
         .short-answer-input {
