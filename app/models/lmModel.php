@@ -213,6 +213,16 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    public function getFilesForUser($userId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT * FROM file WHERE userID = :userID ORDER BY fileID DESC";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     // ============================================================================
     // ALL DOCUMENTS PAGE (allDocument.php)
     // ============================================================================

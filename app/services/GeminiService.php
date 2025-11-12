@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Gemini;
-use Gemini\Data\Content;
 use Gemini\Enums\ModelType;
 
 class GeminiService
@@ -16,8 +15,7 @@ class GeminiService
     public function __construct()
     {
         $config = require __DIR__ . '/../config/gemini.php';
-        $this->apiKey = $config['api_key'];
-        $this->client = Gemini::client($this->apiKey);
+        $this->client = Gemini::client($config['api_key']);
         $this->defaultModel = $config['model'];
         $this->models = $config['models'];
         $this->generationConfig = $config['generation_config'];
@@ -26,7 +24,7 @@ class GeminiService
     private function generateText(string $model, string $prompt, ?array $generationConfig = null): string
     {
         try {
-            $response = $this->client->geminiPro()->generateContent($prompt);
+            $response = $this->client->generativeModel($model)->generateContent($prompt);
             return $response->text();
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating text: ' . $e->getMessage());
@@ -278,11 +276,9 @@ PROMPT;
 
     public function generateEmbedding(string $text): array
     {
-        $model = $this->models['embedding'] ?? 'embedding-004';
+        $model = $this->models['embedding'] ?? 'text-embedding-004';
         try {
-            $response = $this->client->embeddingModel($model)->embedContent(
-                Content::text($text)
-            );
+            $response = $this->client->embeddingModel($model)->embedContent($text);
             return $response->embedding->values;
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating embedding: ' . $e->getMessage());

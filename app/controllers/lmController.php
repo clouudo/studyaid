@@ -135,14 +135,14 @@ class LmController
 
                 try {
                     $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
-                    
+
                     // Generate embeddings for each chunk
                     $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
                     $embeddings = [];
                     foreach ($chunks as $chunk) {
                         $embeddings[] = $this->gemini->generateEmbedding($chunk);
                     }
-                    
+
                     $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
                     $uploadedCount++;
                 } catch (\Exception $e) {
@@ -153,10 +153,10 @@ class LmController
 
             // Set session messages
             if ($uploadedCount > 0 && $failedCount === 0) {
-                $_SESSION['message'] = $uploadedCount === 1 
-                    ? "File uploaded successfully!" 
+                $_SESSION['message'] = $uploadedCount === 1
+                    ? "File uploaded successfully!"
                     : "{$uploadedCount} files uploaded successfully!";
-                
+
                 // If only one file was uploaded, redirect to display it
                 if ($uploadedCount === 1) {
                     // Get the last uploaded file ID
@@ -173,8 +173,8 @@ class LmController
                     $_SESSION['error'] = implode('<br>', $errors);
                 }
             } else {
-                $_SESSION['error'] = !empty($errors) 
-                    ? implode('<br>', $errors) 
+                $_SESSION['error'] = !empty($errors)
+                    ? implode('<br>', $errors)
                     : "Failed to upload files. Please try again.";
             }
 
@@ -1915,7 +1915,8 @@ class LmController
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
-        }if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
             $questionType = trim($_POST['questionType']);
         }
 
@@ -1938,29 +1939,29 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
             }
 
             $decodedQuiz = json_decode($quizData, true);
-            $totalQuestions = count($decodedQuiz['quiz']);            
+            $totalQuestions = count($decodedQuiz['quiz']);
 
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
             $encodedQuiz = json_encode($decodedQuiz['quiz']);
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
             }
 
             $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             }
         } catch (\Throwable $e) {
@@ -1969,7 +1970,8 @@ class LmController
         exit();
     }
 
-    public function submitQuiz(){
+    public function submitQuiz()
+    {
         header('Content-Type: application/json');
         $this->checkSession(true);
 
@@ -2254,4 +2256,23 @@ class LmController
         }
         exit();
     }
+
+    // ============================================================================
+    // MULTI DOCUMENT PAGE (multidoc.php)
+    // ============================================================================
+
+    public function multidoc()
+    {
+        $this->checkSession();
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        $user = $this->getUserInfo();
+
+        require_once VIEW_MULTI_DOCUMENT;
+    }
+
 }
