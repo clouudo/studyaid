@@ -5,17 +5,20 @@ namespace App\Controllers;
 use App\Models\LmModel;
 use App\Models\UserModel;
 use App\Models\AuthModel;
+use App\Config\Database;
 
 class UserController {
 
     private $userModel;
     private $lmModel;
     private $authModel;
+    private $db;
 
     public function __construct() {
         $this->userModel = new UserModel();
         $this->lmModel = new LmModel();
         $this->authModel = new AuthModel();
+        $this->db = new Database();
     }
 
     public function checkSession($isJsonResponse = false){
@@ -41,6 +44,69 @@ class UserController {
         $userId = (int)$_SESSION['user_id'];
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
         $user = $this->getUserInfo();
+
+        // Gather dashboard metrics
+        $conn = $this->db->connect();
+        // Documents
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM file WHERE userID = :userId");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $documentsCount = (int)$stmt->fetchColumn();
+
+        // Notes
+        $stmt = $conn->prepare("SELECT COUNT(*) 
+                                FROM note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                WHERE f.userID = :userId");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $notesCount = (int)$stmt->fetchColumn();
+
+        // Summaries
+        $stmt = $conn->prepare("SELECT COUNT(*) 
+                                FROM summary s 
+                                INNER JOIN file f ON s.fileID = f.fileID 
+                                WHERE f.userID = :userId");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $summariesCount = (int)$stmt->fetchColumn();
+
+        // Flashcards
+        $stmt = $conn->prepare("SELECT COUNT(*) 
+                                FROM flashcard fc 
+                                INNER JOIN file f ON fc.fileID = f.fileID 
+                                WHERE f.userID = :userId");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $flashcardsCount = (int)$stmt->fetchColumn();
+
+        // Mindmaps
+        $stmt = $conn->prepare("SELECT COUNT(*) 
+                                FROM mindmap m 
+                                INNER JOIN file f ON m.fileID = f.fileID 
+                                WHERE f.userID = :userId");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $mindmapsCount = (int)$stmt->fetchColumn();
+
+        // Latest document
+        $stmt = $conn->prepare("SELECT fileID, name FROM file WHERE userID = :userId ORDER BY fileID DESC LIMIT 1");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $latestDocument = $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+        $latestDocumentId = $latestDocument ? (int)$latestDocument['fileID'] : 0;
+        $latestDocumentName = $latestDocument ? $latestDocument['name'] : 'No documents yet';
+
+        // Quiz history (line chart): use marked scores with timestamps
+        $stmt = $conn->prepare("SELECT q.markAt, q.totalScore 
+                                FROM quiz q 
+                                INNER JOIN file f ON q.fileID = f.fileID 
+                                WHERE f.userID = :userId AND q.totalScore IS NOT NULL 
+                                ORDER BY q.markAt ASC, q.quizID ASC");
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        $quizHistory = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
         require_once 'app/views/dashboardView.php';
     }
 
