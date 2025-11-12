@@ -135,6 +135,15 @@ class LmController
 
                 try {
                     $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
+                    
+                    // Generate embeddings for each chunk
+                    $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
+                    $embeddings = [];
+                    foreach ($chunks as $chunk) {
+                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
+                    }
+                    
+                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
@@ -1675,14 +1684,53 @@ class LmController
                 exit();
             }
 
+            // RAG implementation
+            // 1. Generate embedding for the question
+            $questionEmbedding = $this->gemini->generateEmbedding($question);
+
+            if (empty($questionEmbedding)) {
+                echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the question.']);
+                exit();
+            }
+
+            // 2. Get all chunks for the file
+            $chunks = $this->lmModel->getChunksByFile($fileId);
+
+            // 3. Calculate cosine similarity and find the most relevant chunks
+            $similarities = [];
+            foreach ($chunks as $chunk) {
+                $chunkEmbedding = json_decode($chunk['embedding'], true);
+                if (!empty($chunkEmbedding)) {
+                    $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
+                    $similarities[] = [
+                        'chunk' => $chunk['chunkText'],
+                        'similarity' => $similarity,
+                    ];
+                }
+            }
+
+            // 4. Sort chunks by similarity and get the top N (e.g., top 3)
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            $topChunks = array_slice($similarities, 0, 3);
+
+            // 5. Concatenate the text of the top chunks to create a context
+            $context = '';
+            foreach ($topChunks as $chunk) {
+                $context .= $chunk['chunk'] . "\n\n";
+            }
+
+            // 6. Get chat history
             $chatHistory = $this->lmModel->chatHistory($fileId);
             $userQuestions = $chatHistory['questions'];
             $aiResponse = $chatHistory['responseChats'];
-
             $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
 
+            // 7. Generate response using the context
             $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
-            $response = $this->gemini->generateChatbotResponse($file['extracted_text'], $question, $compressedChatHistory);
+            $response = $this->gemini->generateChatbotResponse($context, $question, $compressedChatHistory);
             $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
             $response = $this->lmModel->getResponseChatById($responseChatId);
 
@@ -1708,6 +1756,30 @@ class LmController
         }
 
         return $chatbotId;
+    }
+
+    private function cosineSimilarity(array $a, array $b): float
+    {
+        $dotProduct = 0.0;
+        $aMagnitude = 0.0;
+        $bMagnitude = 0.0;
+
+        $count = count($a);
+        if ($count !== count($b)) {
+            return 0.0; // Vectors must be the same size
+        }
+
+        for ($i = 0; $i < $count; $i++) {
+            $dotProduct += $a[$i] * $b[$i];
+            $aMagnitude += $a[$i] * $a[$i];
+            $bMagnitude += $b[$i] * $b[$i];
+        }
+
+        if ($aMagnitude == 0 || $bMagnitude == 0) {
+            return 0.0;
+        }
+
+        return $dotProduct / (sqrt($aMagnitude) * sqrt($bMagnitude));
     }
 
     // ============================================================================
@@ -1985,6 +2057,111 @@ class LmController
      * ACTION (JSON API): Generate flashcards using AI
      */
     public function generateFlashcards()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $flashcardAmount = '';
+        $flashcardType = '';
+        $instructions = '';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
+            $flashcardAmount = trim($_POST['flashcardAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardType'])) {
+            $flashcardType = trim($_POST['flashcardType']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                echo json_encode(['success' => false, 'message' => 'File not found.']);
+                exit();
+            }
+
+            $sourceText = $file['extracted_text'] ?? '';
+            if (empty($sourceText)) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
+                exit();
+            }
+
+            $context = !empty($instructions) ? $instructions : '';
+            $flashcardsData = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
+            $decodedFlashcards = json_decode($flashcardsData, true);
+
+            $title = $this->gemini->generateTitle($file['name'] . " Flashcards");
+
+            foreach ($decodedFlashcards['flashcards'] as $flashcard) {
+                $this->lmModel->saveFlashcards($fileId, $title, $flashcard['term'], $flashcard['definition']);
+            }
+
+            echo json_encode(['success' => true, 'flashcards' => $decodedFlashcards['flashcards']]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function viewFlashcardSet()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $fileId = $this->resolveFileId();
+        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if (empty($title)) {
+            echo json_encode(['success' => false, 'message' => 'Title not provided.']);
+            exit();
+        }
+
+        try {
+            $flashcards = $this->lmModel->getFlashcardsByTitle($title, $fileId);
+            echo json_encode(['success' => true, 'flashcards' => $flashcards]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function deleteFlashcardSet()
+    {
+        $this->checkSession();
+
+        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+        $fileId = $this->resolveFileId();
+
+        if (empty($title)) {
+            $_SESSION['error'] = "Title not provided.";
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        try {
+            $this->lmModel->deleteFlashcardsByTitle($title, $fileId);
+            $_SESSION['message'] = "Flashcard set deleted successfully.";
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+        }
+
+        header('Location: ' . FLASHCARD);
+        exit();
+    }
+
+    /**
+     * ACTION (JSON API): Generate flashcards (alternative implementation)
+     */
+    public function generateFlashcardsAlternative()
     {
         header('Content-Type: application/json');
         $this->checkSession(true);

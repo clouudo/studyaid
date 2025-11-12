@@ -157,7 +157,6 @@
                 if (json.success && json.markdown) {
                     container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
-                    location.reload();
                 } else {
                     container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to generate mindmap'}</div>`;
                     submitButton.disabled = false;

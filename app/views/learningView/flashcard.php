@@ -1,3 +1,11 @@
+<?php
+$flashcardSets = [];
+if (isset($flashcards) && is_array($flashcards)) {
+    foreach ($flashcards as $flashcard) {
+        $flashcardSets[$flashcard['title']][] = $flashcard;
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -78,50 +86,6 @@
         .btn-check:checked + .btn-outline-secondary:hover {
             background-color: #A855F7;
             border-color: #A855F7;
-        }
-
-        /* Ensure dropdowns can render outside of list/card without being clipped */
-        .card { overflow: visible; }
-        .card-body { overflow: visible; }
-        #flashcardList { overflow: visible; }
-
-        #flashcardList .list-group-item {
-            min-width: 0;
-            overflow: visible;
-            position: relative;
-            z-index: 1;
-        }
-
-        #flashcardList .list-group-item:hover {
-            z-index: 10;
-        }
-
-        #flashcardList .list-group-item .flex-grow-1 {
-            min-width: 0;
-            overflow: hidden;
-            margin-right: 0.75rem;
-        }
-
-        #flashcardList .list-group-item .flex-grow-1 strong {
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 100%;
-        }
-
-        #flashcardList .list-group-item .dropdown {
-            flex-shrink: 0;
-            position: relative;
-            z-index: 2;
-        }
-
-        #flashcardList .list-group-item:hover .dropdown {
-            z-index: 11;
-        }
-
-        #flashcardList .list-group-item .dropdown-menu {
-            z-index: 1050 !important;
         }
     </style>
 </head>
@@ -213,42 +177,40 @@
                 </div>
 
                 <div class="card mt-4">
-                    <div class="card-header de-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Generated Flashcards</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="flashcardList">
-                            <?php if ($flashcards): ?>
-                                <?php foreach ($flashcards as $flashcard): ?>
+                            <?php if ($flashcardSets): ?>
+                                <?php foreach ($flashcardSets as $title => $set): ?>
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div class="flex-grow-1" style="min-width: 0;">
-                                            <strong title="<?php echo htmlspecialchars($flashcard['title']); ?>"><?php echo htmlspecialchars($flashcard['title']); ?></strong>
-                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($flashcard['createdAt']); ?></small>
+                                            <strong title="<?php echo htmlspecialchars($title); ?>"><?php echo htmlspecialchars($title); ?></strong>
+                                            <small class="text-muted d-block">Created: <?php echo htmlspecialchars($set[0]['createdAt']); ?></small>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                 Actions
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>">
-                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($flashcard['flashcardID']) ?>">View</a></li>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item view-set-btn" href="#" data-title="<?= htmlspecialchars($title) ?>">View Set</a></li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <form method="POST" action="#" style="display: inline;">
-                                                        <input type="hidden" name="flashcard_id" value="<?= htmlspecialchars($flashcard['flashcardID']) ?>">
+                                                    <form method="POST" action="<?= BASE_PATH ?>lm/deleteFlashcardSet" style="display: inline;">
+                                                        <input type="hidden" name="title" value="<?= htmlspecialchars($title) ?>">
                                                         <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        <button type="submit" class="dropdown-item">Delete Set</button>
                                                     </form>
                                                 </li>
                                             </ul>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="list-group-item text-muted text-center">No generated flashcards</div>
+                            <?php endif; ?>
                         </div>
-                <?php else: ?>
-                    <div class="list-group-item text-muted text-center">No generated flashcards</div>
-                <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -271,87 +233,55 @@
         const flashcardsSection = document.getElementById('flashcardsSection');
         const generateForm = document.getElementById('generateFlashcardForm');
 
-        //View flashcards
         document.addEventListener('click', async (e) => {
-            const btn = e.target.closest('.view-btn');
+            const btn = e.target.closest('.view-set-btn');
             if (!btn) return;
 
-            const id = btn.dataset.id;
-            const container = document.getElementById('flashcardsSection');
+            const title = btn.dataset.title;
+            
+            const allFlashcards = <?php echo json_encode($flashcards); ?>;
+            const set = allFlashcards.filter(f => f.title === title);
 
-            const formData = new FormData();
-            formData.append('flashcard_id', id);
-            formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
-
-            const res = await fetch('<?= VIEW_FLASHCARD_ROUTE ?>', {
-                method: 'POST',
-                body: formData
-            });
-
-            const json = await res.json();
-            if (json.success && json.flashcard) {
+            if (set.length > 0) {
                 flashcardsSection.style.display = 'block';
-                renderFlashcard(json.flashcard);
-            } else {
-                container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load flashcards'}</div>`;
+                terms = set.map(f => f.term);
+                definitions = set.map(f => f.definition);
+                currentIndex = 0;
+                updateFlashcard();
             }
         });
 
-        function renderFlashcard(flashcard) {
-            const data = Array.isArray(flashcard) ? flashcard[0] : flashcard;
-
-            let term = Array.isArray(data.term) ? data.term[0] : data.term;
-            let definition = Array.isArray(data.definition) ? data.definition[0] : data.definition;
-
-            try {
-                term = JSON.parse(term);
-                definition = JSON.parse(definition);
-            } catch (e) {
-                // ignore if not valid JSON
-            }
-
-            terms = term.split('\n').filter(t => t.trim() !== '');
-            definitions = definition.split('\n').filter(d => d.trim() !== '');
-
-            console.log('Parsed Terms:', terms);
-            console.log('Parsed Definitions:', definitions);
-
-
-            flashcardFront.textContent = terms[currentIndex] || 'No term';
-            flashcardBack.textContent = definitions[currentIndex] || 'No definition';
-            flashcardCounter.textContent = `${currentIndex + 1} / ${terms.length}`;
-
-            prevBtn.disabled = currentIndex === 0;
-            nextBtn.disabled = currentIndex === terms.length - 1;
-            flipBtn.disabled = false;
-        }
-
         function updateFlashcard() {
-            flashcardFront.textContent = terms[currentIndex] || 'No term';
-            flashcardBack.textContent = definitions[currentIndex] || 'No definition';
-            flashcardCounter.textContent = `${currentIndex + 1} / ${terms.length}`;
-            prevBtn.disabled = currentIndex === 0;
-            nextBtn.disabled = currentIndex === terms.length - 1;
-            flipBtn.disabled = false;
+            if (terms.length > 0) {
+                flashcardFront.textContent = terms[currentIndex] || 'No term';
+                flashcardBack.textContent = definitions[currentIndex] || 'No definition';
+                flashcardCounter.textContent = `${currentIndex + 1} / ${terms.length}`;
+                prevBtn.disabled = currentIndex === 0;
+                nextBtn.disabled = currentIndex === terms.length - 1;
+                flipBtn.disabled = false;
+            }
         }
 
         nextBtn.addEventListener('click', () => {
-            currentIndex++;
-            updateFlashcard();
+            if (currentIndex < terms.length - 1) {
+                currentIndex++;
+                flashcard.classList.remove('flipped');
+                updateFlashcard();
+            }
         });
 
         prevBtn.addEventListener('click', () => {
-            currentIndex--;
-            updateFlashcard();
+            if (currentIndex > 0) {
+                currentIndex--;
+                flashcard.classList.remove('flipped');
+                updateFlashcard();
+            }
         });
 
         flipBtn.addEventListener('click', () => {
             flashcard.classList.toggle('flipped');
-            updateFlashcard();
         });
 
-
-        // Generate flashcards
         generateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -359,13 +289,10 @@
             const submitButton = generateForm.querySelector('#genFlashcards');
             const originalButtonText = submitButton.innerHTML;
 
-            // Disable button and show loading state
             submitButton.disabled = true;
             submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
 
             const formData = new FormData(generateForm);
-            formData.append('flashcardAmount', document.querySelector('input[name="flashcardAmount"]:checked').value);
-            formData.append('flashcardType', document.querySelector('input[name="flashcardType"]:checked').value);
             try {
                 const response = await fetch(generateForm.action, {
                     method: 'POST',
@@ -374,41 +301,22 @@
 
                 const data = await response.json();
 
-                if (data.success && data.term && data.definition) {
-                    // Parse JSON strings from the response
-                    let termString = data.term;
-                    let definitionString = data.definition;
+                if (data.success && data.flashcards) {
+                    terms = data.flashcards.map(f => f.term);
+                    definitions = data.flashcards.map(f => f.definition);
 
-                    try {
-                        // The controller returns JSON-encoded strings, so parse them first
-                        termString = JSON.parse(data.term);
-                        definitionString = JSON.parse(data.definition);
-                    } catch (e) {
-                        // If parsing fails, use the strings directly
-                        termString = data.term;
-                        definitionString = data.definition;
-                    }
-
-                    // Split by newlines and filter out empty strings
-                    terms = termString.split('\n').filter(t => t.trim() !== '');
-                    definitions = definitionString.split('\n').filter(d => d.trim() !== '');
-
-                    // Reset to first card
                     currentIndex = 0;
                     flashcard.classList.remove('flipped');
                     flashcardsSection.style.display = 'block';
                     updateFlashcard();
                     
-                    // Restore button
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
+                    location.reload();
                 } else {
                     alert('Error: ' + (data.message || 'Failed to generate flashcards'));
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
                 }
             } catch (error) {
                 alert('Error: ' + error.message);
+            } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalButtonText;
             }

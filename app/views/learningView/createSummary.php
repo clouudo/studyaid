@@ -52,7 +52,7 @@
             const output = document.getElementById('createSummaryResult');
             output.textContent = 'Generating...';
             try {
-                const res = await fetch('<?= BASE_PATH ?>lm/generateNotes', {
+                const res = await fetch('<?= BASE_PATH ?>lm/generateSummary', {
                     method: 'POST',
                     body: new FormData(form)
                 });
