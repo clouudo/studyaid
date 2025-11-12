@@ -463,4 +463,25 @@ PROMPT;
         $result = $this->postGenerate($model, $contents);
         return $this->extractText($result);
     }
+
+    // ============================================================================
+    // RAG UTILITY
+    // ============================================================================ 
+
+    public function generateEmbedding(string $text): array{
+        $model = $this->models['embedding'] ?? $this->defaultModel;
+        try{
+            $response = $this->client->embeddings()->embedContent(
+                $model,
+                ['text' => $text]
+            );
+
+            $embedding = $response->embeddings()[0]->values;
+            return $embedding;
+        } catch (\Exception $e) {
+            error_log('Gemini API - Error generating embedding: ' . $e->getMessage());
+            return [];
+        }
+    }
 }
+

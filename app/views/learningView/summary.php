@@ -78,7 +78,7 @@
                                     </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
-                                <div class="list-group-item text-muted text-center">No saved summaries</div>
+                                <div class="list-group-item text-muted text-center">No generated summaries</div>
                             <?php endif; ?>
                         </div>
                     </div>

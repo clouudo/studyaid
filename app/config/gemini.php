@@ -12,6 +12,7 @@ $defaults = [
         'mindmap' => 'gemini-2.5-flash-lite',
         'flashcards' => 'gemini-2.5-flash-lite',
         'quiz' => 'gemini-2.5-flash',
+        'embedding' => 'embedding-004',
     ],
     'base_url' => 'https://generativelanguage.googleapis.com/v1',
     'generation_config' => [
