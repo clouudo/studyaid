@@ -125,13 +125,20 @@
                 minute: '2-digit'
             });
 
+            let contentHTML;
+            if (isUser) {
+                const tempDiv = document.createElement('div');
+                tempDiv.textContent = text;
+                contentHTML = tempDiv.innerHTML;
+            } else {
+                contentHTML = marked.parse(text);
+            }
+
             messageDiv.innerHTML = `
                 <div class="fw-bold">${sender}</div>
-                <div>${text}</div>
+                ${contentHTML}
                 <div class="message-time">${time}</div>
             `;
-
-            messageDiv.innerHTML = marked.parse(text);
 
             chatContainer.appendChild(messageDiv);
             scrollToBottom();

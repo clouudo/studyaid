@@ -12,6 +12,7 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'e39a8b23c42d4e1452234d762b03835a' => __DIR__ . '/..' . '/ramsey/uuid/src/functions.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
+        'e4c9b2466af4057cc73ca0bb2fbccd8a' => __DIR__ . '/..' . '/google-gemini-php/client/src/Gemini.php',
     );
 
     public static $prefixLengthsPsr4 = array (
@@ -42,6 +43,10 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
             'Monolog\\' => 8,
             'Masterminds\\' => 12,
         ),
+        'H' => 
+        array (
+            'Http\\Discovery\\' => 15,
+        ),
         'G' => 
         array (
             'GuzzleHttp\\Psr7\\' => 16,
@@ -61,6 +66,7 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
             'Google\\Api\\' => 11,
             'Google\\ApiCore\\LongRunning\\' => 27,
             'Google\\ApiCore\\' => 15,
+            'Gemini\\' => 7,
             'GPBMetadata\\Google\\Type\\' => 24,
             'GPBMetadata\\Google\\Rpc\\' => 23,
             'GPBMetadata\\Google\\Protobuf\\' => 28,
@@ -148,6 +154,10 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
         ),
+        'Http\\Discovery\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/php-http/discovery/src',
+        ),
         'GuzzleHttp\\Psr7\\' => 
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/psr7/src',
@@ -215,6 +225,10 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
         'Google\\ApiCore\\' => 
         array (
             0 => __DIR__ . '/..' . '/google/gax/src',
+        ),
+        'Gemini\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/google-gemini-php/client/src',
         ),
         'GPBMetadata\\Google\\Type\\' => 
         array (

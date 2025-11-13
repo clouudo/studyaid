@@ -87,11 +87,12 @@
             color: #A855F7;
         }
 
-        .btn-check:checked + .btn-outline-secondary {
+        .btn-check:checked+.btn-outline-secondary {
             background-color: #A855F7;
             border-color: #A855F7;
         }
-        .btn-check:checked + .btn-outline-secondary:hover {
+
+        .btn-check:checked+.btn-outline-secondary:hover {
             background-color: #A855F7;
             border-color: #A855F7;
         }
@@ -107,16 +108,16 @@
     $current_url = $_GET['url'] ?? 'lm/quiz';
     ?>
     <div class="d-flex flex-grow-1">
-        <?php include 'app/views/sidebar.php'; ?>
+        <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container-fluid upload-container">
-                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Quiz</h3>
-                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
+            <div class="container">
+                <h3 class="mb-4" style="color: #A855F7;">Quiz</h3>
+                <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Quiz Form -->
                 <div class="card mb-4" id="generateQuizCard">
-                <div class="card-body">
+                    <div class="card-body">
                         <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
                             <label for="questionAmount" class="form-label">Question Amount</label>
@@ -167,32 +168,36 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="quizList">
-                            <?php foreach ($quizList as $quiz): ?>
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div class="flex-grow-1" style="min-width: 0;">
-                                        <strong title="<?php echo htmlspecialchars($quiz['title']); ?>"><?php echo htmlspecialchars($quiz['title']); ?></strong>
-                                        <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($quiz['createdAt']); ?></small>
+                            <?php if (!empty($quizList)): ?>
+                                <?php foreach ($quizList as $quiz): ?>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div class="flex-grow-1" style="min-width: 0;">
+                                            <strong title="<?php echo htmlspecialchars($quiz['title']); ?>"><?php echo htmlspecialchars($quiz['title']); ?></strong>
+                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($quiz['createdAt']); ?></small>
+                                        </div>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
+                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <form method="POST" action="#" style="display: inline;">
+                                                        <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                            Actions
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
-                                            <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
-                                            <li>
-                                                <hr class="dropdown-divider">
-                                            </li>
-                                            <li>
-                                                <form method="POST" action="#" style="display: inline;">
-                                                    <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
-                                                    <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                </form>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="list-group-item text-muted text-center">No generated quizzes</div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -317,21 +322,21 @@
                         submitButton.innerHTML = originalButtonText;
                         return;
                     }
-                    
+
                     currentQuizId = data.quizId || null; // Store quiz ID if provided
                     userAnswers = {};
                     renderQuiz();
                     generateQuizCard.style.display = 'none';
                     quizSection.style.display = 'block';
                     resultsCard.style.display = 'none';
-                    
+
                     // Show/hide check answers button based on quiz type
                     if (isShortQuestion) {
                         checkAnswersBtn.style.display = 'inline-block';
                     } else {
                         checkAnswersBtn.style.display = 'none';
                     }
-                    
+
                     // Restore button (though it's hidden now)
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
@@ -435,12 +440,12 @@
         // Check Suggested Answers button handler (for short questions)
         checkAnswersBtn.addEventListener('click', () => {
             if (!isShortQuestion) return;
-            
+
             // Show suggested answers (correct answers) for each question
             quizData.forEach((question, index) => {
                 const questionDiv = document.getElementById(`question-${index}`);
                 if (!questionDiv) return;
-                
+
                 // Check if answer comparison already exists
                 const existingComparison = questionDiv.querySelector('.answer-comparison');
                 if (existingComparison) {
@@ -448,10 +453,10 @@
                     existingComparison.style.display = existingComparison.style.display === 'none' ? 'block' : 'none';
                     return;
                 }
-                
+
                 const correctAnswer = question.answer;
                 const userAnswer = userAnswers[index] || '';
-                
+
                 // Create answer comparison div
                 const comparisonDiv = document.createElement('div');
                 comparisonDiv.className = 'answer-comparison';
@@ -461,7 +466,7 @@
                         <p class="mb-0">${correctAnswer}</p>
                     </div>
                 `;
-                
+
                 // Insert after the textarea
                 const textarea = questionDiv.querySelector('.short-answer-input');
                 if (textarea) {
@@ -515,21 +520,21 @@
                 const correctAnswer = question.answer;
                 const userAnswer = userAnswers[index] || 'No answer provided';
                 const questionDiv = document.getElementById(`question-${index}`);
-                
+
                 if (!questionDiv) return;
-                
+
                 // Hide the textarea
                 const textarea = questionDiv.querySelector('.short-answer-input');
                 if (textarea) {
                     textarea.style.display = 'none';
                 }
-                
+
                 // Remove existing comparison if any
                 const existingComparison = questionDiv.querySelector('.answer-comparison');
                 if (existingComparison) {
                     existingComparison.remove();
                 }
-                
+
                 // Add answer comparison
                 const comparisonDiv = document.createElement('div');
                 comparisonDiv.innerHTML = `
@@ -544,7 +549,7 @@
                 `;
                 questionDiv.appendChild(comparisonDiv);
             });
-            
+
             // Disable submit button
             submitQuizBtn.disabled = true;
         }
@@ -597,7 +602,7 @@
         function displayResults(score, total, percentage, isShortQuestion = false) {
             document.getElementById('quizScore').textContent = score;
             document.getElementById('totalQuestions').textContent = total;
-            
+
             if (isShortQuestion) {
                 document.getElementById('scorePercentage').textContent = 'Review your answers `below. Compare your responses with the correct answers.';
             } else {
@@ -614,13 +619,13 @@
                     const correctAnswer = question.answer;
                     const userAnswer = userAnswers[index] || 'No answer provided';
                     const questionDiv = document.getElementById(`question-${index}`);
-                    
+
                     // Hide the textarea
                     const textarea = questionDiv.querySelector('.short-answer-input');
                     if (textarea) {
                         textarea.style.display = 'none';
                     }
-                    
+
                     // Add answer comparison
                     const comparisonDiv = document.createElement('div');
                     comparisonDiv.innerHTML = `
@@ -717,7 +722,7 @@
                 quizListCard.style.display = 'none';
                 generateQuizCard.style.display = 'none';
                 resultsCard.style.display = 'none';
-                
+
                 // Show/hide check answers button based on quiz type
                 if (isShortQuestion) {
                     checkAnswersBtn.style.display = 'inline-block';

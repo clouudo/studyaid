@@ -115,7 +115,7 @@
                                     </div>
                                 <?php endforeach; ?>
                             <?php else : ?>
-                                <div class="list-group-item text-muted text-center">No saved notes</div>
+                                <div class="list-group-item text-muted text-center">No generated notes</div>
                             <?php endif; ?>
                         </div>
                     </div>

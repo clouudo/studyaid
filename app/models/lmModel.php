@@ -213,6 +213,16 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    public function getFilesForUser($userId)
+    {
+        $conn = $this->db->connect();
+        $query = "SELECT * FROM file WHERE userID = :userID ORDER BY fileID DESC";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     // ============================================================================
     // ALL DOCUMENTS PAGE (allDocument.php)
     // ============================================================================
@@ -889,6 +899,25 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    public function getFlashcardsByTitle(string $title, int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM flashcard WHERE title = :title AND fileID = :fileID ORDER BY flashcardID ASC");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function deleteFlashcardsByTitle(string $title, int $fileId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("DELETE FROM flashcard WHERE title = :title AND fileID = :fileID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':fileID', $fileId);
+        return $stmt->execute();
+    }
+
     // ============================================================================
     // QUIZ PAGE (quiz.php)
     // ============================================================================
@@ -1144,5 +1173,41 @@ class LmModel
         ];
     }
 
+    // ============================================================================
+    // RAG UTILITY
+    // ============================================================================
+
+    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000): array{
+        $chunks = [];
+        $length = strlen($text);
+        for ($i = 0; $i < $length; $i += $chunkSize) {
+            $chunks[] = substr($text, $i, $chunkSize);
+        }
+        return $chunks;
+    }
+
+    public function saveChunksToDB(array $chunks, array $embeddings, int $fileID): void{
+        $conn = $this->db->connect();
+        foreach ($chunks as $index => $chunk) {
+            $stmt = $conn->prepare("INSERT INTO documentchunks (fileID, chunkText, embedding) VALUES (:fileID, :chunkText, :embedding)");
+            $stmt->bindValue(':fileID', $fileID);
+            $stmt->bindValue(':chunkText', $chunk);
+            if(!empty($embeddings[$index])) {
+                $stmt->bindValue(':embedding', json_encode($embeddings[$index]));
+            } else {
+                $stmt->bindValue(':embedding', '[]');
+            }
+            $stmt->execute();
+        }
+    }
+
+    public function getChunksByFile(int $fileID): array
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM documentchunks WHERE fileID = :fileID");
+        $stmt->bindParam(':fileID', $fileID);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
 }
 

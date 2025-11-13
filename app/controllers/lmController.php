@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
+use PDO;
 
 class LmController
 {
@@ -135,6 +136,15 @@ class LmController
 
                 try {
                     $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
+
+                    // Generate embeddings for each chunk
+                    $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
+                    $embeddings = [];
+                    foreach ($chunks as $chunk) {
+                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
+                    }
+
+                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
@@ -144,10 +154,10 @@ class LmController
 
             // Set session messages
             if ($uploadedCount > 0 && $failedCount === 0) {
-                $_SESSION['message'] = $uploadedCount === 1 
-                    ? "File uploaded successfully!" 
+                $_SESSION['message'] = $uploadedCount === 1
+                    ? "File uploaded successfully!"
                     : "{$uploadedCount} files uploaded successfully!";
-                
+
                 // If only one file was uploaded, redirect to display it
                 if ($uploadedCount === 1) {
                     // Get the last uploaded file ID
@@ -164,8 +174,8 @@ class LmController
                     $_SESSION['error'] = implode('<br>', $errors);
                 }
             } else {
-                $_SESSION['error'] = !empty($errors) 
-                    ? implode('<br>', $errors) 
+                $_SESSION['error'] = !empty($errors)
+                    ? implode('<br>', $errors)
                     : "Failed to upload files. Please try again.";
             }
 
@@ -1675,14 +1685,53 @@ class LmController
                 exit();
             }
 
+            // RAG implementation
+            // 1. Generate embedding for the question
+            $questionEmbedding = $this->gemini->generateEmbedding($question);
+
+            if (empty($questionEmbedding)) {
+                echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the question.']);
+                exit();
+            }
+
+            // 2. Get all chunks for the file
+            $chunks = $this->lmModel->getChunksByFile($fileId);
+
+            // 3. Calculate cosine similarity and find the most relevant chunks
+            $similarities = [];
+            foreach ($chunks as $chunk) {
+                $chunkEmbedding = json_decode($chunk['embedding'], true);
+                if (!empty($chunkEmbedding)) {
+                    $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
+                    $similarities[] = [
+                        'chunk' => $chunk['chunkText'],
+                        'similarity' => $similarity,
+                    ];
+                }
+            }
+
+            // 4. Sort chunks by similarity and get the top N (e.g., top 3)
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            $topChunks = array_slice($similarities, 0, 3);
+
+            // 5. Concatenate the text of the top chunks to create a context
+            $context = '';
+            foreach ($topChunks as $chunk) {
+                $context .= $chunk['chunk'] . "\n\n";
+            }
+
+            // 6. Get chat history
             $chatHistory = $this->lmModel->chatHistory($fileId);
             $userQuestions = $chatHistory['questions'];
             $aiResponse = $chatHistory['responseChats'];
-
             $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
 
+            // 7. Generate response using the context
             $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
-            $response = $this->gemini->generateChatbotResponse($file['extracted_text'], $question, $compressedChatHistory);
+            $response = $this->gemini->generateChatbotResponse($context, $question, $compressedChatHistory);
             $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
             $response = $this->lmModel->getResponseChatById($responseChatId);
 
@@ -1708,6 +1757,30 @@ class LmController
         }
 
         return $chatbotId;
+    }
+
+    private function cosineSimilarity(array $a, array $b): float
+    {
+        $dotProduct = 0.0;
+        $aMagnitude = 0.0;
+        $bMagnitude = 0.0;
+
+        $count = count($a);
+        if ($count !== count($b)) {
+            return 0.0; // Vectors must be the same size
+        }
+
+        for ($i = 0; $i < $count; $i++) {
+            $dotProduct += $a[$i] * $b[$i];
+            $aMagnitude += $a[$i] * $a[$i];
+            $bMagnitude += $b[$i] * $b[$i];
+        }
+
+        if ($aMagnitude == 0 || $bMagnitude == 0) {
+            return 0.0;
+        }
+
+        return $dotProduct / (sqrt($aMagnitude) * sqrt($bMagnitude));
     }
 
     // ============================================================================
@@ -1843,7 +1916,8 @@ class LmController
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
             $instructions = trim($_POST['instructions']);
-        }if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
             $questionType = trim($_POST['questionType']);
         }
 
@@ -1866,29 +1940,29 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
             }
 
             $decodedQuiz = json_decode($quizData, true);
-            $totalQuestions = count($decodedQuiz['quiz']);            
+            $totalQuestions = count($decodedQuiz['quiz']);
 
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
             $encodedQuiz = json_encode($decodedQuiz['quiz']);
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
             }
 
             $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
-            if($questionType == 'mcq') {
+            if ($questionType == 'mcq') {
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
-            }elseif($questionType == 'shortQuestion') {
+            } elseif ($questionType == 'shortQuestion') {
                 echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             }
         } catch (\Throwable $e) {
@@ -1897,7 +1971,8 @@ class LmController
         exit();
     }
 
-    public function submitQuiz(){
+    public function submitQuiz()
+    {
         header('Content-Type: application/json');
         $this->checkSession(true);
 
@@ -2024,6 +2099,111 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
+            $flashcardsData = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
+            $decodedFlashcards = json_decode($flashcardsData, true);
+
+            $title = $this->gemini->generateTitle($file['name'] . " Flashcards");
+
+            foreach ($decodedFlashcards['flashcards'] as $flashcard) {
+                $this->lmModel->saveFlashcards($fileId, $title, $flashcard['term'], $flashcard['definition']);
+            }
+
+            echo json_encode(['success' => true, 'flashcards' => $decodedFlashcards['flashcards']]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function viewFlashcardSet()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $fileId = $this->resolveFileId();
+        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if (empty($title)) {
+            echo json_encode(['success' => false, 'message' => 'Title not provided.']);
+            exit();
+        }
+
+        try {
+            $flashcards = $this->lmModel->getFlashcardsByTitle($title, $fileId);
+            echo json_encode(['success' => true, 'flashcards' => $flashcards]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function deleteFlashcardSet()
+    {
+        $this->checkSession();
+
+        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+        $fileId = $this->resolveFileId();
+
+        if (empty($title)) {
+            $_SESSION['error'] = "Title not provided.";
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        try {
+            $this->lmModel->deleteFlashcardsByTitle($title, $fileId);
+            $_SESSION['message'] = "Flashcard set deleted successfully.";
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+        }
+
+        header('Location: ' . FLASHCARD);
+        exit();
+    }
+
+    /**
+     * ACTION (JSON API): Generate flashcards (alternative implementation)
+     */
+    public function generateFlashcardsAlternative()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $flashcardAmount = '';
+        $flashcardType = '';
+        $instructions = '';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
+            $flashcardAmount = trim($_POST['flashcardAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardType'])) {
+            $flashcardType = trim($_POST['flashcardType']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file || !is_array($file)) {
+                echo json_encode(['success' => false, 'message' => 'File not found.']);
+                exit();
+            }
+
+            $sourceText = $file['extracted_text'] ?? '';
+            if (empty($sourceText)) {
+                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
+                exit();
+            }
+
+            $context = !empty($instructions) ? $instructions : '';
             $flashcards = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $decodedFlashcards = json_decode($flashcards, true);
@@ -2077,4 +2257,48 @@ class LmController
         }
         exit();
     }
+
+    // ============================================================================
+    // MULTI DOCUMENT PAGE (multidoc.php)
+    // ============================================================================
+
+    public function multidoc()
+    {
+        $this->checkSession();
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+
+        $user = $this->getUserInfo();
+
+        require_once VIEW_MULTI_DOCUMENT;
+    }
+
+    public function generateMultiReport(){
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $selectedFileId = $data['fileIds'];
+        $flieList = [];
+        foreach($selectedFileId as $fileId){
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if($file){
+                $fileList[] = $file;
+            }
+        }
+
+        error_log(print_r($fileList, true));
+
+
+    }
+
 }

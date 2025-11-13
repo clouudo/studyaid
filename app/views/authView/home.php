@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to StudyAids</title>
+    <title>Welcome to StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <style>
@@ -87,8 +87,8 @@
     <div class="container-fluid px-4 py-3">
         <header class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-                <div class="logo-box"><img src="<?= IMG_LOGO ?>" alt="StudyAids Logo"></div>
-                <span class="brand-name">StudyAids</span>
+                <div class="logo-box"><img src="<?= IMG_LOGO ?>" alt="StudyAid Logo"></div>
+                <span class="brand-name">StudyAid</span>
             </div>
             <div class="d-flex gap-2">
                 <a class="btn btn-login rounded-pill px-4" href="<?php echo LOGIN; ?>" role="button">Login</a>
@@ -100,7 +100,7 @@
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-lg-8 text-center">
-                <h1 class="welcome-heading">Welcome to StudyAids</h1>
+                <h1 class="welcome-heading">Welcome to StudyAid</h1>
                 <p class="welcome-subheading">Just a few quick steps to get you started.</p>
                 
                 <div class="upload-box mt-4">

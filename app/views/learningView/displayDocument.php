@@ -39,7 +39,7 @@
                     <?php if (!empty($documentData['extracted_text'])): ?>
                         <div class="card mb-3">
                             <div class="card-body">
-                                <p><?php echo htmlspecialchars($documentData['extracted_text']); ?></p>
+                                <p id="document-content"><?php echo htmlspecialchars($documentData['extracted_text']); ?></p>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -56,9 +56,10 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('p').forEach(function(p) {
-            p.innerHTML = marked.parse(p.textContent);
-        });
+        const content = document.getElementById('document-content');
+        if (content) {
+            content.innerHTML = marked.parse(content.textContent);
+        }
     });
 </script>
 
