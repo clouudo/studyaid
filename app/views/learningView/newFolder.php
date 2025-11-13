@@ -174,33 +174,69 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             max-height: 400px;
             overflow-y: auto;
         }
+        /* Snackbar Styles */
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .snackbar.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .snackbar.success {
+            background-color: #28a745;
+        }
+        .snackbar.error {
+            background-color: #dc3545;
+        }
+        .snackbar-icon {
+            font-size: 1.2rem;
+        }
+        .snackbar-message {
+            flex: 1;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
+            <div class="container-fluid upload-container">
+                <!-- Snackbar Container -->
+                <div id="snackbar" class="snackbar">
+                    <i class="snackbar-icon" id="snackbarIcon"></i>
+                    <span class="snackbar-message" id="snackbarMessage"></span>
+                </div>
+                
                 <?php
-                if (isset($_SESSION['message'])):
-                ?>
-                    <div class="alert alert-success" role="alert">
-                        <?php echo $_SESSION['message']; ?>
-                    </div>
-                <?php 
+                $successMessage = null;
+                $errorMessage = null;
+                if (isset($_SESSION['message'])) {
+                    $successMessage = $_SESSION['message'];
                     unset($_SESSION['message']);
-                endif;
-
-                if (isset($_SESSION['error'])):
-                ?>
-                    <div class="alert alert-danger" role="alert">
-                        <?php echo $_SESSION['error']; ?>
-                    </div>
-                <?php
+                }
+                if (isset($_SESSION['error'])) {
+                    $errorMessage = $_SESSION['error'];
                     unset($_SESSION['error']);
-                endif;
+                }
                 ?>
-                <h3 class="mb-4" style="color: #212529;">Create New Folder</h3>
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Create New Folder</h3>
                 <form action="<?= BASE_PATH ?>lm/createFolder" method="POST">
                     <input type="hidden" name="parentFolderId" id="parentFolderId">
                     
@@ -268,6 +304,41 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const modal = new bootstrap.Modal(document.getElementById('selectFolderModal'));
             modal.show();
         }
+
+        // Snackbar function
+        function showSnackbar(message, type) {
+            const snackbar = document.getElementById('snackbar');
+            const snackbarMessage = document.getElementById('snackbarMessage');
+            const snackbarIcon = document.getElementById('snackbarIcon');
+            
+            snackbarMessage.textContent = message;
+            snackbar.className = 'snackbar ' + type;
+            
+            if (type === 'success') {
+                snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
+            } else if (type === 'error') {
+                snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+            }
+            
+            snackbar.classList.add('show');
+            
+            setTimeout(function() {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Show messages on page load
+        <?php if ($successMessage): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
+        });
+        <?php endif; ?>
+        
+        <?php if ($errorMessage): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
+        });
+        <?php endif; ?>
 
         $(document).ready(function() {
             var selectFolderModal = new bootstrap.Modal(document.getElementById('selectFolderModal'));

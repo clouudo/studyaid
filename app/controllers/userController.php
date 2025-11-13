@@ -220,4 +220,33 @@ class UserController {
             exit();
         }
     }
+
+    public function deleteAccount(){
+        $this->checkSession();
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_PATH . 'user/profile');
+            exit();
+        }
+        
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            if($this->userModel->deactivateUser($userId)){
+                $_SESSION['message'] = "Your account has been deactivated successfully";
+                // Destroy session and redirect to home
+                session_destroy();
+                header('Location: ' . BASE_PATH . 'auth/home');
+                exit();
+            } else {
+                $_SESSION['error'] = "Failed to delete account";
+                header('Location: ' . BASE_PATH . 'user/profile');
+                exit();
+            }
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . BASE_PATH . 'user/profile');
+            exit();
+        }
+    }
 }

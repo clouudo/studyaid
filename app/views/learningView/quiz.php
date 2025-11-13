@@ -95,6 +95,10 @@
             background-color: #A855F7;
             border-color: #A855F7;
         }
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
     </style>
 </head>
 
@@ -103,11 +107,11 @@
     $current_url = $_GET['url'] ?? 'lm/quiz';
     ?>
     <div class="d-flex flex-grow-1">
-        <?php include VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-3">
-            <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Quiz</h3>
-                <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
+        <?php include 'app/views/sidebar.php'; ?>
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
+            <div class="container-fluid upload-container">
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Quiz</h3>
+                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Quiz Form -->

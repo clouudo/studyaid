@@ -43,13 +43,19 @@ function isActive($link_url, $current_url)
       </a>
     </li>
     <li class="sidebarlist">
-      <button class="nav-link text-dark d-flex justify-content-between align-items-center w-100 border-0 bg-transparent <?php echo $isDocumentsActive ? 'active' : ''; ?>" 
-              data-bs-toggle="collapse" 
-              data-bs-target="#document-collapse" 
-              aria-expanded="<?= $isDocumentsActive ? 'true' : 'false'; ?>">
-        All Documents
-        <i class="bi bi-chevron-down ms-1 transition"></i>
-      </button>
+      <div class="d-flex justify-content-between align-items-center w-100">
+        <a href="<?= DISPLAY_LEARNING_MATERIALS ?>" class="nav-link text-dark flex-grow-1 <?php echo $isDocumentsActive ? 'active' : ''; ?>" id="allDocumentsLink">
+          All Documents
+        </a>
+        <button class="nav-link text-dark border-0 bg-transparent p-0 ms-2" 
+                type="button"
+                data-bs-toggle="collapse" 
+                data-bs-target="#document-collapse" 
+                aria-expanded="<?= $isDocumentsActive ? 'true' : 'false'; ?>"
+                style="width: auto; min-width: 30px;">
+          <i class="bi bi-chevron-down transition"></i>
+        </button>
+      </div>
       
       <div class="collapse <?= $isDocumentsActive ? 'show' : '' ?> document-collapse-scrollable" id="document-collapse">
         <?php foreach ($allUserFolders as $folder): ?>
@@ -65,13 +71,13 @@ function isActive($link_url, $current_url)
   <div class="sidebar-footer">
     <div class="d-flex align-items-center">
       <strong><?= $user['username']?></strong>
-      <div class="dropdown ms-auto">
+      <div class="dropup ms-auto">
         <button class="btn btn-toggle" type="button" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border: none; background: none; padding: 0;">
           <img src="<?= IMG_SETTING ?>" alt="settings" width="28" height="28">
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="settingsDropdown" style="min-width: 150px;">
           <li><a class="dropdown-item" href="<?= LOGOUT ?>">Logout</a></li>
-          <li><a class="dropdown-item" href="<?= PROFILE ?>">Manage Profile</a></li>
+          <li><a class="dropdown-item" href="<?= PROFILE ?>">Profile</a></li>
         </ul>
       </div>
     </div>
@@ -172,6 +178,10 @@ function isActive($link_url, $current_url)
     background: #6f42c1;
   }
 
+  .collapse a {
+    background-color: white !important;
+  }
+
   .collapse a.active {
     background-color: #d4b5ff !important;
     color: #212529 !important;
@@ -179,7 +189,7 @@ function isActive($link_url, $current_url)
   }
 
   .collapse a:hover {
-    background-color: #e7d5ff;
+    background-color: #e7d5ff !important;
   }
 
   /* Dropdown menu styles */
@@ -230,4 +240,60 @@ function isActive($link_url, $current_url)
   .sidebar-footer .d-flex {
     padding: 0;
   }
+
+  /* Settings button hover and active states */
+  .btn-toggle {
+    border-radius: 8px;
+    transition: all 0.2s;
+    padding: 4px !important;
+  }
+
+  .btn-toggle:hover {
+    background-color: #e7d5ff !important;
+  }
+
+  .btn-toggle.show,
+  .btn-toggle[aria-expanded="true"] {
+    background-color: #e7d5ff !important;
+  }
+
+  .btn-toggle:focus {
+    outline: none;
+    box-shadow: none;
+  }
 </style>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Auto-expand dropdown when on All Documents page
+    const isDocumentsActive = <?php echo $isDocumentsActive ? 'true' : 'false'; ?>;
+    if (isDocumentsActive) {
+      const collapseElement = document.getElementById('document-collapse');
+      if (collapseElement && !collapseElement.classList.contains('show')) {
+        const bsCollapse = new bootstrap.Collapse(collapseElement, {
+          show: true
+        });
+      }
+    }
+
+    // Handle click on "All Documents" link
+    const allDocumentsLink = document.getElementById('allDocumentsLink');
+    if (allDocumentsLink) {
+      allDocumentsLink.addEventListener('click', function(e) {
+        const currentUrl = window.location.href;
+        const targetUrl = this.href;
+        
+        // Check if we're already on the All Documents page
+        if (currentUrl.includes('displayLearningMaterials') && !currentUrl.includes('folder_id')) {
+          // Already on the page, toggle dropdown and prevent navigation
+          e.preventDefault();
+          const collapseElement = document.getElementById('document-collapse');
+          if (collapseElement) {
+            const bsCollapse = bootstrap.Collapse.getInstance(collapseElement) || new bootstrap.Collapse(collapseElement);
+            bsCollapse.toggle();
+          }
+        }
+        // Otherwise, let the link navigate normally (dropdown will auto-expand on page load)
+      });
+    }
+  });
+</script>

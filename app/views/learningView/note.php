@@ -9,15 +9,21 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
+    <style>
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
+    </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include VIEW_SIDEBAR; ?>
+        <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Note</h3>
-                <h4 class="mb-4"><?php echo $file['name']; ?></h4>
+            <div class="container-fluid upload-container">
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Note</h3>
+                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name']); ?></h4>
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card mb-3">
                     <div class="card-body">
