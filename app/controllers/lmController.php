@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
+use PDO;
 
 class LmController
 {
@@ -2273,6 +2274,31 @@ class LmController
         $user = $this->getUserInfo();
 
         require_once VIEW_MULTI_DOCUMENT;
+    }
+
+    public function generateMultiReport(){
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+        $selectedFileId = $data['fileIds'];
+        $flieList = [];
+        foreach($selectedFileId as $fileId){
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if($file){
+                $fileList[] = $file;
+            }
+        }
+
+        error_log(print_r($fileList, true));
+
+
     }
 
 }
