@@ -171,7 +171,7 @@
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
                                                 <strong><?= htmlspecialchars($quiz['title']) ?></strong><br>
-                                                <small class="text-muted">Updated: <?= htmlspecialchars($quiz['createdAt']) ?></small>
+                                                <small class="text-muted">Created: <?= htmlspecialchars($quiz['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">

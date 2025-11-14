@@ -47,7 +47,7 @@
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
                                                 <strong><?= htmlspecialchars($summary['title']) ?></strong><br>
-                                                <small class="text-muted">Updated: <?= htmlspecialchars($summary['createdAt']) ?></small>
+                                                <small class="text-muted">Created: <?= htmlspecialchars($summary['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">

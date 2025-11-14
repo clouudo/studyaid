@@ -60,61 +60,57 @@ class GeminiService
         return $this->generateText($model, $prompt);
     }
 
-    public function generateMindmapMarkdown(string $sourceText): array
+    public function generateMindmapMarkdown(string $sourceText): string
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-You are helping students study.
-Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
-{
-  "markdown": "#Main Topic\\n##Child...",
-  "structure": {
-    "nodeData": {
-      "id": "auto-generated-hex",
-      "topic": "Main Topic",
-      "children": [
-        {
-          "id": "auto-generated-hex",
-          "topic": "Section title",
-          "data": {
-            "description": "Optional 1-2 sentence explanation"
-          },
-          "children": [
-            {
-              "id": "auto-generated-hex",
-              "topic": "Key point",
-              "children": []
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
+Create a mindmap in Markdown format optimized for Markmap.js visualization.
 
 Rules:
-1. markdown must be formatted for Markmap (headings only, no bullet lists). Start with # Main Topic.
-2. structure.nodeData must mirror the markdown hierarchy. Every node needs a unique id (hex string), topic text (<=80 chars), optional data.description.
-3. Include 3-5 primary children, each with 2-4 grandchildren minimum.
-4. Keep wording concise and academically useful.
+
+1. Heading Structure
+
+   * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
+
+   * Each idea should be a **heading**, not a paragraph.
+
+2. Style & Formatting
+
+   * Use **bold** for key terms and *italic* for emphasis.
+
+   * Keep headings short and meaningful.
+
+   * Avoid lists (-, *) — use subheadings instead.
+
+3. Content
+
+   * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
+
+   * For structured data, use markdown tables under headings.
+
+4. Output
+
+   * Output only the Markdown (no explanations or extra text).
+
+   * Start directly with #Main Topic.
 PROMPT;
-        $prompt = $schema . "\n\nContent: " . $sourceText;
-        $rawResponse = $this->generateText($model, $prompt);
-        $cleanJson = $this->cleanJsonOutput($rawResponse);
-        $decoded = json_decode($cleanJson, true);
-
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-            return [
-                'markdown' => $decoded['markdown'] ?? '',
-                'structure' => $decoded['structure'] ?? null,
-            ];
+        $prompt = $schema . "\n" . "\n\n" . 'Content: ' . $sourceText;
+        $markdown = $this->generateText($model, $prompt);
+        
+        // Clean up the response
+        $markdown = trim($markdown);
+        
+        // Remove markdown code fences if present
+        $markdown = preg_replace('/^```(?:markdown)?\s*/m', '', $markdown);
+        $markdown = preg_replace('/```\s*$/m', '', $markdown);
+        $markdown = trim($markdown);
+        
+        // Ensure it starts with a heading
+        if (!preg_match('/^#+\s+/m', $markdown)) {
+            $markdown = "# Mindmap\n\n" . $markdown;
         }
-
-        // Fallback to legacy behaviour if the model returns plain markdown
-        return [
-            'markdown' => is_string($rawResponse) ? trim($rawResponse) : '',
-            'structure' => null,
-        ];
+        
+        return $markdown;
     }
 
     public function generateFlashcards(string $sourceText, ?string $instructions = null, ?string $flashcardAmount = null, ?string $flashcardType = null): string

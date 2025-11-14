@@ -882,7 +882,7 @@ class LmModel
         $conn = $this->db->connect();
         $stmt = $conn->prepare("UPDATE note n 
                                 INNER JOIN file f ON n.fileID = f.fileID 
-                                SET n.title = :title, n.content = :content, n.updatedAt = NOW()
+                                SET n.title = :title, n.content = :content
                                 WHERE n.noteID = :noteID AND n.fileID = :fileID AND f.userID = :userID");
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':content', $content);
@@ -920,7 +920,7 @@ class LmModel
         $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
         $stmt = $conn->prepare("UPDATE mindmap m 
                                 INNER JOIN file f ON m.fileID = f.fileID 
-                                SET m.data = :data, m.updatedAt = NOW()
+                                SET m.data = :data
                                 WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
         $stmt->bindParam(':data', $data);
         $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);

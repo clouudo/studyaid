@@ -937,7 +937,7 @@ class LmController
                 'note' => [
                     'title' => $note['title'] ?? $title,
                     'content' => $note['content'] ?? $content,
-                    'updatedAt' => $note['updatedAt'] ?? $note['createdAt'] ?? date('Y-m-d H:i:s')
+                    'createdAt' => $note['createdAt'] ?? date('Y-m-d H:i:s')
                 ]
             ]);
         } catch (\Throwable $e) {
@@ -976,12 +976,14 @@ class LmController
                 exit();
             }
 
-            $mindmapData = $this->gemini->generateMindmapMarkdown($extractedText);
-            $mindmapMarkdown = is_array($mindmapData) ? ($mindmapData['markdown'] ?? '') : (string)$mindmapData;
-            $mindmapStructure = is_array($mindmapData) ? ($mindmapData['structure'] ?? null) : null;
+            $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText);
+            
+            if (empty($mindmapMarkdown)) {
+                throw new \RuntimeException('Failed to generate mindmap markdown.');
+            }
+            
             $mindmapPayload = [
-                'markdown' => $mindmapMarkdown,
-                'structure' => $mindmapStructure
+                'markdown' => $mindmapMarkdown
             ];
             $mindmapJson = json_encode($mindmapPayload, JSON_UNESCAPED_UNICODE);
             $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
@@ -991,7 +993,6 @@ class LmController
             echo json_encode([
                 'success' => true,
                 'markdown' => $mindmapMarkdown,
-                'structure' => $mindmapStructure,
                 'mindmapId' => $savedMindmapId,
                 'title' => $title
             ]);
@@ -1029,7 +1030,6 @@ class LmController
             echo json_encode([
                 'success' => true,
                 'markdown' => $payload['markdown'],
-                'structure' => $payload['structure'],
                 'title' => $payload['title'],
                 'mindmapId' => $payload['mindmapId']
             ]);
@@ -1068,7 +1068,6 @@ class LmController
         }
 
         $userId = (int)$_SESSION['user_id'];
-        $structure = $requestData['structure'] ?? null;
         $markdown = isset($requestData['markdown']) ? trim($requestData['markdown']) : '';
 
         if ($mindmapId === 0 || $fileId === 0) {
@@ -1076,8 +1075,8 @@ class LmController
             exit();
         }
 
-        if (!is_array($structure) || empty($structure)) {
-            echo json_encode(['success' => false, 'message' => 'Mindmap structure is required.']);
+        if (empty($markdown)) {
+            echo json_encode(['success' => false, 'message' => 'Mindmap markdown is required.']);
             exit();
         }
 
@@ -1088,14 +1087,8 @@ class LmController
                 exit();
             }
 
-            $current = $this->normalizeMindmapPayload($existing['data'] ?? '');
-            if ($markdown === '') {
-                $markdown = $current['markdown'] ?? '';
-            }
-
             $payload = [
-                'markdown' => $markdown,
-                'structure' => $structure
+                'markdown' => $markdown
             ];
 
             $updated = $this->lmModel->updateMindmap($mindmapId, $fileId, $userId, $payload);
@@ -1137,41 +1130,43 @@ class LmController
     }
 
     /**
-     * Normalize stored mindmap payloads into markdown + structure
+     * Normalize stored mindmap payloads into markdown format for Markmap
      */
     private function normalizeMindmapPayload($rawData): array
     {
         if (empty($rawData)) {
-            return ['markdown' => '', 'structure' => null];
+            return [
+                'markdown' => '# Mindmap\n'
+            ];
         }
 
         $decoded = json_decode($rawData, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            if (isset($decoded['markdown']) || isset($decoded['structure'])) {
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            // Check if it's a structured payload with markdown
+            if (isset($decoded['markdown']) && is_string($decoded['markdown'])) {
                 return [
-                    'markdown' => $decoded['markdown'] ?? '',
-                    'structure' => $decoded['structure'] ?? null
+                    'markdown' => $decoded['markdown']
                 ];
             }
 
-            if (isset($decoded['nodeData'])) {
-                return [
-                    'markdown' => '',
-                    'structure' => $decoded
-                ];
-            }
-
+            // If decoded is a string, treat as markdown
             if (is_string($decoded)) {
                 return [
-                    'markdown' => $decoded,
-                    'structure' => null
+                    'markdown' => $decoded
                 ];
             }
         }
 
+        // If rawData is a string, treat as markdown
+        if (is_string($rawData)) {
+            return [
+                'markdown' => $rawData
+            ];
+        }
+
+        // Fallback: return empty markdown
         return [
-            'markdown' => is_string($rawData) ? $rawData : '',
-            'structure' => null
+            'markdown' => '# Mindmap\n'
         ];
     }
 
@@ -1190,8 +1185,7 @@ class LmController
         return [
             'mindmapId' => $mindmap['mindmapID'] ?? $mindmapId,
             'title' => $mindmap['title'] ?? '',
-            'markdown' => $normalized['markdown'],
-            'structure' => $normalized['structure']
+            'markdown' => $normalized['markdown']
         ];
     }
 

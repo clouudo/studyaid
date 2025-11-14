@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Extracted Text - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
@@ -13,6 +14,97 @@
         .upload-container {
             background-color: #f8f9fa;
             padding: 30px;
+        }
+
+        /* Split Screen Layout for Note Editor */
+        .note-split-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            min-height: 500px;
+        }
+
+        .note-split-container.single-view {
+            grid-template-columns: 1fr;
+        }
+
+        .note-editor-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .note-preview-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        #noteSplitEditor {
+            flex: 1;
+            resize: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border: none;
+            padding: 1rem;
+            outline: none;
+        }
+
+        .note-editor-header {
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-editor-footer {
+            padding: 0.5rem 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .view-toggle-active {
+            background-color: #A855F7 !important;
+            color: white !important;
+            border-color: #A855F7 !important;
+        }
+
+        .note-preview-panel h1, .note-preview-panel h2, .note-preview-panel h3,
+        .note-preview-panel h4, .note-preview-panel h5, .note-preview-panel h6 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .note-preview-panel p {
+            margin-bottom: 0.75rem;
+        }
+
+        .note-preview-panel ul, .note-preview-panel ol {
+            margin-bottom: 0.75rem;
+            padding-left: 2rem;
+        }
+
+        .note-preview-panel code {
+            background-color: #f8f9fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+        }
+
+        .note-preview-panel pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            margin-bottom: 0.75rem;
         }
     </style>
 </head>
@@ -85,7 +177,7 @@
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
                                                 <strong class="note-title-text"><?= htmlspecialchars($note['title']) ?></strong><br>
-                                                <small class="text-muted note-updated-at">Updated: <?= htmlspecialchars($note['createdAt']) ?></small>
+                                                <small class="text-muted note-updated-at">Created: <?= htmlspecialchars($note['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
@@ -122,17 +214,53 @@
                                                 <?php echo nl2br(htmlspecialchars($note['content'])); ?>
                                             </div>
                                             <div class="note-inline-editor d-none pt-3" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
-                                                <div class="mb-2">
-                                                    <label class="form-label form-label-sm">Title</label>
-                                                    <input type="text" class="form-control form-control-sm note-edit-title" value="<?= htmlspecialchars($note['title']) ?>">
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label class="form-label form-label-sm">Content</label>
-                                                    <textarea class="form-control note-edit-content" rows="6"><?= htmlspecialchars($note['content']) ?></textarea>
-                                                </div>
-                                                <div class="d-flex justify-content-end gap-2 mt-2">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm cancel-note-edit">Cancel</button>
-                                                    <button type="button" class="btn btn-primary btn-sm save-note-edit" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">Save</button>
+                                                <!-- Split Screen Editor -->
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <button type="button" class="btn btn-outline-secondary" id="toggleNoteViewBtn-<?= htmlspecialchars($note['noteID']) ?>">Split View</button>
+                                                            </div>
+                                                            <div class="ms-auto d-flex gap-2 align-items-center">
+                                                                <button type="button" class="btn btn-sm cancel-note-edit" style="background-color: #6c757d; border: none; color: white;">Cancel</button>
+                                                                <button type="button" class="btn btn-sm save-note-edit" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" style="background-color: #A855F7; border: none; color: white;">Save Changes</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label form-label-sm">Title</label>
+                                                            <input type="text" class="form-control form-control-sm note-edit-title" value="<?= htmlspecialchars($note['title']) ?>">
+                                                        </div>
+                                                        <div id="note-split-container-<?= htmlspecialchars($note['noteID']) ?>" class="note-split-container">
+                                                            <!-- Editor Panel -->
+                                                            <div class="note-editor-panel">
+                                                                <div class="note-editor-header">
+                                                                    <h6 class="mb-0">Markdown Editor</h6>
+                                                                </div>
+                                                                <div class="btn-toolbar mb-2 px-2 pt-2" role="toolbar" id="toolbar-<?= htmlspecialchars($note['noteID']) ?>">
+                                                                    <div class="btn-group">
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-undo" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-redo" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-bold" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Bold"><i class="bi bi-type-bold"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-italic" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Italic"><i class="bi bi-type-italic"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-heading" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Heading"><i class="bi bi-type-h1"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ul" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Unordered List"><i class="bi bi-list-ul"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ol" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Ordered List"><i class="bi bi-list-ol"></i></button>
+                                                                    </div>
+                                                                </div>
+                                                                <textarea 
+                                                                    id="noteSplitEditor-<?= htmlspecialchars($note['noteID']) ?>" 
+                                                                    class="note-edit-content"
+                                                                    placeholder="Enter your note content in markdown..."></textarea>
+                                                                <div class="note-editor-footer">
+                                                                    <small>Edit markdown to see real-time preview. Changes are saved when you click "Save Changes".</small>
+                                                                </div>
+                                                            </div>
+                                                            <!-- Preview Panel -->
+                                                            <div class="note-preview-panel" id="notePreviewPanel-<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <div class="text-muted">Preview will appear here...</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -367,22 +495,162 @@
 
             const editor = item.querySelector('.note-inline-editor');
             const preview = item.querySelector('.note-preview');
-            if (!editor || !preview) return;
+            if (!editor) return;
 
             editor.classList.remove('d-none');
-            preview.classList.add('d-none');
+            if (preview) {
+                preview.classList.add('d-none');
+            }
             item.classList.add('editing');
 
             const titleInput = editor.querySelector('.note-edit-title');
-            const contentInput = editor.querySelector('.note-edit-content');
+            const contentInput = editor.querySelector(`#noteSplitEditor-${noteId}`);
+            const previewPanel = document.getElementById(`notePreviewPanel-${noteId}`);
+            const toggleBtn = document.getElementById(`toggleNoteViewBtn-${noteId}`);
+            const splitContainer = document.getElementById(`note-split-container-${noteId}`);
+
             if (titleInput) {
                 titleInput.value = item.dataset.noteTitle || '';
             }
             if (contentInput) {
-                contentInput.value = getNoteDatasetContent(item);
+                const content = getNoteDatasetContent(item);
+                contentInput.value = content;
                 autoResizeTextarea(contentInput);
+                
+                // Initial preview render
+                if (previewPanel && typeof marked !== 'undefined') {
+                    previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
+                }
+
+                // Real-time preview update with debouncing
+                let previewTimeout = null;
+                contentInput.addEventListener('input', function() {
+                    clearTimeout(previewTimeout);
+                    previewTimeout = setTimeout(() => {
+                        if (previewPanel && typeof marked !== 'undefined') {
+                            const markdownText = contentInput.value || '';
+                            previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(markdownText));
+                        }
+                    }, 300); // 300ms debounce
+                });
+            }
+
+            // Toggle split view (only add listener once)
+            if (toggleBtn && splitContainer && previewPanel && !toggleBtn.dataset.listenerAdded) {
+                toggleBtn.dataset.listenerAdded = 'true';
+                let isSplitView = true;
+                toggleBtn.addEventListener('click', function() {
+                    isSplitView = !isSplitView;
+                    if (isSplitView) {
+                        splitContainer.classList.remove('single-view');
+                        previewPanel.style.display = 'block';
+                        toggleBtn.textContent = 'Editor Only';
+                        toggleBtn.classList.add('view-toggle-active');
+                    } else {
+                        splitContainer.classList.add('single-view');
+                        previewPanel.style.display = 'none';
+                        toggleBtn.textContent = 'Split View';
+                        toggleBtn.classList.remove('view-toggle-active');
+                    }
+                });
+                // Initialize as split view
+                splitContainer.classList.remove('single-view');
+                previewPanel.style.display = 'block';
+                toggleBtn.textContent = 'Editor Only';
+                toggleBtn.classList.add('view-toggle-active');
+            }
+
+            if (contentInput) {
                 contentInput.focus();
             }
+
+            // Initialize toolbar functionality
+            initializeNoteToolbar(noteId, contentInput);
+        }
+
+        // Function to initialize toolbar for note editor
+        function initializeNoteToolbar(noteId, textarea) {
+            if (!textarea) return;
+
+            // Undo/Redo functionality (using browser's built-in undo/redo)
+            const undoBtn = document.querySelector(`.toolbar-undo[data-note-id="${noteId}"]`);
+            const redoBtn = document.querySelector(`.toolbar-redo[data-note-id="${noteId}"]`);
+
+            if (undoBtn) {
+                undoBtn.addEventListener('click', function() {
+                    document.execCommand('undo', false, null);
+                    textarea.focus();
+                });
+            }
+
+            if (redoBtn) {
+                redoBtn.addEventListener('click', function() {
+                    document.execCommand('redo', false, null);
+                    textarea.focus();
+                });
+            }
+
+            // Bold functionality
+            const boldBtn = document.querySelector(`.toolbar-bold[data-note-id="${noteId}"]`);
+            if (boldBtn) {
+                boldBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '**', '**', 'bold text');
+                });
+            }
+
+            // Italic functionality
+            const italicBtn = document.querySelector(`.toolbar-italic[data-note-id="${noteId}"]`);
+            if (italicBtn) {
+                italicBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '*', '*', 'italic text');
+                });
+            }
+
+            // Heading functionality
+            const headingBtn = document.querySelector(`.toolbar-heading[data-note-id="${noteId}"]`);
+            if (headingBtn) {
+                headingBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '## ', '', 'Heading');
+                });
+            }
+
+            // Unordered list functionality
+            const ulBtn = document.querySelector(`.toolbar-ul[data-note-id="${noteId}"]`);
+            if (ulBtn) {
+                ulBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '- ', '', 'List item');
+                });
+            }
+
+            // Ordered list functionality
+            const olBtn = document.querySelector(`.toolbar-ol[data-note-id="${noteId}"]`);
+            if (olBtn) {
+                olBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '1. ', '', 'List item');
+                });
+            }
+        }
+
+        // Function to insert markdown at cursor position
+        function insertMarkdown(textarea, prefix, suffix, placeholder) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            const textToInsert = selectedText || placeholder;
+            
+            const newText = textarea.value.substring(0, start) + 
+                          prefix + textToInsert + suffix + 
+                          textarea.value.substring(end);
+            
+            textarea.value = newText;
+            
+            // Set cursor position after inserted text
+            const newCursorPos = start + prefix.length + textToInsert.length + suffix.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            textarea.focus();
+            
+            // Trigger input event to update preview
+            textarea.dispatchEvent(new Event('input'));
         }
 
         function closeNoteEditor(item) {
@@ -402,9 +670,11 @@
             const item = button.closest('.note-item');
             if (!item) return;
 
+            const noteId = button.dataset.noteId;
             const editor = item.querySelector('.note-inline-editor');
             const titleInput = editor.querySelector('.note-edit-title');
-            const contentInput = editor.querySelector('.note-edit-content');
+            // Try to get the split editor first, fallback to regular editor
+            const contentInput = editor.querySelector(`#noteSplitEditor-${noteId}`) || editor.querySelector('.note-edit-content');
 
             const title = titleInput.value.trim();
             const content = contentInput.value.trim();
@@ -436,8 +706,8 @@
 
                 const updatedNote = json.note || {};
                 const preview = item.querySelector('.note-preview');
-                if (preview) {
-                    preview.innerHTML = marked.parse(updatedNote.content || content);
+                if (preview && typeof marked !== 'undefined') {
+                    preview.innerHTML = DOMPurify.sanitize(marked.parse(updatedNote.content || content));
                 }
 
                 const titleText = item.querySelector('.note-title-text');
@@ -446,8 +716,8 @@
                 }
 
                 const updatedLabel = item.querySelector('.note-updated-at');
-                if (updatedLabel && updatedNote.updatedAt) {
-                    updatedLabel.textContent = 'Updated: ' + updatedNote.updatedAt;
+                if (updatedLabel && updatedNote.createdAt) {
+                    updatedLabel.textContent = 'Created: ' + updatedNote.createdAt;
                 }
 
                 item.dataset.noteTitle = updatedNote.title || title;
