@@ -667,13 +667,16 @@ class LmModel
     }
 
     /**
-     * Get a specific summary by ID and user ID
+     * Get a specific summary by ID and user ID (verifies ownership through file)
      */
-    public function getSummaryById(int $summaryId)
+    public function getSummaryById(int $summaryId, int $userId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID");
+        $stmt = $conn->prepare("SELECT s.* FROM summary s 
+                                INNER JOIN file f ON s.fileID = f.fileID 
+                                WHERE s.summaryID = :summaryID AND f.userID = :userID");
         $stmt->bindParam(':summaryID', $summaryId);
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
@@ -977,18 +980,6 @@ class LmModel
     }
 
     /**
-     * Get a specific quiz by ID
-     */
-    public function getQuizById(int $quizId)
-    {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM quiz WHERE quizID = :quizID");
-        $stmt->bindParam(':quizID', $quizId);
-        $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
-    }
-
-    /**
      * Get question data for a specific quiz
      */
     public function getQuestionByQuiz(int $quizId)
@@ -1010,25 +1001,6 @@ class LmModel
         $stmt->bindParam(':quizID', $quizId);
         $stmt->bindParam(':totalScore', $percentageScore);
         return $stmt->execute();
-    }
-
-    /**
-     * Get suggested answers for a question
-     */
-    public function getSuggestedAnswers(int $questionId)
-    {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT question FROM suggestedAnswers WHERE questionID = :questionID");
-        $stmt->bindParam(':questionID', $questionId);
-        $stmt->execute();
-        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-        
-        if ($result && isset($result['question'])) {
-            $answer = json_decode($result['question'], true);
-            return $answer;
-        }
-        
-        return null;
     }
 
     // ============================================================================

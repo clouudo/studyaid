@@ -79,9 +79,6 @@ define('GENERATE_MINDMAP', BASE_PATH . 'lm/generateMindmap');
 define('VIEW_MINDMAP_ROUTE', BASE_PATH . 'lm/viewMindmap');
 define('DELETE_MINDMAP', BASE_PATH . 'lm/deleteMindmap');
 
-//Flashcard routes
-define('VIEW_FLASHCARD_ROUTE', BASE_PATH . 'lm/viewFlashcard');
-
 // Chatbot, Quiz, Flashcard routes
 define('CHATBOT', BASE_PATH . 'lm/chatbot');
 define('QUIZ', BASE_PATH . 'lm/quiz');
