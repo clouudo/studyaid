@@ -285,4 +285,11 @@ PROMPT;
             return [];
         }
     }
+
+    public function generateReport(string $sourceText, string $instructions): string
+    {
+        $model = $this->models['default'] ?? $this->defaultModel;
+        $prompt = $instructions . "\n\nUse the following content from the selected documents to generate the report:\n\n" . $sourceText;
+        return $this->generateText($model, $prompt);
+    }
 }

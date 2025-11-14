@@ -106,7 +106,7 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include VIEW_SIDEBAR; ?>
+        <!-- <?php include VIEW_SIDEBAR; ?> -->
 
         <!-- Left Side: Document & Folder Selection -->
         <aside class="selection-panel p-3" style="width: 350px;">

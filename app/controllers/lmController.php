@@ -2284,21 +2284,189 @@ class LmController
         $this->checkSession(true);
 
         $userId = (int)$_SESSION['user_id'];
-        $fileId = $this->resolveFileId();
-        $fileList = $this->lmModel->getFilesForUser($userId);
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        $selectedFileId = $data['fileIds'];
-        $flieList = [];
-        foreach($selectedFileId as $fileId){
+        
+        // Validate input data
+        if (!isset($data['fileIds']) || empty($data['fileIds'])) {
+            echo json_encode(['success' => false, 'message' => 'No files selected.']);
+            exit();
+        }
+
+        if (!isset($data['description']) || empty(trim($data['description']))) {
+            echo json_encode(['success' => false, 'message' => 'Report description is required.']);
+            exit();
+        }
+
+        $selectedFileIds = $data['fileIds'];
+        $description = trim($data['description']);
+        $reportType = $data['reportType'] ?? 'briefDocument';
+
+        // Validate that all files belong to the user
+        $validFileIds = [];
+        foreach($selectedFileIds as $fileId) {
             $file = $this->lmModel->getFile($userId, $fileId);
-            if($file){
-                $fileList[] = $file;
+            if($file) {
+                $validFileIds[] = $fileId;
             }
         }
 
-        error_log(print_r($fileList, true));
+        if (empty($validFileIds)) {
+            echo json_encode(['success' => false, 'message' => 'No valid files found.']);
+            exit();
+        }
 
+        try {
+            error_log("=== MULTI-DOCUMENT REPORT GENERATION START ===");
+            error_log("User ID: {$userId}");
+            error_log("Selected File IDs: " . implode(', ', $validFileIds));
+            error_log("Report Type: {$reportType}");
+            error_log("Description: {$description}");
 
+            // Generate embedding for the query/description
+            $queryEmbedding = $this->gemini->generateEmbedding($description);
+
+            if (empty($queryEmbedding)) {
+                error_log("ERROR: Failed to generate embedding");
+                echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the description.']);
+                exit();
+            }
+
+            error_log("Embedding generated successfully. Vector size: " . count($queryEmbedding));
+
+            // Search for similar chunks across all selected files
+            $similarities = [];
+            $totalChunksSearched = 0;
+            
+            foreach ($validFileIds as $fileId) {
+                $chunks = $this->lmModel->getChunksByFile($fileId);
+                
+                if (empty($chunks)) {
+                    error_log("File ID {$fileId}: No chunks found");
+                    continue;
+                }
+
+                error_log("File ID {$fileId}: Found " . count($chunks) . " chunks");
+
+                foreach ($chunks as $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'], true);
+                    
+                    if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                        continue;
+                    }
+
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $chunkEmbedding);
+                    $totalChunksSearched++;
+                    
+                    $similarities[] = [
+                        'fileId' => $fileId,
+                        'chunkText' => $chunk['chunkText'] ?? '',
+                        'similarity' => $similarity,
+                    ];
+                }
+            }
+
+            error_log("Total chunks searched: {$totalChunksSearched}");
+
+            // Sort chunks by similarity (descending order)
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            // Get top chunks (top 10 for multi-document reports)
+            $topK = min(10, count($similarities));
+            $topChunks = array_slice($similarities, 0, $topK);
+
+            error_log("Top chunks selected: " . count($topChunks) . " out of " . count($similarities) . " total similarities");
+
+            // Concatenate the text of the top chunks to create context
+            $context = '';
+            foreach ($topChunks as $index => $chunk) {
+                $context .= $chunk['chunkText'] . "\n\n";
+                if ($index < 3) { // Log first 3 chunks for debugging
+                    $preview = substr($chunk['chunkText'], 0, 100) . (strlen($chunk['chunkText']) > 100 ? '...' : '');
+                    error_log("Top chunk " . ($index + 1) . " (File ID: {$chunk['fileId']}, Similarity: " . number_format($chunk['similarity'], 4) . "): {$preview}");
+                }
+            }
+
+            if (empty($context)) {
+                error_log("ERROR: No context generated from chunks");
+                echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents.']);
+                exit();
+            }
+
+            error_log("Context length: " . strlen($context) . " characters");
+            error_log("Generating report...");
+
+            // Generate report using Gemini
+            $report = $this->gemini->generateReport($context, $description);
+
+            if (empty($report)) {
+                error_log("ERROR: Failed to generate report from Gemini");
+                echo json_encode(['success' => false, 'message' => 'Failed to generate report.']);
+                exit();
+            }
+
+            error_log("Report generated successfully. Report length: " . strlen($report) . " characters");
+
+            // Format the report content
+            $formattedReport = $this->gemini->formatContent($report);
+
+            // Generate filename based on report type and timestamp
+            $reportTypeNames = [
+                'studyGuide' => 'Study Guide',
+                'briefDocument' => 'Brief Document',
+                'keyPoints' => 'Key Points'
+            ];
+            $reportTypeName = $reportTypeNames[$reportType] ?? 'Report';
+            $timestamp = date('Y-m-d_H-i-s');
+            $fileName = $reportTypeName . '_' . $timestamp . '.txt';
+
+            // Save the report as a file
+            error_log("Saving report as file: {$fileName}");
+            $fileContent = $formattedReport;
+            $savedFileId = $this->lmModel->uploadFileToGCS(
+                $userId,
+                null, // Save in root folder
+                $formattedReport,
+                $fileContent,
+                null,
+                $fileName
+            );
+
+            if ($savedFileId) {
+                error_log("Report saved successfully. File ID: {$savedFileId}");
+
+                // Generate chunks and embeddings for the saved report
+                try {
+                    $chunks = $this->lmModel->splitTextIntoChunks($formattedReport, $savedFileId);
+                    $embeddings = [];
+                    foreach ($chunks as $chunk) {
+                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
+                    }
+                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $savedFileId);
+                    error_log("Chunks and embeddings generated for saved report. Chunks: " . count($chunks));
+                } catch (\Exception $e) {
+                    error_log("Warning: Failed to generate chunks for saved report: " . $e->getMessage());
+                }
+            } else {
+                error_log("WARNING: Failed to save report as file");
+            }
+
+            error_log("=== MULTI-DOCUMENT REPORT GENERATION END ===");
+
+            echo json_encode([
+                'success' => true,
+                'content' => $report,
+                'fileId' => $savedFileId,
+                'fileName' => $fileName,
+                'chunksUsed' => count($topChunks),
+                'totalChunksSearched' => $totalChunksSearched
+            ]);
+
+        } catch (\Throwable $e) {
+            error_log('Error generating multi-document report: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'An error occurred while generating the report.']);
+        }
+        exit();
     }
 
 }
