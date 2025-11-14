@@ -86,11 +86,9 @@ class LmController
             $failedCount = 0;
             $errors = [];
 
-            // Handle multiple files
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
 
             for ($i = 0; $i < $fileCount; $i++) {
-                // Check if this is a single file upload
                 if (!is_array($files['name'])) {
                     $file = [
                         'name' => $files['name'],
@@ -101,7 +99,6 @@ class LmController
                     ];
                     $i = $fileCount;
                 } else {
-                    // Multiple files
                     if ($files['error'][$i] !== UPLOAD_ERR_OK) {
                         $errors[] = "Error uploading {$files['name'][$i]}: Upload error code {$files['error'][$i]}";
                         $failedCount++;
@@ -120,8 +117,6 @@ class LmController
                 $uploadedFileName = $file['name'];
                 $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
                 $tmpName = $file['tmp_name'];
-
-                // Use the original filename (no custom document name for multiple uploads)
                 $originalFileName = $uploadedFileName;
 
                 $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
@@ -137,7 +132,6 @@ class LmController
                 try {
                     $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
 
-                    // Generate embeddings for each chunk
                     $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
                     $embeddings = [];
                     foreach ($chunks as $chunk) {
@@ -152,15 +146,12 @@ class LmController
                 }
             }
 
-            // Set session messages
             if ($uploadedCount > 0 && $failedCount === 0) {
                 $_SESSION['message'] = $uploadedCount === 1
                     ? "File uploaded successfully!"
                     : "{$uploadedCount} files uploaded successfully!";
 
-                // If only one file was uploaded, redirect to display it
                 if ($uploadedCount === 1) {
-                    // Get the last uploaded file ID
                     $lastFile = $this->lmModel->getLatestFileForUser($userId);
                     if ($lastFile) {
                         $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
@@ -1231,7 +1222,6 @@ class LmController
      */
     private function _generatePdf($title, $content)
     {
-        // Try to use dompdf directly if available via Composer
         if (class_exists('\Dompdf\Dompdf')) {
             try {
                 $dompdf = new \Dompdf\Dompdf();
@@ -1255,11 +1245,9 @@ class LmController
                 echo $dompdf->output();
                 exit();
             } catch (\Exception $e) {
-                // Fallback to PHPWord PDF writer
                 $this->_generatePdfWithPhpWord($title, $content);
             }
         } else {
-            // Try PHPWord PDF writer as fallback
             $this->_generatePdfWithPhpWord($title, $content);
         }
     }
@@ -1269,7 +1257,6 @@ class LmController
      */
     private function _generatePdfWithPhpWord($title, $content)
     {
-        // Try to use PHPWord's PDF writer if PDF renderer is available
         $dompdfPath = __DIR__ . '/../../vendor/dompdf/dompdf';
         if (file_exists($dompdfPath)) {
             try {
@@ -1282,7 +1269,6 @@ class LmController
                 $section->addTitle($title, 1);
                 $section->addTextBreak(1);
 
-                // Convert markdown-like content to plain text and add paragraphs
                 $paragraphs = preg_split('/\n\s*\n/', $content);
                 foreach ($paragraphs as $paragraph) {
                     $paragraph = trim($paragraph);
@@ -1300,11 +1286,9 @@ class LmController
                 $writer->save('php://output');
                 exit();
             } catch (\Exception $e) {
-                // Final fallback: HTML that prompts user to save as PDF
                 $this->_generateSimplePdf($title, $content);
             }
         } else {
-            // Final fallback: HTML that prompts user to save as PDF
             $this->_generateSimplePdf($title, $content);
         }
     }
@@ -1476,7 +1460,6 @@ class LmController
 
         $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
 
-        // Convert markdown-like content to HTML paragraphs
         $lines = explode("\n", $content);
         $inList = false;
         $listType = '';
@@ -1492,7 +1475,6 @@ class LmController
                 continue;
             }
 
-            // Check for unordered list
             if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ul') {
                     if ($inList) $html .= '</' . $listType . '>';
@@ -1507,7 +1489,6 @@ class LmController
                 continue;
             }
 
-            // Check for ordered list
             if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ol') {
                     if ($inList) $html .= '</' . $listType . '>';
@@ -1522,7 +1503,6 @@ class LmController
                 continue;
             }
 
-            // Regular paragraph
             if ($inList) {
                 $html .= '</' . $listType . '>';
                 $inList = false;
@@ -1542,7 +1522,6 @@ class LmController
 
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
 
-        // Output HTML that can be printed to PDF using browser's print functionality
         header('Content-Type: text/html; charset=UTF-8');
         header('Content-Disposition: inline; filename="' . $filename . '"');
         echo $html;
@@ -1569,7 +1548,6 @@ class LmController
         $section->addTitle($title, 1);
         $section->addTextBreak(1);
 
-        // Convert markdown-like content to plain text and add paragraphs
         $paragraphs = preg_split('/\n\s*\n/', $content);
         foreach ($paragraphs as $paragraph) {
             $paragraph = trim($paragraph);
@@ -1594,21 +1572,17 @@ class LmController
      */
     private function _generateTxt($title, $content)
     {
-        // Clean filename
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.txt';
 
-        // Prepare text content
         $text = $title . "\n";
         $text .= str_repeat('=', strlen($title)) . "\n\n";
         $text .= $content . "\n";
 
-        // Set headers for download
         header('Content-Type: text/plain; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
 
-        // Output text with BOM for UTF-8 compatibility
         echo "\xEF\xBB\xBF" . $text;
         exit();
     }
@@ -1685,8 +1659,6 @@ class LmController
                 exit();
             }
 
-            // RAG implementation
-            // 1. Generate embedding for the question
             $questionEmbedding = $this->gemini->generateEmbedding($question);
 
             if (empty($questionEmbedding)) {
@@ -1694,10 +1666,8 @@ class LmController
                 exit();
             }
 
-            // 2. Get all chunks for the file
             $chunks = $this->lmModel->getChunksByFile($fileId);
 
-            // 3. Calculate cosine similarity and find the most relevant chunks
             $similarities = [];
             foreach ($chunks as $chunk) {
                 $chunkEmbedding = json_decode($chunk['embedding'], true);
@@ -1710,26 +1680,22 @@ class LmController
                 }
             }
 
-            // 4. Sort chunks by similarity and get the top N (e.g., top 3)
             usort($similarities, function ($a, $b) {
                 return $b['similarity'] <=> $a['similarity'];
             });
 
             $topChunks = array_slice($similarities, 0, 3);
 
-            // 5. Concatenate the text of the top chunks to create a context
             $context = '';
             foreach ($topChunks as $chunk) {
                 $context .= $chunk['chunk'] . "\n\n";
             }
 
-            // 6. Get chat history
             $chatHistory = $this->lmModel->chatHistory($fileId);
             $userQuestions = $chatHistory['questions'];
             $aiResponse = $chatHistory['responseChats'];
             $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
 
-            // 7. Generate response using the context
             $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
             $response = $this->gemini->generateChatbotResponse($context, $question, $compressedChatHistory);
             $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
@@ -1907,6 +1873,7 @@ class LmController
         $questionAmount = '';
         $questionDifficulty = '';
         $instructions = '';
+        $questionType = 'mcq';
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionAmount'])) {
             $questionAmount = trim($_POST['questionAmount']);
@@ -1940,30 +1907,87 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            if ($questionType == 'mcq') {
-                $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            } elseif ($questionType == 'shortQuestion') {
-                $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
+            
+            $geminiConfig = require __DIR__ . '/../config/gemini.php';
+            $maxRetries = $geminiConfig['rate_limiting']['max_retries'] ?? 3;
+            $retryDelay = $geminiConfig['rate_limiting']['retry_delay'] ?? 2;
+            $delayBetweenCalls = $geminiConfig['rate_limiting']['delay_between_calls'] ?? 0.5;
+            
+            for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                try {
+                    if ($questionType == 'mcq') {
+                        $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
+                    } elseif ($questionType == 'shortQuestion') {
+                        $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
+                    } else {
+                        echo json_encode(['success' => false, 'message' => 'Invalid question type.']);
+                        exit();
+                    }
+                    break;
+                } catch (\RuntimeException $e) {
+                    $errorMessage = $e->getMessage();
+                    if ((strpos($errorMessage, 'overloaded') !== false || strpos($errorMessage, 'rate limit') !== false) && $attempt < $maxRetries) {
+                        sleep($retryDelay * $attempt);
+                        continue;
+                    }
+                    if (strpos($errorMessage, 'overloaded') !== false) {
+                        $errorMessage = 'The AI service is currently busy. Please wait a moment and try again.';
+                    }
+                    echo json_encode(['success' => false, 'message' => $errorMessage]);
+                    exit();
+                }
+            }
+
+            if (empty($quizData)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to generate quiz data. The AI service returned an empty response.']);
+                exit();
             }
 
             $decodedQuiz = json_decode($quizData, true);
-            $totalQuestions = count($decodedQuiz['quiz']);
-
-            $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
-            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
-            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
-            $encodedQuiz = json_encode($decodedQuiz['quiz']);
-            if ($questionType == 'mcq') {
-                $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
-            } elseif ($questionType == 'shortQuestion') {
-                $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode(['success' => false, 'message' => 'Invalid JSON response from AI: ' . json_last_error_msg()]);
+                exit();
             }
 
-            $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
+            if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz']) || empty($decodedQuiz['quiz'])) {
+                echo json_encode(['success' => false, 'message' => 'Quiz data structure is invalid.']);
+                exit();
+            }
+
+            $totalQuestions = count($decodedQuiz['quiz']);
+
+            try {
+                usleep((int)($delayBetweenCalls * 1000000));
+                $title = $this->gemini->generateTitle($file['name'] . ' Quiz');
+            } catch (\RuntimeException $e) {
+                $title = $file['name'] . ' - Quiz';
+            }
+            
+            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
+            if (!$quizId || $quizId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Failed to save quiz to database.']);
+                exit();
+            }
+
+            $encodedQuiz = json_encode($decodedQuiz['quiz']);
+            $questionId = null;
+            if ($questionType == 'mcq') {
+                $questionId = $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
+            } elseif ($questionType == 'shortQuestion') {
+                $questionId = $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
+            }
+
+            if ($questionId === null || !$questionId || $questionId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Failed to save questions to database.']);
+                exit();
+            }
+
             if ($questionType == 'mcq') {
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             } elseif ($questionType == 'shortQuestion') {
                 echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+            } else {
+                echo json_encode(['success' => true, 'quiz' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             }
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -2188,7 +2212,6 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         
-        // Validate input data
         if (!isset($data['fileIds']) || empty($data['fileIds'])) {
             echo json_encode(['success' => false, 'message' => 'No files selected.']);
             exit();
@@ -2203,7 +2226,6 @@ class LmController
         $description = trim($data['description']);
         $reportType = $data['reportType'] ?? 'briefDocument';
 
-        // Validate that all files belong to the user
         $validFileIds = [];
         foreach($selectedFileIds as $fileId) {
             $file = $this->lmModel->getFile($userId, $fileId);
@@ -2224,7 +2246,6 @@ class LmController
             error_log("Report Type: {$reportType}");
             error_log("Description: {$description}");
 
-            // Generate embedding for the query/description
             $queryEmbedding = $this->gemini->generateEmbedding($description);
 
             if (empty($queryEmbedding)) {
@@ -2235,7 +2256,6 @@ class LmController
 
             error_log("Embedding generated successfully. Vector size: " . count($queryEmbedding));
 
-            // Search for similar chunks across all selected files
             $similarities = [];
             $totalChunksSearched = 0;
             
@@ -2269,22 +2289,19 @@ class LmController
 
             error_log("Total chunks searched: {$totalChunksSearched}");
 
-            // Sort chunks by similarity (descending order)
             usort($similarities, function ($a, $b) {
                 return $b['similarity'] <=> $a['similarity'];
             });
 
-            // Get top chunks (top 10 for multi-document reports)
             $topK = min(10, count($similarities));
             $topChunks = array_slice($similarities, 0, $topK);
 
             error_log("Top chunks selected: " . count($topChunks) . " out of " . count($similarities) . " total similarities");
 
-            // Concatenate the text of the top chunks to create context
             $context = '';
             foreach ($topChunks as $index => $chunk) {
                 $context .= $chunk['chunkText'] . "\n\n";
-                if ($index < 3) { // Log first 3 chunks for debugging
+                if ($index < 3) {
                     $preview = substr($chunk['chunkText'], 0, 100) . (strlen($chunk['chunkText']) > 100 ? '...' : '');
                     error_log("Top chunk " . ($index + 1) . " (File ID: {$chunk['fileId']}, Similarity: " . number_format($chunk['similarity'], 4) . "): {$preview}");
                 }
@@ -2299,7 +2316,6 @@ class LmController
             error_log("Context length: " . strlen($context) . " characters");
             error_log("Generating report...");
 
-            // Generate report using Gemini
             $report = $this->gemini->generateReport($context, $description);
 
             if (empty($report)) {
@@ -2310,10 +2326,8 @@ class LmController
 
             error_log("Report generated successfully. Report length: " . strlen($report) . " characters");
 
-            // Format the report content
             $formattedReport = $this->gemini->formatContent($report);
 
-            // Generate filename based on report type and timestamp
             $reportTypeNames = [
                 'studyGuide' => 'Study Guide',
                 'briefDocument' => 'Brief Document',
@@ -2323,12 +2337,11 @@ class LmController
             $timestamp = date('Y-m-d_H-i-s');
             $fileName = $reportTypeName . '_' . $timestamp . '.txt';
 
-            // Save the report as a file
             error_log("Saving report as file: {$fileName}");
             $fileContent = $formattedReport;
             $savedFileId = $this->lmModel->uploadFileToGCS(
                 $userId,
-                null, // Save in root folder
+                null,
                 $formattedReport,
                 $fileContent,
                 null,
@@ -2338,7 +2351,6 @@ class LmController
             if ($savedFileId) {
                 error_log("Report saved successfully. File ID: {$savedFileId}");
 
-                // Generate chunks and embeddings for the saved report
                 try {
                     $chunks = $this->lmModel->splitTextIntoChunks($formattedReport, $savedFileId);
                     $embeddings = [];

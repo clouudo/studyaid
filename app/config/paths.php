@@ -90,6 +90,9 @@ define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
 define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
 
+//Multidocument
+define('MULTIDOCUMENT', BASE_PATH . 'lm/multidoc');
+
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');
 define('RENAME_FILE', BASE_PATH . 'lm/renameFile');
@@ -136,3 +139,4 @@ define('URL_MINDMAP', 'index.php?url=lm/mindmap');
 define('URL_CHATBOT', 'index.php?url=lm/chatbot');
 define('URL_FLASHCARD', 'index.php?url=lm/flashcard');
 define('URL_QUIZ', 'index.php?url=lm/quiz');
+define('URL_MULTIDOCUMENT', 'index.php?url=lm/multidoc');

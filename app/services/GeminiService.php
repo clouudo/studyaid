@@ -28,7 +28,8 @@ class GeminiService
             return $response->text();
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating text: ' . $e->getMessage());
-            return '';
+            // Throw exception instead of returning empty string so calling code can handle it
+            throw new \RuntimeException('Gemini API Error: ' . $e->getMessage(), 0, $e);
         }
     }
 

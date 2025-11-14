@@ -11,7 +11,7 @@
     <style>
         .selection-panel {
             background-color: white;
-            border-right: 1px solid #dee2e6;
+            border-left: 1px solid #dee2e6;
             height: calc(100vh - 60px);
             overflow-y: auto;
         }
@@ -20,6 +20,8 @@
             background-color: #f8f9fa;
             height: calc(100vh - 60px);
             overflow-y: auto;
+            width: 100%;
+            flex: 1 1 auto;
         }
 
         .document-item,
@@ -106,9 +108,43 @@
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <!-- <?php include VIEW_SIDEBAR; ?> -->
+        <?php include VIEW_SIDEBAR; ?>
 
-        <!-- Left Side: Document & Folder Selection -->
+        <!-- Middle: Generation Tools -->
+        <main class="content-panel flex-grow-1 p-4">
+            <div class="container-fluid">
+                <h3 class="mb-4" style="color: #A855F7;">Multi-Document Tools</h3>
+                <p class="text-muted mb-4">Select documents or folders from the right panel, then choose a tool to generate content.</p>
+
+                <div class="row g-4">
+                    <!-- Synthesize Document -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card tool-card" id="reportTool">
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-text tool-icon"></i>
+                                <h5 class="card-title">Synthesize Document</h5>
+                                <p class="card-text text-muted">Create a synthesized document from selected documents</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Panel (will show generated content) -->
+                <div class="card mt-4" id="resultsPanel" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Generated Content</h5>
+                        <button class="btn btn-sm btn-outline-secondary" id="closeResultsBtn">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" id="resultsContent">
+                        <!-- Generated content will appear here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Side: Document & Folder Selection -->
         <aside class="selection-panel p-3" style="width: 350px;">
             <div class="card h-100">
                 <div class="card-header">
@@ -184,123 +220,22 @@
                 </div>
             </div>
         </aside>
-
-        <!-- Right Side: Generation Tools -->
-        <main class="content-panel flex-grow-1 p-4">
-            <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Multi-Document Tools</h3>
-                <p class="text-muted mb-4">Select documents or folders from the left panel, then choose a tool to generate content.</p>
-
-                <div class="row g-4">
-                    <!-- Generate Report -->
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="reportTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-file-text tool-icon"></i>
-                                <h5 class="card-title">Generate Report</h5>
-                                <p class="card-text text-muted">Create a report from selected documents</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Generate Notes -->
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="notesTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-journal-text tool-icon"></i>
-                                <h5 class="card-title">Generate Notes</h5>
-                                <p class="card-text text-muted">Create study notes from selected documents</p>
-                                <button class="btn btn-primary" style="background-color: #A855F7; border: none;" disabled>
-                                    Generate Notes
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Generate Flashcards -->
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="flashcardsTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-card-checklist tool-icon"></i>
-                                <h5 class="card-title">Generate Flashcards</h5>
-                                <p class="card-text text-muted">Create flashcards from selected documents</p>
-                                <button class="btn btn-primary" style="background-color: #A855F7; border: none;" disabled>
-                                    Generate Flashcards
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Generate Quiz -->
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="quizTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-question-circle tool-icon"></i>
-                                <h5 class="card-title">Generate Quiz</h5>
-                                <p class="card-text text-muted">Create quiz questions from selected documents</p>
-                                <button class="btn btn-primary" style="background-color: #A855F7; border: none;" disabled>
-                                    Generate Quiz
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Generate Mindmap -->
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="mindmapTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-diagram-3 tool-icon"></i>
-                                <h5 class="card-title">Generate Mindmap</h5>
-                                <p class="card-text text-muted">Create a mindmap from selected documents</p>
-                                <button class="btn btn-primary" style="background-color: #A855F7; border: none;" disabled>
-                                    Generate Mindmap
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Instructions Panel (will show when documents are selected) -->
-                <div class="card mt-4" id="instructionsPanel" style="display: none;">
-                    <div class="card-header">
-                        <h5 class="mb-0">Instructions (Optional)</h5>
-                    </div>
-                    <div class="card-body">
-                        <textarea class="form-control" id="instructionsText" rows="3"
-                            placeholder="Add any specific instructions for generation..."></textarea>
-                    </div>
-                </div>
-
-                <!-- Results Panel (will show generated content) -->
-                <div class="card mt-4" id="resultsPanel" style="display: none;">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Generated Content</h5>
-                        <button class="btn btn-sm btn-outline-secondary" id="closeResultsBtn">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                    <div class="card-body" id="resultsContent">
-                        <!-- Generated content will appear here -->
-                    </div>
-                </div>
-            </div>
-        </main>
     </div>
 
-    <!-- Report Generation Form Modal -->
+    <!-- Synthesize Document Form Modal -->
     <div class="modal fade" id="reportFormModal" tabindex="-1" aria-labelledby="reportFormModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header" style="background-color: #A855F7; color: white;">
                     <h5 class="modal-title" id="reportFormModalLabel">
-                        <i class="bi bi-file-text"></i> Generate Report
+                        <i class="bi bi-file-text"></i> Synthesize Document
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="reportGenerationForm">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="reportType" class="form-label">Report Type</label>
+                            <label for="reportType" class="form-label">Document Type</label>
                             <select class="form-select" id="reportType" name="reportType">
                                 <option value="studyGuide">Study Guide</option>
                                 <option value="briefDocument">Brief Document</option>
@@ -309,8 +244,8 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="reportDescription" class="form-label">Describe the report</label>
-                            <textarea class="form-control" id="reportDescription" name="reportDescription" rows="3" placeholder="Describe the report"></textarea>
+                            <label for="reportDescription" class="form-label">Describe the document</label>
+                            <textarea class="form-control" id="reportDescription" name="reportDescription" rows="3" placeholder="Describe the document"></textarea>
                         </div>
 
                         <div class="mb-3">
@@ -320,13 +255,13 @@
                                     <span class="text-muted">No documents selected</span>
                                 </div>
                             </div>
-                            <small class="form-text text-muted">Documents that will be included in the report</small>
+                            <small class="form-text text-muted">Documents that will be included in the synthesized document</small>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                            <i class="bi bi-play-fill"></i> Generate Report
+                            <i class="bi bi-play-fill"></i> Synthesize Document
                         </button>
                     </div>
                 </form>
@@ -366,7 +301,7 @@
                 listContainer.innerHTML = html;
             }
 
-            // Function to update description based on report type
+            // Function to update description based on document type
             function updateDescriptionByReportType() {
                 const reportType = document.getElementById('reportType').value;
                 const reportDescriptionElement = document.getElementById('reportDescription');
@@ -382,26 +317,55 @@
 
                 // Update selected count
             function updateSelectedCount() {
-                const total = selectedFiles.size + selectedFolders.size;
+                // Only count files since folders now select their files
+                const total = selectedFiles.size;
                 document.getElementById('selectedCount').textContent = total;
-
-                // Enable/disable tool buttons
-                const buttons = document.querySelectorAll('.tool-card button');
-                buttons.forEach(btn => {
-                    btn.disabled = total === 0;
-                });
-
-                // Show/hide instructions panel
-                document.getElementById('instructionsPanel').style.display = total > 0 ? 'block' : 'none';
             }
 
 
+
+            // Function to update folder checkbox state based on child files
+            function updateFolderCheckboxState(folderId) {
+                const folderChildren = document.getElementById('folder_children_' + folderId);
+                if (!folderChildren) return;
+                
+                const folderCheckbox = document.querySelector(`.folder-checkbox[data-folder-id="${folderId}"]`);
+                const folderItem = folderCheckbox ? folderCheckbox.closest('.folder-item') : null;
+                const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
+                
+                if (fileCheckboxes.length === 0) return;
+                
+                const checkedCount = Array.from(fileCheckboxes).filter(cb => cb.checked).length;
+                const allChecked = checkedCount === fileCheckboxes.length;
+                const someChecked = checkedCount > 0 && checkedCount < fileCheckboxes.length;
+                
+                if (folderCheckbox) {
+                    if (allChecked) {
+                        folderCheckbox.checked = true;
+                        folderCheckbox.indeterminate = false;
+                        if (folderItem) folderItem.classList.add('selected');
+                        selectedFolders.add(folderId);
+                    } else if (someChecked) {
+                        folderCheckbox.checked = false;
+                        folderCheckbox.indeterminate = true;
+                        if (folderItem) folderItem.classList.add('selected');
+                        selectedFolders.delete(folderId);
+                    } else {
+                        folderCheckbox.checked = false;
+                        folderCheckbox.indeterminate = false;
+                        if (folderItem) folderItem.classList.remove('selected');
+                        selectedFolders.delete(folderId);
+                    }
+                }
+            }
 
             // Handle document checkbox
             document.addEventListener('change', function(e) {
                 if (e.target.classList.contains('document-checkbox')) {
                     const fileId = e.target.dataset.fileId;
                     const item = e.target.closest('.document-item');
+                    const folderContainer = item ? item.closest('.folder-children') : null;
+                    const folderId = folderContainer ? folderContainer.id.replace('folder_children_', '') : null;
 
                     if (e.target.checked) {
                         selectedFiles.add(fileId);
@@ -410,19 +374,56 @@
                         selectedFiles.delete(fileId);
                         item.classList.remove('selected');
                     }
+                    
+                    // Update parent folder checkbox state if this file is in a folder
+                    if (folderId) {
+                        updateFolderCheckboxState(folderId);
+                    }
+                    
                     updateSelectedCount();
                 }
 
                 if (e.target.classList.contains('folder-checkbox')) {
                     const folderId = e.target.dataset.folderId;
                     const item = e.target.closest('.folder-item');
+                    const folderChildren = document.getElementById('folder_children_' + folderId);
 
                     if (e.target.checked) {
                         selectedFolders.add(folderId);
                         item.classList.add('selected');
+                        
+                        // Select all files within this folder
+                        if (folderChildren) {
+                            const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
+                            fileCheckboxes.forEach(checkbox => {
+                                const fileId = checkbox.dataset.fileId;
+                                const fileItem = checkbox.closest('.document-item');
+                                
+                                checkbox.checked = true;
+                                selectedFiles.add(fileId);
+                                if (fileItem) {
+                                    fileItem.classList.add('selected');
+                                }
+                            });
+                        }
                     } else {
                         selectedFolders.delete(folderId);
                         item.classList.remove('selected');
+                        
+                        // Deselect all files within this folder
+                        if (folderChildren) {
+                            const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
+                            fileCheckboxes.forEach(checkbox => {
+                                const fileId = checkbox.dataset.fileId;
+                                const fileItem = checkbox.closest('.document-item');
+                                
+                                checkbox.checked = false;
+                                selectedFiles.delete(fileId);
+                                if (fileItem) {
+                                    fileItem.classList.remove('selected');
+                                }
+                            });
+                        }
                     }
                     updateSelectedCount();
                 }
@@ -479,22 +480,16 @@
             document.getElementById('reportFormModal').addEventListener('show.bs.modal', function() {
                 populateSelectedDocumentsList();
                 
-                // Pre-fill description from instructions panel if available, otherwise use report type default
-                const existingInstructions = document.getElementById('instructionsText').value.trim();
-                if (existingInstructions) {
-                    document.getElementById('reportDescription').value = existingInstructions;
-                } else {
-                    // Set initial description based on selected report type
-                    updateDescriptionByReportType();
-                }
+                // Set initial description based on selected document type
+                updateDescriptionByReportType();
             });
 
-            // Update description when report type changes
+            // Update description when document type changes
             document.getElementById('reportType').addEventListener('change', function() {
                 updateDescriptionByReportType();
             });
 
-            // Report Generation Handler - Opens Form Modal when card is clicked
+            // Synthesize Document Handler - Opens Form Modal when card is clicked
             document.getElementById('reportTool').addEventListener('click', function(e) {
                 // Check if files are selected - do nothing if no documents selected
                 const fileIds = Array.from(selectedFiles);
@@ -529,7 +524,7 @@
                     reportType: reportType
                 };
 
-                // Submit report generation request
+                // Submit document synthesis request
                 fetch('<?= BASE_PATH ?>lm/generateMultiReport', {
                     method: 'POST',
                     headers: {
@@ -545,42 +540,14 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        console.log('Report generated successfully');
+                        console.log('Document synthesized successfully');
                     } else {
-                        console.error('Report generation failed:', data.message || 'Failed to generate report');
+                        console.error('Document synthesis failed:', data.message || 'Failed to synthesize document');
                     }
                 })
                 .catch(error => {
-                    console.error('Error generating report:', error);
+                    console.error('Error synthesizing document:', error);
                 });
-            });
-
-            document.getElementById('notesTool').addEventListener('click', function() {
-                if (selectedFiles.size > 0 || selectedFolders.size > 0) {
-                    console.log('Generate Notes for:', Array.from(selectedFiles), Array.from(selectedFolders));
-                    // TODO: Implement notes generation
-                }
-            });
-
-            document.getElementById('flashcardsTool').addEventListener('click', function() {
-                if (selectedFiles.size > 0 || selectedFolders.size > 0) {
-                    console.log('Generate Flashcards for:', Array.from(selectedFiles), Array.from(selectedFolders));
-                    // TODO: Implement flashcards generation
-                }
-            });
-
-            document.getElementById('quizTool').addEventListener('click', function() {
-                if (selectedFiles.size > 0 || selectedFolders.size > 0) {
-                    console.log('Generate Quiz for:', Array.from(selectedFiles), Array.from(selectedFolders));
-                    // TODO: Implement quiz generation
-                }
-            });
-
-            document.getElementById('mindmapTool').addEventListener('click', function() {
-                if (selectedFiles.size > 0 || selectedFolders.size > 0) {
-                    console.log('Generate Mindmap for:', Array.from(selectedFiles), Array.from(selectedFolders));
-                    // TODO: Implement mindmap generation
-                }
             });
 
             // Close results panel

@@ -78,10 +78,30 @@ class LmModel
 
     /**
      * Get logical folder path for GCS storage
+     * Uses stored folderPath from database if available, otherwise builds and stores it
      */
     public function getLogicalFolderPath($folderId, $userId)
     {
         $conn = $this->db->connect();
+        
+        // First, try to get folderPath from database
+        $query = "SELECT folderPath, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':folderID', $folderId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$folder) {
+            throw new \Exception("Folder hierarchy broken or access denied.");
+        }
+
+        // If folderPath exists and is not null, return it
+        if (!empty($folder['folderPath'])) {
+            return $folder['folderPath'];
+        }
+
+        // Otherwise, build the path by traversing parent folders
         $path = [];
         $currentFolderId = $folderId;
 
@@ -91,16 +111,27 @@ class LmModel
             $stmt->bindParam(':folderID', $currentFolderId);
             $stmt->bindParam(':userID', $userId);
             $stmt->execute();
-            $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $currentFolder = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-            if ($folder) {
-                array_unshift($path, $folder['name']);
-                $currentFolderId = $folder['parentFolderId'];
+            if ($currentFolder) {
+                array_unshift($path, $currentFolder['name']);
+                $currentFolderId = $currentFolder['parentFolderId'];
             } else {
                 throw new \Exception("Folder hierarchy broken or access denied.");
             }
         }
-        return implode('/', $path) . '/';
+        
+        $builtPath = implode('/', $path) . '/';
+        
+        // Store the built path in database for future use
+        $updateQuery = "UPDATE folder SET folderPath = :folderPath WHERE folderID = :folderID AND userID = :userID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':folderPath', $builtPath);
+        $updateStmt->bindParam(':folderID', $folderId);
+        $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+        
+        return $builtPath;
     }
 
     /**
@@ -109,7 +140,7 @@ class LmModel
     public function getFolderInfo($folderId)
     {
         $conn = $this->db->connect();
-        $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID";
+        $query = "SELECT folderID, name, parentFolderId, folderPath FROM folder WHERE folderID = :folderID";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':folderID', $folderId);
         $stmt->execute();
@@ -402,6 +433,44 @@ class LmModel
     }
 
     /**
+     * Helper function to recursively update folderPath for a folder and all its children
+     */
+    private function updateFolderPathRecursive($folderId, $newFolderPath, $userId, $conn)
+    {
+        // Update current folder's path
+        $updateQuery = "UPDATE folder SET folderPath = :folderPath WHERE folderID = :folderID AND userID = :userID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':folderPath', $newFolderPath);
+        $updateStmt->bindParam(':folderID', $folderId);
+        $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+
+        // Get folder name for child paths
+        $nameQuery = "SELECT name FROM folder WHERE folderID = :folderID";
+        $nameStmt = $conn->prepare($nameQuery);
+        $nameStmt->bindParam(':folderID', $folderId);
+        $nameStmt->execute();
+        $folder = $nameStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$folder) {
+            return;
+        }
+
+        // Update all child folders recursively
+        $childrenQuery = "SELECT folderID, name FROM folder WHERE parentFolderId = :folderID AND userID = :userID";
+        $childrenStmt = $conn->prepare($childrenQuery);
+        $childrenStmt->bindParam(':folderID', $folderId);
+        $childrenStmt->bindParam(':userID', $userId);
+        $childrenStmt->execute();
+        $children = $childrenStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($children as $child) {
+            $childPath = $newFolderPath . $child['name'] . '/';
+            $this->updateFolderPathRecursive($child['folderID'], $childPath, $userId, $conn);
+        }
+    }
+
+    /**
      * Rename a folder in GCS and database
      */
     public function renameFolder($folderId, $newName, $userId)
@@ -419,7 +488,7 @@ class LmModel
         }
 
         // Get folder info to build paths
-        $folderInfoQuery = "SELECT name, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $folderInfoQuery = "SELECT name, parentFolderId, folderPath FROM folder WHERE folderID = :folderID AND userID = :userID";
         $folderInfoStmt = $conn->prepare($folderInfoQuery);
         $folderInfoStmt->bindParam(':folderID', $folderId);
         $folderInfoStmt->bindParam(':userID', $userId);
@@ -430,7 +499,7 @@ class LmModel
             throw new \Exception("Could not retrieve folder information for path construction.");
         }
 
-        // Build parent folder path
+        // Build parent folder path (use stored folderPath if available)
         $parentFolderPath = '';
         if ($folderInfo['parentFolderId'] !== null) {
             $parentFolderPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
@@ -439,7 +508,8 @@ class LmModel
         // Construct old and new prefixes for GCS objects
         $oldLogicalPath = $parentFolderPath . $folderInfo['name'] . '/';
         $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldLogicalPath;
-        $newPrefix = 'user_upload/' . $userId . '/content/' . $parentFolderPath . $newName . '/';
+        $newLogicalPath = $parentFolderPath . $newName . '/';
+        $newPrefix = 'user_upload/' . $userId . '/content/' . $newLogicalPath;
 
         // Rename all objects in GCS
         $bucket = $this->storage->bucket($this->bucketName);
@@ -456,7 +526,12 @@ class LmModel
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newName', $newName);
         $updateStmt->bindParam(':folderID', $folderId);
-        return $updateStmt->execute();
+        $updateStmt->execute();
+
+        // Update folderPath for this folder and all children
+        $this->updateFolderPathRecursive($folderId, $newLogicalPath, $userId, $conn);
+        
+        return true;
     }
 
     /**
@@ -561,18 +636,21 @@ class LmModel
             throw new \Exception("Folder not found or access denied.");
         }
         
+        // Use stored folderPath if available, otherwise build it
         $oldParentPath = '';
         if ($folderInfo['parentFolderId'] !== null) {
             $oldParentPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
         }
-        $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldParentPath . $folderInfo['name'] . '/';
+        $oldLogicalPath = $oldParentPath . $folderInfo['name'] . '/';
+        $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldLogicalPath;
 
         // Get new path information
         $newParentPath = '';
         if ($newParentId !== null) {
             $newParentPath = $this->getLogicalFolderPath($newParentId, $userId);
         }
-        $newPrefix = 'user_upload/' . $userId . '/content/' . $newParentPath . $folderInfo['name'] . '/';
+        $newLogicalPath = $newParentPath . $folderInfo['name'] . '/';
+        $newPrefix = 'user_upload/' . $userId . '/content/' . $newLogicalPath;
 
         // Move all objects in GCS
         $bucket = $this->storage->bucket($this->bucketName);
@@ -583,14 +661,18 @@ class LmModel
             $object->delete();
         }
 
-        // Update database
+        // Update database - set new parent
         $updateQuery = "UPDATE folder SET parentFolderId = :newParentId WHERE folderID = :folderID AND userID = :userID";
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newParentId', $newParentId, $newParentId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
         $updateStmt->bindParam(':folderID', $folderId);
         $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+
+        // Update folderPath for this folder and all children
+        $this->updateFolderPathRecursive($folderId, $newLogicalPath, $userId, $conn);
         
-        return $updateStmt->execute();
+        return true;
     }
 
     // ============================================================================
@@ -603,35 +685,35 @@ class LmModel
     public function createFolder($userId, $folderName, $parentFolderId = null)
     {
         $bucket = $this->storage->bucket($this->bucketName);
-
-        if ($parentFolderId == null) {
-            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderName . '/';
-
-            if (!$bucket->object($gcsFolderName)->exists()) {
-                $bucket->upload('', ['name' => $gcsFolderName]);
-            }
-        }
-
+        
+        // Calculate folderPath
+        $folderPath = '';
         if ($parentFolderId != null) {
             $parentFolderInfo = $this->getFolderInfo($parentFolderId);
             if (!$parentFolderInfo) {
                 throw new \Exception("Parent folder not found or access denied.");
             }
+            
+            // Get parent folderPath (will build if missing)
+            $parentPath = $this->getLogicalFolderPath($parentFolderId, $userId);
+            $folderPath = $parentPath . $folderName . '/';
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderPath;
+        } else {
+            $folderPath = $folderName . '/';
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderPath;
+        }
 
-            $logicalPath = $this->getLogicalFolderPath($parentFolderId, $userId);
-            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $logicalPath . $folderName . '/';
-
-            if (!$bucket->object($gcsFolderName)->exists()) {
-                $bucket->upload('', ['name' => $gcsFolderName]);
-            }
+        if (!$bucket->object($gcsFolderName)->exists()) {
+            $bucket->upload('', ['name' => $gcsFolderName]);
         }
 
         $conn = $this->db->connect();
-        $query = "INSERT INTO folder (userID, parentFolderId, name) VALUES (:userID, :parentFolderId, :name)";
+        $query = "INSERT INTO folder (userID, parentFolderId, name, folderPath) VALUES (:userID, :parentFolderId, :name, :folderPath)";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':userID', $userId);
-        $stmt->bindParam(':parentFolderId', $parentFolderId);
+        $stmt->bindParam(':parentFolderId', $parentFolderId, $parentFolderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
         $stmt->bindParam(':name', $folderName);
+        $stmt->bindParam(':folderPath', $folderPath);
         $stmt->execute();
         return $conn->lastInsertId();
     }

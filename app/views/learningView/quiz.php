@@ -104,22 +104,19 @@
 </head>
 
 <body class="d-flex flex-column min-vh-100">
-    <?php
-    $current_url = $_GET['url'] ?? 'lm/quiz';
-    ?>
     <div class="d-flex flex-grow-1">
-        <?php include VIEW_SIDEBAR; ?>
+        <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Quiz</h3>
-                <h4 class="mb-4"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
+            <div class="container-fluid upload-container">
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Quiz</h3>
+                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Quiz Form -->
-                <div class="card mb-4" id="generateQuizCard">
+                <div class="card" id="generateQuizCard">
                     <div class="card-body">
                         <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
-                            <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="questionAmount" class="form-label">Question Amount</label>
                             <br>
                             <div class="btn-group mb-3" role="group">
@@ -151,9 +148,8 @@
                                 <label class="btn btn-outline-secondary" for="shortQuestion">Short Question</label>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Instructions (optional)</label>
-                                <input type="text" name="instructions" class="form-control"
-                                    placeholder="e.g. Briefly describe restrictions you want to apply.">
+                                <label for="instructions" class="form-label">Instructions (optional)</label>
+                                <input type="text" id="instructions" name="instructions" class="form-control" placeholder="Describe your instructions">
                             </div>
                             <button type="submit" id="genQuiz" class="btn btn-primary" style="background-color: #A855F7; border: none;">
                                 <i class="bi bi-lightning-charge me-2"></i>Generate Quiz
@@ -162,36 +158,39 @@
                     </div>
                 </div>
 
-                <div class="card mb-4" id="quizListCard">
-                    <div class="card-header">
-                        <h5 class="card-title">Generated Quizzes</h5>
+                <!-- Generated Quizzes -->
+                <div class="card mt-4" id="quizListCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Generated Quizzes</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="quizList">
                             <?php if (!empty($quizList)): ?>
                                 <?php foreach ($quizList as $quiz): ?>
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div class="flex-grow-1" style="min-width: 0;">
-                                            <strong title="<?php echo htmlspecialchars($quiz['title']); ?>"><?php echo htmlspecialchars($quiz['title']); ?></strong>
-                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($quiz['createdAt']); ?></small>
-                                        </div>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                Actions
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
-                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
-                                                <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <form method="POST" action="#" style="display: inline;">
-                                                        <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
-                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                    </form>
-                                                </li>
-                                            </ul>
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="flex-grow-1">
+                                                <strong><?= htmlspecialchars($quiz['title']) ?></strong><br>
+                                                <small class="text-muted">Updated: <?= htmlspecialchars($quiz['createdAt']) ?></small>
+                                            </div>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownQuizActions<?php echo $quiz['quizID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
+                                                    <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
+                                                    <li>
+                                                        <hr class="dropdown-divider">
+                                                    </li>
+                                                    <li>
+                                                        <form method="POST" action="#" style="display: inline;">
+                                                            <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
+                                                            <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -255,12 +254,19 @@
                     </div>
                 </div>
             </div>
-
-    </div>
-    </main>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <style>
+        /* Prevent dropdowns from being clipped by list container */
+        .list-group-item { 
+            overflow: visible; 
+        }
+        .dropdown-menu { 
+            z-index: 1060; 
+        }
+    </style>
     <script>
         let quizData = [];
         let userAnswers = {};

@@ -66,6 +66,11 @@ function isActive($link_url, $current_url)
         <?php endforeach; ?>
       </div>
     </li>
+    <li class="sidebarlist <?php echo isActive(URL_MULTIDOCUMENT, $current_url); ?>">
+      <a href="<?= MULTIDOCUMENT ?>" class="nav-link text-dark <?php echo isActive(URL_MULTIDOCUMENT, $current_url); ?>">
+        Multi Document
+      </a>
+    </li>
   </ul>
   <hr>
   <div class="sidebar-footer">
