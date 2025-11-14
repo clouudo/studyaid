@@ -1,15 +1,25 @@
 <?php
-function buildFolderTree($folders, $parentId = null) {
-    $html = '<ul>';
+function buildFolderTree($folders, $parentId = null, $level = 0)
+{
+    $html = '';
+    $hasItems = false;
+
     foreach ($folders as $folder) {
         if ($folder['parentFolderId'] == $parentId) {
+            $hasItems = true;
             $html .= '<li>';
-            $html .= '<a href="#" class="folder-item" data-folder-id="' . $folder['folderID'] . '" data-folder-name="' . htmlspecialchars($folder['name']) . '">' . htmlspecialchars($folder['name']) . '</a>';
-            $html .= buildFolderTree($folders, $folder['folderID']);
+            $html .= '<a href="#" class="folder-item" data-folder-id="' . $folder['folderID'] . '" data-folder-name="' . htmlspecialchars($folder['name']) . '" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">';
+            $html .= '<i class="bi bi-folder-fill me-2"></i>';
+            $html .= htmlspecialchars($folder['name']);
+            $html .= '</a>';
+            $children = buildFolderTree($folders, $folder['folderID'], $level + 1);
+            if ($children) {
+                $html .= '<ul class="folder-list" style="list-style: none; padding-left: 24px; margin: 8px 0 0 0;">' . $children . '</ul>';
+            }
             $html .= '</li>';
         }
     }
-    $html .= '</ul>';
+
     return $html;
 }
 ob_start();
@@ -22,38 +32,478 @@ ob_start();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Documents - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
+
+        .page-header {
+            color: #212529;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .breadcrumb-container {
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb {
+            background-color: #d4b5ff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 0;
+        }
+
+        .breadcrumb-item a {
+            color: #6f42c1;
+            text-decoration: none;
+        }
+
+        .breadcrumb-item a:hover {
+            color: #5a32a3;
+            text-decoration: underline;
+        }
+
+        .breadcrumb-item.active {
+            color: #495057;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .form-control-search {
+            background-color: #e7d5ff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #212529;
+        }
+
+        .form-control-search:focus {
+            background-color: #e7d5ff;
+            border: 2px solid #6f42c1;
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+            color: #212529;
+        }
+
+        .btn-search {
+            background-color: #6f42c1;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .btn-search:hover {
+            background-color: #5a32a3;
+            color: white;
+        }
+
+        .list-group-item {
+            background-color: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+            border-color: #d4b5ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(111, 66, 193, 0.1);
+        }
+
+        .list-group-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed #6f42c1;
+        }
+
+        .list-group-item.drag-over {
+            background-color: #e7d5ff;
+            border: 2px solid #6f42c1;
+        }
+
+        .file-folder-link {
+            color: #212529;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .file-folder-link:hover {
+            color: #6f42c1;
+        }
+
+        .file-folder-link i {
+            color: #6f42c1;
+            margin-right: 12px;
+            font-size: 1.25rem;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            color: #6f42c1;
+            background-color: #e7d5ff;
+        }
+        /* Only apply to dropdowns in the main content, not sidebar */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+        
+        /* Exclude sidebar dropdowns from the above rules - let Bootstrap handle it */
+        .sidebar-wrapper .dropdown-menu,
+        .sidebar-wrapper .dropup .dropdown-menu {
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            margin-bottom: 8px !important;
+            border-radius: 8px !important;
+            border: 1px solid #e9ecef !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+            background-color: white !important;
+            min-width: 150px !important;
+            width: auto !important;
+            max-width: none !important;
+            padding: 0.5rem 0 !important;
+            transform: none !important;
+        }
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        /* Action dropdowns (Rename, Move, Delete) should be in front */
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        /* Only apply to dropdowns in the main content */
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+        
+        /* Sidebar dropup should go up - override any conflicting styles */
+        .sidebar-wrapper .dropup.show .dropdown-menu,
+        .sidebar-wrapper .dropup[data-bs-popper-placement] .dropdown-menu {
+            z-index: 1050 !important;
+            display: block !important;
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            margin-bottom: 8px !important;
+        }
+
+        .list-group-item {
+            position: relative;
+            z-index: 1;
+            overflow: visible;
+            isolation: isolate;
+        }
+
+        .list-group-item .dropdown {
+            z-index: 2147483646;
+            position: relative;
+            overflow: visible;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show {
+            z-index: 2147483646 !important;
+            position: relative;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+            isolation: auto;
+        }
+        
+        /* Ensure list-group-item doesn't clip dropdown when it's open */
+        .list-group-item.dropdown-open {
+            z-index: 2147483645 !important;
+            overflow: visible !important;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #212529;
+            background-color: transparent;
+            cursor: pointer;
+            border: none;
+            margin: 0 !important;
+        }
+
+        .dropdown-item:hover {
+            background-color: #e7d5ff !important;
+            color: #5a32a3 !important;
+        }
+
+        .dropdown-item:active,
+        .dropdown-item.active,
+        .dropdown-item:focus {
+            background-color: #d4b5ff !important;
+            color: #212529 !important;
+            outline: none;
+        }
+
+        .list-group {
+            overflow: visible;
+        }
+
+        .upload-container {
+            overflow: visible;
+        }
+
+        .search-container .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .search-container .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        .search-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        /* Remove any blue colors from dropdowns */
+        .dropdown-item:focus,
+        .dropdown-item:focus-visible {
+            background-color: #d4b5ff !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Ensure dropdown menu doesn't have blue borders or backgrounds */
+        .dropdown-menu * {
+            border-color: transparent !important;
+        }
+
+        /* Override Bootstrap default blue colors */
+        .dropdown-item:not(:disabled):not(.disabled):active,
+        .dropdown-item:not(:disabled):not(.disabled).active {
+            background-color: #d4b5ff !important;
+            color: #212529 !important;
+        }
+
+        /* Ensure dropdown stays within container */
+        .list-group-item .dropdown-menu {
+            max-width: calc(100vw - 20px);
+        }
+        @media (min-width: 768px) {
+            .list-group-item .dropdown-menu {
+                max-width: 250px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #d4b5ff;
+            margin-bottom: 16px;
+        }
+
+        .modal-close-btn:hover {
+            background-color: #6f42c1 !important;
+            color: white !important;
+        }
+
+        .btn-cancel:hover {
+            background-color: #d4b5ff !important;
+            color: #5a32a3 !important;
+        }
+
+        .btn-create:hover {
+            background-color: #6f42c1 !important;
+            color: white !important;
+        }
+
+        .folder-item:hover {
+            background-color: #e7d5ff !important;
+            color: #5a32a3 !important;
+            text-decoration: none !important;
+        }
+        /* Snackbar Styles */
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .snackbar.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .snackbar.success {
+            background-color: #28a745;
+        }
+        .snackbar.error {
+            background-color: #dc3545;
+        }
+        .snackbar-icon {
+            font-size: 1.2rem;
+        }
+        .snackbar-message {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+    </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
-                <?php
-                if (isset($_SESSION['message'])):
-                ?>
-                    <div class="alert alert-success" role="alert">
-                        <?php echo $_SESSION['message']; ?>
+            <div class="container-fluid upload-container">
+                <!-- Snackbar Container -->
+                <div id="snackbar" class="snackbar">
+                    <i class="snackbar-icon" id="snackbarIcon"></i>
+                    <span class="snackbar-message" id="snackbarMessage"></span>
                     </div>
+                
                 <?php
+                $successMessage = null;
+                $errorMessage = null;
+                if (isset($_SESSION['message'])) {
+                    $successMessage = $_SESSION['message'];
                     unset($_SESSION['message']);
-                endif;
-
-                if (isset($_SESSION['error'])):
-                ?>
-                    <div class="alert alert-danger" role="alert">
-                        <?php echo $_SESSION['error']; ?>
-                    </div>
-                <?php
+                }
+                if (isset($_SESSION['error'])) {
+                    $errorMessage = $_SESSION['error'];
                     unset($_SESSION['error']);
-                endif;
+                }
                 ?>
 
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">All Documents</h3>
+
+                <div class="breadcrumb-container">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="<?= BASE_PATH ?>lm/displayLearningMaterials">Home</a></li>
+                            <li class="breadcrumb-item"><a href="<?= BASE_PATH ?>lm/displayLearningMaterials"><i class="bi bi-house-fill"></i></a></li>
                         <?php
                         if (isset($currentFolderPath) && is_array($currentFolderPath)) {
                             foreach ($currentFolderPath as $pathItem) {
@@ -64,34 +514,56 @@ ob_start();
                         <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($currentFolderName ?? 'Home'); ?></li>
                     </ol>
                 </nav>
-                <?php if (!empty($currentFolderName)): ?>
-                    <h5 class="mb-4"><?php echo htmlspecialchars($currentFolderName); ?></h5>
-                <?php endif; ?>
-
-                <div class="mb-3">
-                    <form action="index.php" method="get">
-                        <div class="input-group">
-                            <input type="hidden" name="url" value="lm/displayLearningMaterials">
-                            <input type="text" class="form-control" placeholder="Search all documents..." name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
-                            <button class="btn btn-outline-secondary" type="submit">Search</button>
-                        </div>
-                    </form>
                 </div>
 
-                <div class="list-group">
+                <div class="search-container d-flex align-items-center gap-3">
+                    <form action="index.php" method="get" class="flex-grow-1">
+                        <div class="input-group">
+                            <input type="hidden" name="url" value="lm/displayLearningMaterials">
+                            <input type="text" class="form-control form-control-search" placeholder="Search all documents..." name="search" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
+                            <button class="btn btn-search" type="submit">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                    </form>
+                    <div class="dropdown">
+                        <button class="btn-icon" id="sortDropdownBtn" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Sort documents">
+                            <i class="bi bi-funnel-fill" style="font-size: 1.1rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sortDropdownBtn">
+                            <li><a class="dropdown-item sort-option" href="#" data-sort="asc">A to Z</a></li>
+                            <li><a class="dropdown-item sort-option" href="#" data-sort="desc">Z to A</a></li>
+                            <li><a class="dropdown-item sort-option" href="#" data-sort="latest">Latest to Oldest</a></li>
+                            <li><a class="dropdown-item sort-option" href="#" data-sort="oldest">Oldest to Latest</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="list-group" id="documentList">
                     <?php if (!empty($fileList['folders']) || !empty($fileList['files'])): ?>
                         <?php foreach ($fileList['folders'] as $folder):
                         ?>
-                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <a class="text-decoration-none text-dark flex-grow-1" href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?php echo $folder['folderID'] ?>">
-                                    <i class="bi bi-folder-fill me-2"></i>
+                            <div class="list-group-item d-flex justify-content-between align-items-center"
+                                draggable="true"
+                                data-item-id="<?php echo $folder['folderID']; ?>"
+                                data-item-type="folder"
+                                data-item-name="<?php echo htmlspecialchars(strtolower($folder['name'])); ?>"
+                                data-item-date="<?php echo isset($folder['createdAt']) ? strtotime($folder['createdAt']) : (isset($folder['created_at']) ? strtotime($folder['created_at']) : (isset($folder['folderID']) ? (int)$folder['folderID'] * 1000 : 0)); ?>">
+                                <a class="file-folder-link" href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?php echo $folder['folderID'] ?>">
+                                    <i class="bi bi-folder-fill"></i>
                                     <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
                                 </a>
                                 <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFolderActions<?php echo $folder['folderID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Actions
+                                    <button class="action-btn"
+                                        type="button"
+                                        id="dropdownFolderActions<?php echo $folder['folderID']; ?>"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-display="static"
+                                        aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
                                     </button>
-                                    <ul class="dropdown-menu" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
+
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFolderActions<?php echo $folder['folderID']; ?>">
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-name="<?php echo htmlspecialchars($folder['name']); ?>" data-item-type="folder">Rename</a></li>
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $folder['folderID']; ?>" data-item-type="folder">Move</a></li>
                                         <li><a class="dropdown-item delete-folder-btn" href="#" data-folder-id="<?php echo $folder['folderID']; ?>">Delete</a></li>
@@ -103,10 +575,15 @@ ob_start();
 
                         <?php foreach ($fileList['files'] as $file):
                         ?>
-                            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1;">
+                            <div class="list-group-item d-flex justify-content-between align-items-center"
+                                draggable="true"
+                                data-item-id="<?php echo $file['fileID']; ?>"
+                                data-item-type="file"
+                                data-item-name="<?php echo htmlspecialchars(strtolower($file['name'])); ?>"
+                                data-item-date="<?php echo isset($file['uploadDate']) ? strtotime($file['uploadDate']) : (isset($file['createdAt']) ? strtotime($file['createdAt']) : 0); ?>">
+                                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1; margin: 0;">
                                     <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
-                                    <button type="submit" class="text-decoration-none text-dark" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
+                                    <button type="submit" class="file-folder-link" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
                                         <?php
                                         $fileIcon = 'bi-file-earmark';
                                         $fileTypeLower = strtolower($file['fileType']);
@@ -114,15 +591,15 @@ ob_start();
                                         elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
                                         elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
                                         ?>
-                                        <i class="bi <?php echo $fileIcon; ?> me-2"></i>
+                                        <i class="bi <?php echo $fileIcon; ?>"></i>
                                         <strong><?php echo htmlspecialchars($file['name']); ?></strong>
                                     </button>
                                 </form>
                                 <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $file['fileID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Actions
+                                    <button class="action-btn" type="button" id="dropdownFileActions<?php echo $file['fileID']; ?>" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
                                     </button>
-                                    <ul class="dropdown-menu" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $file['fileID']; ?>">
                                         <li>
                                             <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
                                                 <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
@@ -144,7 +621,10 @@ ob_start();
                         ?>
                     <?php else:
                     ?>
+                        <div class="empty-state">
+                            <i class="bi bi-folder-x"></i>
                         <p>This folder is empty.</p>
+                        </div>
                     <?php endif;
                     ?>
                 </div>
@@ -154,24 +634,25 @@ ob_start();
 
     <!-- Generic Rename Modal -->
     <div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="renameModalLabel">Rename</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="renameModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Rename</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 20px 24px;">
                     <form id="renameForm" onsubmit="return false;">
                         <input type="hidden" id="renameItemId">
                         <div class="mb-3">
-                            <label for="newItemName" class="form-label" id="renameModalItemNameLabel">Name</label>
-                            <input type="text" class="form-control" id="newItemName" required>
+                            <label for="newItemName" class="form-label fw-semibold" id="renameModalItemNameLabel">Name</label>
+                            <input type="text" class="form-control form-input-theme" id="newItemName" required style="background-color: #e7d5ff; border: none; border-radius: 12px; padding: 12px 16px; color: #212529;">
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="saveRenameBtn">Save Changes</button>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 20px 24px;">
+                    <button type="button" class="btn btn-create" id="saveRenameBtn" style="background-color: #e7d5ff; border: none; color: #6f42c1; padding: 10px 24px; border-radius: 8px; font-weight: 600;">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -179,23 +660,35 @@ ob_start();
 
     <!-- Generic Move Modal -->
     <div class="modal fade" id="moveModal" tabindex="-1" aria-labelledby="moveModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="moveModalLabel">Move Item</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="moveModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Move Item</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
                 </div>
-                <div class="modal-body">
-                    <h5>Select Destination Folder</h5>
-                    <ul>
-                        <li>
-                            <a href="#" class="folder-item" data-folder-id="0" data-folder-name="Root">Home</a>
+                <div class="modal-body" style="padding: 20px 24px; max-height: 400px; overflow-y: auto;">
+                    <h5 style="margin-bottom: 16px; color: #212529;">Select Destination Folder</h5>
+                    <?php if (!empty($allUserFolders)): ?>
+                        <ul class="folder-list" style="list-style: none; padding: 0; margin: 0;">
+                            <li>
+                                <a href="#" class="folder-item" data-folder-id="0" data-folder-name="Root" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">
+                                    <i class="bi bi-house-fill me-2"></i>Home
+                                </a>
+                            </li>
+                            <?php echo buildFolderTree($allUserFolders); ?>
+                        </ul>
+                    <?php else: ?>
+                        <ul class="folder-list" style="list-style: none; padding: 0; margin: 0;">
+                            <li>
+                                <a href="#" class="folder-item" data-folder-id="0" data-folder-name="Root" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">
+                                    <i class="bi bi-house-fill me-2"></i>Home
+                                </a>
                         </li>
                     </ul>
-                    <?php echo buildFolderTree($allUserFolders); ?>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <p class="text-muted text-center py-4">No folders available. Create a folder first.</p>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -207,7 +700,182 @@ ob_start();
     $(document).ready(function() {
         var renameModal = $("#renameModal");
         var moveModal = $("#moveModal");
-        var itemToMove = { id: null, type: null };
+            var itemToMove = {
+                id: null,
+                type: null
+            };
+
+            // Function to apply consistent dropdown styling
+            function applyDropdownStyles($menu, $dropdown, isActionDropdown) {
+                // Use maximum z-index to ensure dropdowns are always on top
+                const zIndex = '2147483647';
+                const zIndexDropdown = '2147483646';
+                $dropdown.css('z-index', zIndexDropdown);
+
+                // Get current style attribute and modify it
+                let currentStyle = $menu.attr('style') || '';
+
+                // Remove existing position, sizing, and z-index declarations that conflict with theme
+                currentStyle = currentStyle.replace(/width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/min-width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/max-width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/z-index\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/top\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/right\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/left\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/inset\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/transform\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/position\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/margin(?:-top|-right|-bottom|-left)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/padding(?:-top|-right|-bottom|-left)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/border(?:-radius)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/box-shadow\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/background-color\s*:\s*[^;]+;?/gi, '');
+
+                // Add our styles with !important - use maximum z-index
+                const newStyles = [
+                    'position: absolute !important',
+                    'top: calc(100% + 8px) !important',
+                    'right: 0 !important',
+                    'left: auto !important',
+                    'margin: 0 !important',
+                    'width: 180px !important',
+                    'min-width: 180px !important',
+                    'max-width: 180px !important',
+                    'padding: 8px 0 !important',
+                    'border-radius: 12px !important',
+                    'border: 1px solid #d4b5ff !important',
+                    'box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important',
+                    'background-color: #ffffff !important',
+                    'overflow: hidden !important',
+                    'transform: none !important',
+                    'z-index: 2147483647 !important'
+                ].join('; ') + ';';
+
+                // Combine styles
+                const finalStyle = (currentStyle.trim() ? currentStyle.trim() + '; ' : '') + newStyles;
+                $menu.attr('style', finalStyle);
+            }
+
+            // Ensure dropdowns appear in front when opened (exclude sidebar dropdowns)
+            $(document).on('show.bs.dropdown', '.dropdown', function(e) {
+                const $dropdown = $(this);
+                const $menu = $dropdown.find('.dropdown-menu');
+                const $listItem = $dropdown.closest('.list-group-item');
+                const $searchContainer = $dropdown.closest('.search-container');
+                const $sidebar = $dropdown.closest('.sidebar-wrapper');
+
+                // Skip sidebar dropdowns - let them use their own styling
+                if ($sidebar.length > 0) {
+                    return;
+                }
+
+                // Action dropdowns (in list items) get higher z-index than sort dropdown
+                if ($listItem.length > 0) {
+                    // This is an action dropdown (Rename, Move, Delete)
+                    // Add class to list item to raise its z-index
+                    $listItem.addClass('dropdown-open').css({
+                        'overflow': 'visible',
+                        'z-index': '2147483645'
+                    });
+                    applyDropdownStyles($menu, $dropdown, true);
+                } else if ($searchContainer.length > 0) {
+                    // This is the sort dropdown
+                    applyDropdownStyles($menu, $dropdown, false);
+                } else {
+                    // Other dropdowns
+                    applyDropdownStyles($menu, $dropdown, false);
+                }
+            });
+
+            $(document).on('shown.bs.dropdown', '.dropdown', function() {
+                const $dropdown = $(this);
+                const $menu = $dropdown.find('.dropdown-menu');
+                const $listItem = $dropdown.closest('.list-group-item');
+                const $searchContainer = $dropdown.closest('.search-container');
+                const $sidebar = $dropdown.closest('.sidebar-wrapper');
+                const isActionDropdown = $listItem.length > 0;
+
+                // Skip sidebar dropdowns - let them use their own styling
+                if ($sidebar.length > 0) {
+                    return;
+                }
+
+                // Apply styles immediately
+                if (isActionDropdown) {
+                    // Ensure list item doesn't interfere with dropdown
+                    $listItem.css({
+                        'overflow': 'visible',
+                        'z-index': '2147483645'
+                    });
+                    applyDropdownStyles($menu, $dropdown, true);
+                    
+                    // Calculate position relative to viewport to ensure it's on top
+                    const buttonOffset = $dropdown.find('button').offset();
+                    const buttonWidth = $dropdown.find('button').outerWidth();
+                    const menuHeight = $menu.outerHeight() || 200;
+                    
+                    // Position dropdown absolutely but ensure it's visible
+                    $menu.css({
+                        'position': 'absolute',
+                        'top': 'calc(100% + 8px)',
+                        'right': '0',
+                        'left': 'auto',
+                        'z-index': '2147483647'
+                    });
+                } else if ($searchContainer.length > 0) {
+                    applyDropdownStyles($menu, $dropdown, false);
+                } else {
+                    applyDropdownStyles($menu, $dropdown, false);
+                }
+
+                // Use setTimeout to ensure styles are applied after Popper.js positioning
+                setTimeout(function() {
+                    if (isActionDropdown) {
+                        $listItem.css({
+                            'overflow': 'visible',
+                            'z-index': '2147483645'
+                        });
+                        applyDropdownStyles($menu, $dropdown, true);
+                    } else {
+                        applyDropdownStyles($menu, $dropdown, false);
+                    }
+                }, 10);
+
+                // Use MutationObserver to watch for style changes and reapply
+                if ($menu.length > 0) {
+                    const observer = new MutationObserver(function(mutations) {
+                        mutations.forEach(function(mutation) {
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                                setTimeout(function() {
+                                    applyDropdownStyles($menu, $dropdown, isActionDropdown);
+                                }, 5);
+                            }
+                        });
+                    });
+
+                    observer.observe($menu[0], {
+                        attributes: true,
+                        attributeFilter: ['style']
+                    });
+
+                // Disconnect observer when dropdown is hidden
+                $dropdown.one('hide.bs.dropdown', function() {
+                        observer.disconnect();
+                    });
+                }
+            });
+
+            $(document).on('hide.bs.dropdown', '.dropdown', function() {
+                // Reset styles when closing
+                const $listItem = $(this).closest('.list-group-item');
+                if ($listItem.length > 0) {
+                    $listItem.removeClass('dropdown-open').css({
+                        'overflow': '',
+                        'z-index': ''
+                    });
+                }
+            });
 
         // --- Rename Logic ---
         renameModal.on('show.bs.modal', function(event) {
@@ -228,11 +896,25 @@ ob_start();
             var itemId = $('#renameItemId').val();
             var newName = $('#newItemName').val();
             var url = itemType === 'folder' ? '<?= BASE_PATH ?>lm/renameFolder' : '<?= BASE_PATH ?>lm/renameFile';
-            var data = itemType === 'folder' ? { folderId: itemId, newName: newName } : { fileId: itemId, newName: newName };
+                var data = itemType === 'folder' ? {
+                    folderId: itemId,
+                    newName: newName
+                } : {
+                    fileId: itemId,
+                    newName: newName
+                };
 
-            $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
-                success: function(response) { location.reload(); },
-                error: function() { alert('An error occurred.'); }
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: data,
+                    dataType: 'json',
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function() {
+                        alert('An error occurred.');
+                    }
             });
         });
 
@@ -247,12 +929,88 @@ ob_start();
             e.preventDefault();
             var targetFolderId = $(this).data('folder-id');
             var url = itemToMove.type === 'folder' ? '<?= BASE_PATH ?>lm/moveFolder' : '<?= BASE_PATH ?>lm/moveFile';
-            var data = itemToMove.type === 'folder' ? { folderId: itemToMove.id, newFolderId: targetFolderId } : { fileId: itemToMove.id, newFolderId: targetFolderId };
+                var data = itemToMove.type === 'folder' ? {
+                    folderId: itemToMove.id,
+                    newFolderId: targetFolderId
+                } : {
+                    fileId: itemToMove.id,
+                    newFolderId: targetFolderId
+                };
 
-            $.ajax({ url: url, type: 'POST', data: data, dataType: 'json',
-                success: function(response) { location.reload(); },
-                error: function() { alert('An error occurred during the move.'); }
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: data,
+                    dataType: 'json',
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function() {
+                        alert('An error occurred during the move.');
+                    }
+                });
             });
+
+            // Sort functionality - Client-side sorting
+            $(document).on('click', '.sort-option', function(e) {
+                e.preventDefault();
+                const sortType = $(this).data('sort');
+                const $listGroup = $('#documentList');
+                const $items = $listGroup.find('.list-group-item').toArray();
+
+                $items.sort(function(a, b) {
+                    const $a = $(a);
+                    const $b = $(b);
+                    const aName = $a.data('item-name') || $a.find('strong').text().toLowerCase();
+                    const bName = $b.data('item-name') || $b.find('strong').text().toLowerCase();
+                    const aType = $a.data('item-type');
+                    const bType = $b.data('item-type');
+
+                    // Always keep folders first, then files
+                    if (aType !== bType) {
+                        return aType === 'folder' ? -1 : 1;
+                    }
+
+                    switch (sortType) {
+                        case 'asc':
+                            return aName.localeCompare(bName);
+                        case 'desc':
+                            return bName.localeCompare(aName);
+                        case 'latest':
+                            // Latest to oldest - items with higher date first
+                            const aDate = parseInt($a.data('item-date')) || 0;
+                            const bDate = parseInt($b.data('item-date')) || 0;
+                            // If dates are equal, sort by name
+                            if (aDate === bDate) {
+                                return aName.localeCompare(bName);
+                            }
+                            return bDate - aDate;
+                        case 'oldest':
+                            // Oldest to latest - items with lower date first
+                            const aDateOld = parseInt($a.data('item-date')) || 0;
+                            const bDateOld = parseInt($b.data('item-date')) || 0;
+                            // If dates are equal, sort by name
+                            if (aDateOld === bDateOld) {
+                                return aName.localeCompare(bName);
+                            }
+                            return aDateOld - bDateOld;
+                        default:
+                            return 0;
+                    }
+                });
+
+                // Re-append sorted items
+                $listGroup.empty();
+                $items.forEach(function(item) {
+                    $listGroup.append(item);
+                });
+
+                // Close dropdown
+                const $dropdown = $(this).closest('.dropdown');
+                const dropdownInstance = bootstrap.Dropdown.getInstance($dropdown.find('button')[0]);
+                if (dropdownInstance) {
+                    dropdownInstance.hide();
+                }
         });
 
         // Delete folder handler
@@ -263,7 +1021,9 @@ ob_start();
             }
             var folderId = $(this).data('folder-id');
             var url = '<?= BASE_PATH ?>lm/deleteFolder';
-            var data = { folder_id: folderId };
+                var data = {
+                    folder_id: folderId
+                };
             $.ajax({ 
                 url: url, 
                 type: 'POST', 
@@ -276,8 +1036,140 @@ ob_start();
                 }
             });
         });
+
+            // Drag and Drop functionality
+            let draggedElement = null;
+            let currentFolderId = <?php echo isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : 0; ?>;
+
+            // Drag start
+            $(document).on('dragstart', '.list-group-item[draggable="true"]', function(e) {
+                draggedElement = this;
+                $(this).addClass('dragging');
+                e.originalEvent.dataTransfer.effectAllowed = 'move';
+                e.originalEvent.dataTransfer.setData('text/html', this.outerHTML);
+            });
+
+            // Drag end
+            $(document).on('dragend', '.list-group-item[draggable="true"]', function(e) {
+                $(this).removeClass('dragging');
+                $('.list-group-item').removeClass('drag-over');
+            });
+
+            // Drag over
+            $(document).on('dragover', '.list-group-item[draggable="true"]', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.originalEvent.dataTransfer.dropEffect = 'move';
+
+                // Don't highlight if dragging over itself
+                if (this !== draggedElement) {
+                    $(this).addClass('drag-over');
+                }
+            });
+
+            // Drag leave
+            $(document).on('dragleave', '.list-group-item[draggable="true"]', function(e) {
+                $(this).removeClass('drag-over');
+            });
+
+            // Drop
+            $(document).on('drop', '.list-group-item[draggable="true"]', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (draggedElement === null || this === draggedElement) {
+                    return;
+                }
+
+                $(this).removeClass('drag-over');
+
+                const draggedItemId = $(draggedElement).data('item-id');
+                const draggedItemType = $(draggedElement).data('item-type');
+                const targetItemId = $(this).data('item-id');
+                const targetItemType = $(this).data('item-type');
+
+                // Only allow dropping on folders
+                if (targetItemType !== 'folder') {
+                    alert('You can only move items into folders.');
+                    return;
+                }
+
+                // Prevent moving folder into itself or its children
+                if (draggedItemType === 'folder' && draggedItemId === targetItemId) {
+                    alert('Cannot move folder into itself.');
+                    return;
+                }
+
+                // Confirm move
+                if (!confirm('Move ' + draggedItemType + ' to this folder?')) {
+                    return;
+                }
+
+                // Perform move via AJAX
+                const url = draggedItemType === 'folder' ?
+                    '<?= BASE_PATH ?>lm/moveFolder' :
+                    '<?= BASE_PATH ?>lm/moveFile';
+                const data = draggedItemType === 'folder' ?
+                    {
+                        folderId: draggedItemId,
+                        newFolderId: targetItemId
+                    } :
+                    {
+                        fileId: draggedItemId,
+                        newFolderId: targetItemId
+                    };
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: data,
+                    dataType: 'json',
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function() {
+                        showSnackbar('An error occurred during the move.', 'error');
+                }
+            });
+        });
     });
+    
+    // Snackbar function
+    function showSnackbar(message, type) {
+        const snackbar = document.getElementById('snackbar');
+        const snackbarMessage = document.getElementById('snackbarMessage');
+        const snackbarIcon = document.getElementById('snackbarIcon');
+        
+        snackbarMessage.textContent = message;
+        snackbar.className = 'snackbar ' + type;
+        
+        if (type === 'success') {
+            snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
+        } else if (type === 'error') {
+            snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+        }
+        
+        snackbar.classList.add('show');
+        
+        setTimeout(function() {
+            snackbar.classList.remove('show');
+        }, 3000);
+    }
+    
+    // Show messages on page load
+    <?php if ($successMessage): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
+    });
+    <?php endif; ?>
+    
+    <?php if ($errorMessage): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
+    });
+    <?php endif; ?>
     </script>
 </body>
+
 </html>
 <?php ob_end_flush(); ?>

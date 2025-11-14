@@ -96,6 +96,10 @@
             background-color: #A855F7;
             border-color: #A855F7;
         }
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
     </style>
 </head>
 

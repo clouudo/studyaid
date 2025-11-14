@@ -11,6 +11,7 @@ $defaults = [
         'notes' => 'gemini-2.5-flash-lite',
         'mindmap' => 'gemini-2.5-flash-lite',
         'flashcards' => 'gemini-2.5-flash-lite',
+        'report' => 'gemini-2.5-flash',
         'quiz' => 'gemini-2.5-flash',
         'embedding' => 'text-embedding-004',
     ],

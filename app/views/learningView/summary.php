@@ -8,15 +8,21 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
+    </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
-        <?php include VIEW_SIDEBAR; ?>
+        <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Summary</h3>
-                <h4 class="mb-4"><?php echo $file['name']; ?></h4>
+            <div class="container-fluid upload-container">
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Summary</h3>
+                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name']); ?></h4>
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
                     <div class="card-body">

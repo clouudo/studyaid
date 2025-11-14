@@ -32,4 +32,13 @@ class UserModel {
         return $stmt->rowCount();
     }
 
+    public function deactivateUser($userId){
+        $conn = $this->db->connect();
+        $query = "UPDATE user SET isActive = 'FALSE' WHERE userID = :userId";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':userId', $userId);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
 }

@@ -7,41 +7,152 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        /* Snackbar Styles */
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .snackbar.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .snackbar.success {
+            background-color: #28a745;
+        }
+        .snackbar.error {
+            background-color: #dc3545;
+        }
+        .snackbar-icon {
+            font-size: 1.2rem;
+        }
+        .snackbar-message {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
+        .password-toggle {
+            position: relative;
+        }
+        .password-toggle-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6C757D;
+            cursor: pointer;
+            padding: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .password-toggle-btn:hover {
+            color: #6f42c1;
+        }
+        .password-toggle .form-control {
+            padding-right: 40px;
+        }
+        .btn-create {
+            background-color: #e7d5ff;
+            border: none;
+            color: #6f42c1;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .btn-create:hover {
+            background-color: #6f42c1;
+            color: white;
+        }
+        .card-header {
+            background-color: #6f42c1 !important;
+            color: white !important;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+            color: white;
+        }
+        .modal-close-btn {
+            background-color: transparent;
+            color: #6f42c1;
+            border: none;
+            font-size: 1.5rem;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .modal-close-btn:hover {
+            background-color: #6f42c1;
+            color: white;
+        }
+    </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
     <div class="d-flex flex-grow-1">
         <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
-            <div class="container">
+            <div class="container-fluid upload-container">
+                <!-- Snackbar Container -->
+                <div id="snackbar" class="snackbar">
+                    <i class="snackbar-icon" id="snackbarIcon"></i>
+                    <span class="snackbar-message" id="snackbarMessage"></span>
+                </div>
+                
                 <?php
-                if (isset($_SESSION['message'])):
-                ?>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <?php echo $_SESSION['message']; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                <?php
+                $successMessage = null;
+                $errorMessage = null;
+                if (isset($_SESSION['message'])) {
+                    $successMessage = $_SESSION['message'];
                     unset($_SESSION['message']);
-                endif;
-
-                if (isset($_SESSION['error'])):
-                ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <?php echo $_SESSION['error']; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                <?php
+                }
+                if (isset($_SESSION['error'])) {
+                    $errorMessage = $_SESSION['error'];
                     unset($_SESSION['error']);
-                endif;
+                }
                 ?>
 
-                <h3 class="mb-4" style="color: #A855F7;">Manage Profile</h3>
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Manage Profile</h3>
 
             <div class="row">
                     <!-- Profile Information Section -->
                     <div class="col-md-8">
                         <div class="card mb-4">
-                            <div class="card-header" style="background-color: #A855F7; color: white;">
+                            <div class="card-header">
                                 <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Profile Information</h5>
                             </div>
                             <div class="card-body">
@@ -56,37 +167,67 @@
                                         <input type="email" class="form-control" id="email" name="email" 
                                                value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
                                     </div>
-                                    <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                                        <i class="bi bi-save me-2"></i>Update Profile
-                                    </button>
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-create">Update Profile</button>
+                                    </div>
                                 </form>
                             </div>
                         </div>
 
                         <!-- Change Password Section -->
                         <div class="card">
-                            <div class="card-header" style="background-color: #A855F7; color: white;">
+                            <div class="card-header">
                                 <h5 class="mb-0"><i class="bi bi-key me-2"></i>Change Password</h5>
                             </div>
                             <div class="card-body">
                                 <form id="passwordForm" action="<?= BASE_PATH ?>user/changePassword" method="POST">
                                     <div class="mb-3">
                                         <label for="currentPassword" class="form-label">Current Password</label>
-                                        <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                                        <div class="password-toggle">
+                                            <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                                            <button type="button" class="password-toggle-btn" onclick="toggleCurrentPassword()">
+                                                <i class="bi bi-eye-fill" id="toggleCurrentPasswordIcon"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="mb-3">
                                         <label for="newPassword" class="form-label">New Password</label>
-                                        <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                                        <div class="password-toggle">
+                                            <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                                            <button type="button" class="password-toggle-btn" onclick="toggleNewPassword()">
+                                                <i class="bi bi-eye-fill" id="toggleNewPasswordIcon"></i>
+                                            </button>
+                                        </div>
                                         <div class="form-text">Password must be at least 8 characters long.</div>
                                     </div>
                                     <div class="mb-3">
                                         <label for="confirmPassword" class="form-label">Confirm New Password</label>
-                                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                        <div class="password-toggle">
+                                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                            <button type="button" class="password-toggle-btn" onclick="toggleConfirmPassword()">
+                                                <i class="bi bi-eye-fill" id="toggleConfirmPasswordIcon"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                                        <i class="bi bi-key-fill me-2"></i>Change Password
-                                    </button>
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-create">Change Password</button>
+                                    </div>
                                 </form>
+                            </div>
+                        </div>
+
+                        <!-- Delete Account Section -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Delete Account</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-3">Once you delete your account, you will not be able to recover it. This action cannot be undone.</p>
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                        Delete Account
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -94,7 +235,7 @@
                     <!-- Profile Summary Sidebar -->
                     <div class="col-md-4">
                         <div class="card">
-                            <div class="card-header" style="background-color: #A855F7; color: white;">
+                            <div class="card-header">
                                 <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Account Summary</h5>
                             </div>
                             <div class="card-body">
@@ -110,8 +251,72 @@
         </main>
     </div>
 
+    <!-- Delete Account Confirmation Modal -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h5 class="modal-title" id="deleteAccountModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Delete Account</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <p class="mb-3">Are you sure you want to delete your account? This action cannot be undone.</p>
+                    <p class="text-danger mb-0"><strong>Warning:</strong> All your data will be permanently deleted.</p>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 20px 24px;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="background-color: #e7d5ff; color: #6f42c1; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600;">Cancel</button>
+                    <form action="<?= BASE_PATH ?>user/deleteAccount" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger">Delete Account</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+        // Password toggle functions
+        function toggleCurrentPassword() {
+            const passwordInput = document.getElementById('currentPassword');
+            const toggleIcon = document.getElementById('toggleCurrentPasswordIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash-fill';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye-fill';
+            }
+        }
+        
+        function toggleNewPassword() {
+            const passwordInput = document.getElementById('newPassword');
+            const toggleIcon = document.getElementById('toggleNewPasswordIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash-fill';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye-fill';
+            }
+        }
+        
+        function toggleConfirmPassword() {
+            const passwordInput = document.getElementById('confirmPassword');
+            const toggleIcon = document.getElementById('toggleConfirmPasswordIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'bi bi-eye-slash-fill';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'bi bi-eye-fill';
+            }
+        }
+        
         // Password validation
         document.getElementById('passwordForm').addEventListener('submit', function(e) {
             const newPassword = document.getElementById('newPassword').value;
@@ -119,13 +324,13 @@
 
             if (newPassword.length < 8) {
                 e.preventDefault();
-                alert('Password must be at least 8 characters long.');
+                showSnackbar('Password must be at least 8 characters long.', 'error');
                 return false;
             }
 
             if (newPassword !== confirmPassword) {
                 e.preventDefault();
-                alert('New password and confirm password do not match.');
+                showSnackbar('New password and confirm password do not match.', 'error');
                 return false;
             }
         });
@@ -137,7 +342,7 @@
 
             if (!email || !username) {
                 e.preventDefault();
-                alert('Please fill in all required fields.');
+                showSnackbar('Please fill in all required fields.', 'error');
                 return false;
             }
 
@@ -145,10 +350,45 @@
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 e.preventDefault();
-                alert('Please enter a valid email address.');
+                showSnackbar('Please enter a valid email address.', 'error');
                 return false;
             }
         });
+        
+        // Snackbar function
+        function showSnackbar(message, type) {
+            const snackbar = document.getElementById('snackbar');
+            const snackbarMessage = document.getElementById('snackbarMessage');
+            const snackbarIcon = document.getElementById('snackbarIcon');
+            
+            snackbarMessage.textContent = message;
+            snackbar.className = 'snackbar ' + type;
+            
+            if (type === 'success') {
+                snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
+            } else if (type === 'error') {
+                snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+            }
+            
+            snackbar.classList.add('show');
+            
+            setTimeout(function() {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Show messages on page load
+        <?php if ($successMessage): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
+        });
+        <?php endif; ?>
+        
+        <?php if ($errorMessage): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
+        });
+        <?php endif; ?>
     </script>
 </body>
 </html>
