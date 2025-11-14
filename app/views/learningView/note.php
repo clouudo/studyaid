@@ -74,11 +74,18 @@
                         <div class="list-group list-group-flush" id="noteList">
                             <?php if ($noteList): ?>
                                 <?php foreach ($noteList as $note): ?>
-                                    <div class="list-group-item">
+                                    <?php
+                                        $encodedTitle = htmlspecialchars($note['title'], ENT_QUOTES, 'UTF-8');
+                                        $encodedContent = htmlspecialchars(json_encode($note['content'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+                                    ?>
+                                    <div class="list-group-item note-item"
+                                        data-note-id="<?= htmlspecialchars($note['noteID']) ?>"
+                                        data-note-title="<?= $encodedTitle ?>"
+                                        data-note-content='<?= $encodedContent ?>'>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
-                                                <strong><?= htmlspecialchars($note['title']) ?></strong><br>
-                                                <small class="text-muted">Updated: <?= htmlspecialchars($note['createdAt']) ?></small>
+                                                <strong class="note-title-text"><?= htmlspecialchars($note['title']) ?></strong><br>
+                                                <small class="text-muted note-updated-at">Updated: <?= htmlspecialchars($note['createdAt']) ?></small>
                                             </div>
                                             <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
@@ -86,6 +93,7 @@
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
                                                     <li><a class="dropdown-item view-note-btn" href="#" data-bs-toggle="collapse" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>">View</a></li>
+                                                    <li><button type="button" class="dropdown-item edit-note-btn" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">Edit inline</button></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="pdf" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="docx" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="txt" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
@@ -110,7 +118,23 @@
                                             </div>
                                         </div>
                                         <div class="collapse mt-2" id="noteContent-<?php echo $note['noteID']; ?>">
-                                            <div class="noteText border-top pt-2"><?php echo htmlspecialchars($note['content']); ?></div>
+                                            <div class="note-preview border-top pt-2" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
+                                                <?php echo nl2br(htmlspecialchars($note['content'])); ?>
+                                            </div>
+                                            <div class="note-inline-editor d-none pt-3" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
+                                                <div class="mb-2">
+                                                    <label class="form-label form-label-sm">Title</label>
+                                                    <input type="text" class="form-control form-control-sm note-edit-title" value="<?= htmlspecialchars($note['title']) ?>">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label form-label-sm">Content</label>
+                                                    <textarea class="form-control note-edit-content" rows="6"><?= htmlspecialchars($note['content']) ?></textarea>
+                                                </div>
+                                                <div class="d-flex justify-content-end gap-2 mt-2">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm cancel-note-edit">Cancel</button>
+                                                    <button type="button" class="btn btn-primary btn-sm save-note-edit" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">Save</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -135,6 +159,8 @@
         }
     </style>
     <script>
+        const CURRENT_FILE_ID = '<?= htmlspecialchars($file['fileID']) ?>';
+
         document.getElementById('noteEditor').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -196,21 +222,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const noteContent = document.getElementById('noteContent');
-            if (noteContent) {
-                // Initial resize
-                autoResizeTextarea(noteContent);
-
-                // Resize on input
-                noteContent.addEventListener('input', function() {
+            const manualNoteContent = document.getElementById('noteContent');
+            if (manualNoteContent) {
+                autoResizeTextarea(manualNoteContent);
+                manualNoteContent.addEventListener('input', function() {
                     autoResizeTextarea(this);
                 });
             }
 
-            document.querySelectorAll('.noteText')
-                .forEach(function(div) {
-                    div.innerHTML = marked.parse(div.textContent);
-                });
+            hydrateNotePreviews();
+            bindInlineEditorInputs();
 
             // Handle export note buttons
             document.querySelectorAll('.export-note-btn').forEach(function(btn) {
@@ -302,7 +323,166 @@
                     }
                 });
             });
-        })
+        });
+
+        function bindInlineEditorInputs() {
+            document.querySelectorAll('.note-edit-content').forEach(function(textarea) {
+                autoResizeTextarea(textarea);
+                textarea.addEventListener('input', function() {
+                    autoResizeTextarea(this);
+                });
+            });
+        }
+
+        function hydrateNotePreviews() {
+            document.querySelectorAll('.note-item').forEach(function(item) {
+                const preview = item.querySelector('.note-preview');
+                if (!preview) return;
+                const rawContent = getNoteDatasetContent(item);
+                preview.innerHTML = marked.parse(rawContent || '');
+            });
+        }
+
+        function getNoteDatasetContent(item) {
+            if (!item || !item.dataset.noteContent) {
+                return '';
+            }
+            try {
+                return JSON.parse(item.dataset.noteContent);
+            } catch (error) {
+                return item.dataset.noteContent;
+            }
+        }
+
+        function openNoteEditor(noteId) {
+            const item = document.querySelector(`.note-item[data-note-id="${noteId}"]`);
+            if (!item) return;
+
+            const collapseTarget = document.getElementById(`noteContent-${noteId}`);
+            if (collapseTarget && !collapseTarget.classList.contains('show') && window.bootstrap) {
+                new bootstrap.Collapse(collapseTarget, {
+                    toggle: false
+                }).show();
+            }
+
+            const editor = item.querySelector('.note-inline-editor');
+            const preview = item.querySelector('.note-preview');
+            if (!editor || !preview) return;
+
+            editor.classList.remove('d-none');
+            preview.classList.add('d-none');
+            item.classList.add('editing');
+
+            const titleInput = editor.querySelector('.note-edit-title');
+            const contentInput = editor.querySelector('.note-edit-content');
+            if (titleInput) {
+                titleInput.value = item.dataset.noteTitle || '';
+            }
+            if (contentInput) {
+                contentInput.value = getNoteDatasetContent(item);
+                autoResizeTextarea(contentInput);
+                contentInput.focus();
+            }
+        }
+
+        function closeNoteEditor(item) {
+            if (!item) return;
+            const editor = item.querySelector('.note-inline-editor');
+            const preview = item.querySelector('.note-preview');
+            if (editor) {
+                editor.classList.add('d-none');
+            }
+            if (preview) {
+                preview.classList.remove('d-none');
+            }
+            item.classList.remove('editing');
+        }
+
+        async function handleSaveNote(button) {
+            const item = button.closest('.note-item');
+            if (!item) return;
+
+            const editor = item.querySelector('.note-inline-editor');
+            const titleInput = editor.querySelector('.note-edit-title');
+            const contentInput = editor.querySelector('.note-edit-content');
+
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+
+            if (!title || !content) {
+                alert('Title and content are required.');
+                return;
+            }
+
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Saving...';
+
+            const formData = new FormData();
+            formData.append('note_id', button.dataset.noteId);
+            formData.append('file_id', CURRENT_FILE_ID);
+            formData.append('noteTitle', title);
+            formData.append('noteContent', content);
+
+            try {
+                const response = await fetch('<?= UPDATE_NOTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+                const json = await response.json();
+                if (!json.success) {
+                    throw new Error(json.message || 'Failed to update note');
+                }
+
+                const updatedNote = json.note || {};
+                const preview = item.querySelector('.note-preview');
+                if (preview) {
+                    preview.innerHTML = marked.parse(updatedNote.content || content);
+                }
+
+                const titleText = item.querySelector('.note-title-text');
+                if (titleText) {
+                    titleText.textContent = updatedNote.title || title;
+                }
+
+                const updatedLabel = item.querySelector('.note-updated-at');
+                if (updatedLabel && updatedNote.updatedAt) {
+                    updatedLabel.textContent = 'Updated: ' + updatedNote.updatedAt;
+                }
+
+                item.dataset.noteTitle = updatedNote.title || title;
+                item.dataset.noteContent = JSON.stringify(updatedNote.content || content);
+
+                button.textContent = originalText;
+                button.disabled = false;
+                closeNoteEditor(item);
+            } catch (error) {
+                alert('Error updating note: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const editBtn = e.target.closest('.edit-note-btn');
+            if (editBtn) {
+                e.preventDefault();
+                openNoteEditor(editBtn.dataset.noteId);
+                return;
+            }
+
+            const cancelBtn = e.target.closest('.cancel-note-edit');
+            if (cancelBtn) {
+                const item = cancelBtn.closest('.note-item');
+                closeNoteEditor(item);
+                return;
+            }
+
+            const saveBtn = e.target.closest('.save-note-edit');
+            if (saveBtn) {
+                handleSaveNote(saveBtn);
+            }
+        });
     </script>
 </body>
 

@@ -874,6 +874,25 @@ class LmModel
         $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
     }
 
+    /**
+     * Update note content and title (inline editing)
+     */
+    public function updateNote(int $noteId, int $fileId, int $userId, string $title, string $content): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                SET n.title = :title, n.content = :content, n.updatedAt = NOW()
+                                WHERE n.noteID = :noteID AND n.fileID = :fileID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':content', $content);
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+
     // ============================================================================
     // MINDMAP PAGE (mindmap.php)
     // ============================================================================
@@ -890,6 +909,25 @@ class LmModel
         $stmt->bindParam(':data', $data);
         $stmt->execute();
         return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Update mindmap payload (markdown + structure)
+     */
+    public function updateMindmap(int $mindmapId, int $fileId, int $userId, array $payload): bool
+    {
+        $conn = $this->db->connect();
+        $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $stmt = $conn->prepare("UPDATE mindmap m 
+                                INNER JOIN file f ON m.fileID = f.fileID 
+                                SET m.data = :data, m.updatedAt = NOW()
+                                WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
+        $stmt->bindParam(':data', $data);
+        $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -1231,12 +1269,35 @@ class LmModel
     // RAG UTILITY
     // ============================================================================
 
-    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000): array{
+    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000, int $overlap = 200): array{
         $chunks = [];
         $length = strlen($text);
-        for ($i = 0; $i < $length; $i += $chunkSize) {
-            $chunks[] = substr($text, $i, $chunkSize);
+        $i = 0;
+        
+        while ($i < $length) {
+            $chunk = substr($text, $i, $chunkSize);
+            
+            if ($i + $chunkSize < $length) {
+                $lastPeriod = strrpos($chunk, '.');
+                $lastNewline = strrpos($chunk, "\n");
+                $breakPoint = max($lastPeriod, $lastNewline);
+                
+                if ($breakPoint !== false && $breakPoint > $chunkSize * 0.5) {
+                    $chunk = substr($chunk, 0, $breakPoint + 1);
+                    $i += $breakPoint + 1 - $overlap;
+                } else {
+                    $i += $chunkSize - $overlap;
+                }
+            } else {
+                $i = $length;
+            }
+            
+            $chunk = trim($chunk);
+            if (!empty($chunk)) {
+                $chunks[] = $chunk;
+            }
         }
+        
         return $chunks;
     }
 

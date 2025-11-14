@@ -60,28 +60,61 @@ class GeminiService
         return $this->generateText($model, $prompt);
     }
 
-    public function generateMindmapMarkdown(string $sourceText): string
+    public function generateMindmapMarkdown(string $sourceText): array
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-Create a mindmap in Markdown format optimized for Markmap.js visualization.
+You are helping students study.
+Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
+{
+  "markdown": "#Main Topic\\n##Child...",
+  "structure": {
+    "nodeData": {
+      "id": "auto-generated-hex",
+      "topic": "Main Topic",
+      "children": [
+        {
+          "id": "auto-generated-hex",
+          "topic": "Section title",
+          "data": {
+            "description": "Optional 1-2 sentence explanation"
+          },
+          "children": [
+            {
+              "id": "auto-generated-hex",
+              "topic": "Key point",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
 Rules:
-1. Heading Structure
-   * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
-   * Each idea should be a **heading**, not a paragraph.
-2. Style & Formatting
-   * Use **bold** for key terms and *italic* for emphasis.
-   * Keep headings short and meaningful.
-   * Avoid lists (-, *) — use subheadings instead.
-3. Content
-   * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
-   * For structured data, use markdown tables under headings.
-4. Output
-   * Output only the Markdown (no explanations or extra text).
-   * Start directly with #Main Topic.
+1. markdown must be formatted for Markmap (headings only, no bullet lists). Start with # Main Topic.
+2. structure.nodeData must mirror the markdown hierarchy. Every node needs a unique id (hex string), topic text (<=80 chars), optional data.description.
+3. Include 3-5 primary children, each with 2-4 grandchildren minimum.
+4. Keep wording concise and academically useful.
 PROMPT;
-        $prompt = $schema . "\n" . "\n\n" . 'Content: ' . $sourceText;
-        return $this->generateText($model, $prompt);
+        $prompt = $schema . "\n\nContent: " . $sourceText;
+        $rawResponse = $this->generateText($model, $prompt);
+        $cleanJson = $this->cleanJsonOutput($rawResponse);
+        $decoded = json_decode($cleanJson, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return [
+                'markdown' => $decoded['markdown'] ?? '',
+                'structure' => $decoded['structure'] ?? null,
+            ];
+        }
+
+        // Fallback to legacy behaviour if the model returns plain markdown
+        return [
+            'markdown' => is_string($rawResponse) ? trim($rawResponse) : '',
+            'structure' => null,
+        ];
     }
 
     public function generateFlashcards(string $sourceText, ?string $instructions = null, ?string $flashcardAmount = null, ?string $flashcardType = null): string
@@ -242,15 +275,18 @@ PROMPT;
     {
         $model = $this->models['chatbot'] ?? $this->defaultModel;
 
-        $prompt = "Generate a helpful and accurate response to the user's question using the provided content. "
-            . "If relevant, use information from the chat history for better context. "
-            . "Only return the response. No formatting.\n\n"
+        $prompt = "You are a helpful assistant answering questions based on the provided document content. "
+            . "Answer the user's question using ONLY the information from the provided content. "
+            . "If the content doesn't contain enough information to answer the question, say so clearly. "
+            . "Do not make up information or use knowledge outside the provided content.\n\n"
             . "Question: {$question}\n\n"
-            . "Content: {$sourceText}\n\n";
+            . "Relevant Content from Document:\n{$sourceText}\n\n";
 
         if ($chatHistory != null) {
-            $prompt .= "Chat History:\n{$chatHistory}\n\n";
+            $prompt .= "Previous Conversation Context:\n{$chatHistory}\n\n";
         }
+
+        $prompt .= "Answer:";
 
         return $this->generateText($model, $prompt);
     }
@@ -287,10 +323,15 @@ PROMPT;
         }
     }
 
-    public function generateReport(string $sourceText, string $instructions): string
+    public function synthesizeDocument(string $sourceText, string $instructions): string
     {
-        $model = $this->models['default'] ?? $this->defaultModel;
-        $prompt = $instructions . "\n\nUse the following content from the selected documents to generate the report:\n\n" . $sourceText;
+        $model = $this->models['synthesize'] ?? $this->defaultModel;
+        $prompt = $instructions . "\n\n"
+            . "IMPORTANT: Use ONLY the following relevant content retrieved from the selected documents. "
+            . "This content has been selected because it matches your query. "
+            . "Base your synthesized document strictly on this content and do not include information not found in it.\n\n"
+            . "Relevant Content:\n{$sourceText}\n\n"
+            . "Synthesize the document now:";
         return $this->generateText($model, $prompt);
     }
 }
