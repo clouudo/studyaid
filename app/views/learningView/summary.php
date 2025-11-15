@@ -7,11 +7,89 @@
     <title>Extracted Text - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .upload-container {
             background-color: #f8f9fa;
             padding: 30px;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown menu styling */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
         }
     </style>
 </head>
@@ -50,11 +128,19 @@
                                                 <small class="text-muted">Created: <?= htmlspecialchars($summary['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    Actions
+                                                <button class="action-btn"
+                                                    type="button"
+                                                    id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>"
+                                                    data-bs-toggle="dropdown"
+                                                    data-bs-display="static"
+                                                    aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
                                                     <li><a class="dropdown-item view-summary-btn" href="#" data-bs-toggle="collapse" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">View</a></li>
+                                                    <li><a class="dropdown-item audio-summary-btn" href="#" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <i class="bi bi-volume-up me-2"></i>Listen to Audio
+                                                    </a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
@@ -152,6 +238,66 @@
             // Parse markdown for summary content
             document.querySelectorAll('.summaryContent').forEach(function(div) {
                 div.innerHTML = marked.parse(div.textContent);
+            });
+
+            // Handle audio summary buttons
+            document.querySelectorAll('.audio-summary-btn').forEach(function(btn) {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const summaryId = this.dataset.summaryId;
+                    const originalText = this.innerHTML;
+                    
+                    // Show loading state
+                    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
+                    this.style.pointerEvents = 'none';
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('summary_id', summaryId);
+                        formData.append('file_id', '<?= htmlspecialchars($file['fileID']) ?>');
+
+                        const response = await fetch('<?= AUDIO_SUMMARY ?>', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const json = await response.json();
+
+                        if (!json.success) {
+                            throw new Error(json.message || 'Failed to generate audio');
+                        }
+
+                        // Create audio element and play
+                        const audio = new Audio(json.audioUrl);
+                        audio.play().catch(err => {
+                            console.error('Error playing audio:', err);
+                            alert('Error playing audio. Please check your browser settings.');
+                        });
+
+                        // Update button state
+                        this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                        
+                        // Reset button when audio ends
+                        audio.addEventListener('ended', () => {
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
+                        });
+
+                        audio.addEventListener('error', () => {
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
+                            alert('Error loading audio file.');
+                        });
+
+                    } catch (error) {
+                        console.error('Audio error:', error);
+                        alert('Error generating audio: ' + error.message);
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
+                    }
+                });
             });
 
             // Handle export summary buttons (mirror note.php behavior)

@@ -94,10 +94,17 @@ Rules:
 
    * Start directly with #Main Topic.
 PROMPT;
-        $prompt = $schema . "\n" . "\n\n" . 'Content: ' . $sourceText;
+        $prompt = $schema . "\n\n" . 'Content: ' . $sourceText;
         $markdown = $this->generateText($model, $prompt);
         
-        // Clean up the response
+        return $this->cleanMarkdownOutput($markdown);
+    }
+
+    /**
+     * Clean markdown output by removing code fences and ensuring valid format
+     */
+    private function cleanMarkdownOutput(string $markdown): string
+    {
         $markdown = trim($markdown);
         
         // Remove markdown code fences if present

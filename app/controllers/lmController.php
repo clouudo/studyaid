@@ -6,6 +6,7 @@ use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
 use PDO;
+use App\Services\PiperService;
 
 class LmController
 {
@@ -13,6 +14,8 @@ class LmController
     private $lmModel;
     private $gemini;
     private $userModel;
+    private $PiperService;
+
 
     private const SESSION_CURRENT_FILE_ID = 'current_file_id';
 
@@ -21,6 +24,7 @@ class LmController
         $this->lmModel = new LmModel();
         $this->gemini = new GeminiService();
         $this->userModel = new UserModel();
+        $this->PiperService = new PiperService();
     }
 
     // ============================================================================
@@ -569,7 +573,7 @@ class LmController
             }
 
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-            $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
+            $summaryList = $this->lmModel->getSummaryByFile($fileId);
             $user = $this->getUserInfo();
 
             require_once VIEW_SUMMARY;
@@ -629,6 +633,124 @@ class LmController
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . SUMMARY);
             exit();
+        }
+    }
+
+    public function audioSummary(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+
+        if ($summaryId === 0) {
+            $this->sendJsonError('Summary ID not provided.');
+        }
+
+        try {
+            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
+            if (!$summary) {
+                $this->sendJsonError('Summary not found.');
+            }
+
+            // Check if audio already exists for this specific summary - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForSummary($summaryId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($summary['content']);
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this summary)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForSummary($summaryId, $fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    public function audioNote(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+
+        if ($noteId === 0) {
+            $this->sendJsonError('Note ID not provided.');
+        }
+
+        try {
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            if (!$note) {
+                $this->sendJsonError('Note not found.');
+            }
+
+            // Check if audio already exists for this specific note - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForNote($noteId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($note['content']);
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this note)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForNote($noteId, $fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
         }
     }
 
@@ -959,47 +1081,36 @@ class LmController
         $fileId = $this->resolveFileId();
 
         if ($fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
-            exit();
+            $this->sendJsonError('File ID not provided.');
         }
 
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
-            if (!$file || !is_array($file)) {
-                echo json_encode(['success' => false, 'message' => 'File not found.']);
-                exit();
+            if (!$file) {
+                $this->sendJsonError('File not found.');
             }
 
             $extractedText = $file['extracted_text'] ?? '';
             if (empty($extractedText)) {
-                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
-                exit();
+                $this->sendJsonError('No extracted text found.');
             }
 
             $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText);
-            
             if (empty($mindmapMarkdown)) {
                 throw new \RuntimeException('Failed to generate mindmap markdown.');
             }
             
-            $mindmapPayload = [
-                'markdown' => $mindmapMarkdown
-            ];
-            $mindmapJson = json_encode($mindmapPayload, JSON_UNESCAPED_UNICODE);
-            $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
-            $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
-            $savedMindmapId = $this->lmModel->saveMindmap($fileId, $title, $mindmapJson);
+            $title = $this->generateMindmapTitle($file['name'], $extractedText);
+            $mindmapId = $this->saveMindmapData($fileId, $title, $mindmapMarkdown);
 
-            echo json_encode([
-                'success' => true,
+            $this->sendJsonSuccess([
                 'markdown' => $mindmapMarkdown,
-                'mindmapId' => $savedMindmapId,
+                'mindmapId' => $mindmapId,
                 'title' => $title
             ]);
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            $this->sendJsonError($e->getMessage());
         }
-        exit();
     }
 
     /**
@@ -1015,28 +1126,19 @@ class LmController
         $fileId = $this->resolveFileId();
 
         if ($mindmapId === 0) {
-            echo json_encode(['success' => false, 'message' => 'Mindmap ID not provided.']);
-            exit();
+            $this->sendJsonError('Mindmap ID not provided.');
         }
 
         if ($fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
-            exit();
+            $this->sendJsonError('File ID not provided.');
         }
 
         try {
             $payload = $this->buildMindmapResponse($mindmapId, $fileId, $userId);
-
-            echo json_encode([
-                'success' => true,
-                'markdown' => $payload['markdown'],
-                'title' => $payload['title'],
-                'mindmapId' => $payload['mindmapId']
-            ]);
+            $this->sendJsonSuccess($payload);
         } catch (\Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            $this->sendJsonError($e->getMessage());
         }
-        exit();
     }
 
     /**
@@ -1055,53 +1157,35 @@ class LmController
         header('Content-Type: application/json');
         $this->checkSession(true);
 
-        $rawInput = file_get_contents('php://input');
-        $requestData = json_decode($rawInput, true);
-        if (!is_array($requestData)) {
-            $requestData = $_POST;
-        }
-
-        $mindmapId = isset($requestData['mindmap_id']) ? (int)$requestData['mindmap_id'] : 0;
-        $fileId = isset($requestData['file_id']) ? (int)$requestData['file_id'] : 0;
-        if ($fileId === 0) {
-            $fileId = $this->resolveFileId();
-        }
-
+        $requestData = $this->getJsonRequestData();
+        $mindmapId = (int)($requestData['mindmap_id'] ?? 0);
+        $fileId = (int)($requestData['file_id'] ?? $this->resolveFileId());
         $userId = (int)$_SESSION['user_id'];
-        $markdown = isset($requestData['markdown']) ? trim($requestData['markdown']) : '';
+        $markdown = trim($requestData['markdown'] ?? '');
 
         if ($mindmapId === 0 || $fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'Mindmap ID or File ID missing.']);
-            exit();
+            $this->sendJsonError('Mindmap ID or File ID missing.');
         }
 
         if (empty($markdown)) {
-            echo json_encode(['success' => false, 'message' => 'Mindmap markdown is required.']);
-            exit();
+            $this->sendJsonError('Mindmap markdown is required.');
         }
 
         try {
             $existing = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
             if (!$existing) {
-                echo json_encode(['success' => false, 'message' => 'Mindmap not found.']);
-                exit();
+                $this->sendJsonError('Mindmap not found.');
             }
 
-            $payload = [
-                'markdown' => $markdown
-            ];
-
-            $updated = $this->lmModel->updateMindmap($mindmapId, $fileId, $userId, $payload);
+            $updated = $this->lmModel->updateMindmap($mindmapId, $fileId, $userId, ['markdown' => $markdown]);
             if (!$updated) {
-                echo json_encode(['success' => false, 'message' => 'Failed to update mindmap.']);
-                exit();
+                $this->sendJsonError('Failed to update mindmap.');
             }
 
-            echo json_encode(['success' => true]);
+            $this->sendJsonSuccess();
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            $this->sendJsonError($e->getMessage());
         }
-        exit();
     }
 
     /**
@@ -1130,53 +1214,45 @@ class LmController
     }
 
     /**
-     * Normalize stored mindmap payloads into markdown format for Markmap
+     * Extract markdown from stored mindmap payload
      */
     private function normalizeMindmapPayload($rawData): array
     {
         if (empty($rawData)) {
-            return [
-                'markdown' => '# Mindmap\n'
-            ];
+            return ['markdown' => '# Mindmap\n'];
         }
 
-        $decoded = json_decode($rawData, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-            // Check if it's a structured payload with markdown
-            if (isset($decoded['markdown']) && is_string($decoded['markdown'])) {
-                return [
-                    'markdown' => $decoded['markdown']
-                ];
-            }
-
-            // If decoded is a string, treat as markdown
-            if (is_string($decoded)) {
-                return [
-                    'markdown' => $decoded
-                ];
-            }
-        }
-
-        // If rawData is a string, treat as markdown
+        // Database stores JSON string, so try to decode first
         if (is_string($rawData)) {
-            return [
-                'markdown' => $rawData
-            ];
+            $decoded = json_decode($rawData, true);
+            
+            // If JSON decode succeeded and we have markdown key
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded['markdown'])) {
+                return ['markdown' => $decoded['markdown']];
+            }
+            
+            // If JSON decode failed or no markdown key, treat rawData as plain markdown
+            // (for backward compatibility with old data format)
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($decoded['markdown'])) {
+                return ['markdown' => $rawData];
+            }
         }
 
-        // Fallback: return empty markdown
-        return [
-            'markdown' => '# Mindmap\n'
-        ];
+        // If rawData is already an array (shouldn't happen, but handle it)
+        if (is_array($rawData) && isset($rawData['markdown'])) {
+            return ['markdown' => $rawData['markdown']];
+        }
+
+        return ['markdown' => '# Mindmap\n'];
     }
 
     /**
-     * Helper to build a standardized mindmap response payload
+     * Build standardized mindmap response payload
      */
     private function buildMindmapResponse(int $mindmapId, int $fileId, int $userId): array
     {
         $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
-        if (!$mindmap || !is_array($mindmap)) {
+        if (!$mindmap) {
             throw new \RuntimeException('Mindmap not found.');
         }
 
@@ -1187,6 +1263,112 @@ class LmController
             'title' => $mindmap['title'] ?? '',
             'markdown' => $normalized['markdown']
         ];
+    }
+
+    /**
+     * Generate mindmap title from file name and content
+     */
+    private function generateMindmapTitle(string $fileName, string $extractedText): string
+    {
+        $summary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
+        return $this->gemini->generateTitle($fileName . $summary);
+    }
+
+    /**
+     * Save mindmap data to database
+     */
+    private function saveMindmapData(int $fileId, string $title, string $markdown): int
+    {
+        $payload = ['markdown' => $markdown];
+        $dataJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        return $this->lmModel->saveMindmap($fileId, $title, $dataJson);
+    }
+
+    /**
+     * Get JSON request data from POST or JSON body
+     */
+    private function getJsonRequestData(): array
+    {
+        $rawInput = file_get_contents('php://input');
+        $requestData = json_decode($rawInput, true);
+        return is_array($requestData) ? $requestData : $_POST;
+    }
+
+    /**
+     * Send JSON success response
+     */
+    private function sendJsonSuccess(array $data = []): void
+    {
+        echo json_encode(['success' => true] + $data);
+        exit();
+    }
+
+    /**
+     * Send JSON error response
+     */
+    private function sendJsonError(string $message): void
+    {
+        echo json_encode(['success' => false, 'message' => $message]);
+        exit();
+    }
+
+    /**
+     * Clean markdown symbols from text for audio generation
+     */
+    private function cleanMarkdownForAudio(string $text): string
+    {
+        // Remove markdown headers (# ## ### etc.)
+        $text = preg_replace('/^#{1,6}\s+/m', '', $text);
+        
+        // Remove bold (**text** or __text__)
+        $text = preg_replace('/\*\*(.+?)\*\*/', '$1', $text);
+        $text = preg_replace('/__(.+?)__/', '$1', $text);
+        
+        // Remove italic (*text* or _text_)
+        $text = preg_replace('/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/', '$1', $text);
+        $text = preg_replace('/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/', '$1', $text);
+        
+        // Remove links [text](url)
+        $text = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $text);
+        
+        // Remove images ![alt](url)
+        $text = preg_replace('/!\[([^\]]*)\]\([^\)]+\)/', '', $text);
+        
+        // Remove code blocks ```
+        $text = preg_replace('/```[\s\S]*?```/', '', $text);
+        
+        // Remove inline code `code`
+        $text = preg_replace('/`([^`]+)`/', '$1', $text);
+        
+        // Remove strikethrough ~~text~~
+        $text = preg_replace('/~~(.+?)~~/', '$1', $text);
+        
+        // Remove list markers (-, *, +, 1., 2., etc.)
+        $text = preg_replace('/^[\s]*[-*+]\s+/m', '', $text);
+        $text = preg_replace('/^[\s]*\d+\.\s+/m', '', $text);
+        
+        // Remove blockquotes >
+        $text = preg_replace('/^>\s+/m', '', $text);
+        
+        // Remove horizontal rules --- or ***
+        $text = preg_replace('/^[-*]{3,}$/m', '', $text);
+        
+        // Remove table separators |---|---|
+        $text = preg_replace('/\|[\s\-:]+\|/', '', $text);
+        
+        // Remove table pipes |
+        $text = preg_replace('/\|/', ' ', $text);
+        
+        // Clean up multiple spaces
+        $text = preg_replace('/\s+/', ' ', $text);
+        
+        // Clean up multiple newlines
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        
+        // Trim whitespace
+        $text = trim($text);
+        
+        return $text;
     }
 
     // ============================================================================
@@ -1881,19 +2063,12 @@ class LmController
         $question = isset($data['question']) ? trim($data['question']) : '';
         $fileIds = isset($data['fileIds']) && is_array($data['fileIds']) ? $data['fileIds'] : [];
 
-        error_log("=== DOCUMENT HUB CHATBOT RAG START ===");
-        error_log("User ID: {$userId}");
-        error_log("Question: {$question}");
-        error_log("File IDs received: " . json_encode($fileIds));
-
         if (empty($fileIds)) {
-            error_log("ERROR: No documents selected");
             echo json_encode(['success' => false, 'message' => 'No documents selected.']);
             exit();
         }
 
         if (empty($question)) {
-            error_log("ERROR: Question is empty");
             echo json_encode(['success' => false, 'message' => 'Question cannot be empty.']);
             exit();
         }
@@ -1904,111 +2079,59 @@ class LmController
                 $file = $this->lmModel->getFile($userId, $fileId);
                 if ($file) {
                     $validFileIds[] = $fileId;
-                    error_log("File ID {$fileId}: Valid - " . ($file['name'] ?? 'Unknown'));
-                } else {
-                    error_log("File ID {$fileId}: Invalid or not found");
                 }
             }
 
-            error_log("Valid File IDs: " . json_encode($validFileIds));
-            error_log("Total valid files: " . count($validFileIds));
-
             if (empty($validFileIds)) {
-                error_log("ERROR: No valid documents found");
                 echo json_encode(['success' => false, 'message' => 'No valid documents found.']);
                 exit();
             }
 
-            error_log("Generating embedding for question...");
             $questionEmbedding = $this->gemini->generateEmbedding($question);
 
             if (empty($questionEmbedding)) {
-                error_log("ERROR: Failed to generate embedding for question");
                 echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the question.']);
                 exit();
             }
 
-            error_log("Question embedding generated successfully. Vector size: " . count($questionEmbedding));
-
             $similarities = [];
             $similarityThreshold = 0.3;
-            $totalChunksProcessed = 0;
-            $chunksAboveThreshold = 0;
-            
-            error_log("Similarity threshold set to: {$similarityThreshold}");
-            error_log("Starting chunk retrieval and similarity calculation...");
             
             foreach ($validFileIds as $fileId) {
-                error_log("Processing File ID: {$fileId}");
                 $chunks = $this->lmModel->getChunksByFile($fileId);
-                error_log("File ID {$fileId}: Found " . count($chunks) . " chunks");
-                
-                $fileChunksProcessed = 0;
-                $fileChunksAboveThreshold = 0;
                 
                 foreach ($chunks as $index => $chunk) {
                     $chunkEmbedding = json_decode($chunk['embedding'], true);
                     
                     if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
-                        error_log("File ID {$fileId}, Chunk {$index}: Invalid or empty embedding");
                         continue;
                     }
 
                     if (count($chunkEmbedding) !== count($questionEmbedding)) {
-                        error_log("File ID {$fileId}, Chunk {$index}: Embedding dimension mismatch. Question: " . count($questionEmbedding) . ", Chunk: " . count($chunkEmbedding));
                         continue;
                     }
 
                     $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
-                    $totalChunksProcessed++;
-                    $fileChunksProcessed++;
                     
                     if ($similarity >= $similarityThreshold) {
-                        $chunksAboveThreshold++;
-                        $fileChunksAboveThreshold++;
-                        $chunkPreview = substr($chunk['chunkText'] ?? '', 0, 100) . (strlen($chunk['chunkText'] ?? '') > 100 ? '...' : '');
-                        error_log("File ID {$fileId}, Chunk {$index}: Similarity = " . number_format($similarity, 4) . " (ABOVE THRESHOLD) - Preview: {$chunkPreview}");
-                        
                         $similarities[] = [
                             'fileId' => $fileId,
                             'chunk' => $chunk['chunkText'] ?? '',
                             'similarity' => $similarity,
                         ];
-                    } else {
-                        if ($index < 3) {
-                            error_log("File ID {$fileId}, Chunk {$index}: Similarity = " . number_format($similarity, 4) . " (below threshold)");
-                        }
                     }
                 }
-                
-                error_log("File ID {$fileId} Summary: Processed {$fileChunksProcessed} chunks, {$fileChunksAboveThreshold} above threshold");
             }
-
-            error_log("Total chunks processed: {$totalChunksProcessed}");
-            error_log("Total chunks above threshold ({$similarityThreshold}): {$chunksAboveThreshold}");
-            error_log("Total similarities array size: " . count($similarities));
 
             usort($similarities, function ($a, $b) {
                 return $b['similarity'] <=> $a['similarity'];
             });
 
             $topChunks = array_slice($similarities, 0, 5);
-            error_log("Top chunks selected: " . count($topChunks) . " out of " . count($similarities) . " total similarities");
 
             if (empty($topChunks)) {
-                error_log("ERROR: No chunks found above similarity threshold");
                 echo json_encode(['success' => false, 'message' => 'No relevant content found for your question across the selected documents. Please try rephrasing or selecting different documents.']);
                 exit();
-            }
-
-            if (!empty($topChunks)) {
-                $avgSimilarity = array_sum(array_column($topChunks, 'similarity')) / count($topChunks);
-                error_log("Average similarity of top chunks: " . number_format($avgSimilarity, 4));
-                
-                foreach ($topChunks as $index => $chunk) {
-                    $chunkPreview = substr($chunk['chunk'], 0, 150) . (strlen($chunk['chunk']) > 150 ? '...' : '');
-                    error_log("Top chunk " . ($index + 1) . " (File ID: {$chunk['fileId']}, Similarity: " . number_format($chunk['similarity'], 4) . "): {$chunkPreview}");
-                }
             }
 
             $context = '';
@@ -2016,24 +2139,15 @@ class LmController
                 $context .= $chunk['chunk'] . "\n\n";
             }
 
-            error_log("Context built. Total context length: " . strlen($context) . " characters");
-            error_log("Generating chatbot response...");
-
             $response = $this->gemini->generateChatbotResponse($context, $question, null);
 
             if (empty($response)) {
-                error_log("ERROR: Empty response from Gemini");
                 echo json_encode(['success' => false, 'message' => 'Failed to generate response.']);
                 exit();
             }
 
-            error_log("Response generated successfully. Response length: " . strlen($response) . " characters");
-            error_log("=== DOCUMENT HUB CHATBOT RAG END ===");
-
             echo json_encode(['success' => true, 'response' => $response]);
         } catch (\Throwable $e) {
-            error_log("EXCEPTION in document hub chatbot RAG: " . $e->getMessage());
-            error_log("Stack trace: " . $e->getTraceAsString());
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
         exit();
@@ -2526,7 +2640,15 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allFiles = $this->lmModel->getFilesForUser($userId);
+        
+        // Filter out audio files from document selection
+        $audioFileTypes = ['wav', 'mp3', 'ogg', 'm4a', 'aac', 'flac', 'wma'];
+        $fileList = array_filter($allFiles, function($file) use ($audioFileTypes) {
+            $fileType = strtolower($file['fileType'] ?? '');
+            return !in_array($fileType, $audioFileTypes);
+        });
+        
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
         $user = $this->getUserInfo();
@@ -2571,21 +2693,12 @@ class LmController
         }
 
         try {
-            error_log("=== DOCUMENT HUB SYNTHESIS START ===");
-            error_log("User ID: {$userId}");
-            error_log("Selected File IDs: " . implode(', ', $validFileIds));
-            error_log("Document Type: {$documentType}");
-            error_log("Description: {$description}");
-
             $queryEmbedding = $this->gemini->generateEmbedding($description);
 
             if (empty($queryEmbedding)) {
-                error_log("ERROR: Failed to generate embedding");
                 echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the description.']);
                 exit();
             }
-
-            error_log("Embedding generated successfully. Vector size: " . count($queryEmbedding));
 
             $similarities = [];
             $totalChunksSearched = 0;
@@ -2595,11 +2708,8 @@ class LmController
                 $chunks = $this->lmModel->getChunksByFile($fileId);
                 
                 if (empty($chunks)) {
-                    error_log("File ID {$fileId}: No chunks found");
                     continue;
                 }
-
-                error_log("File ID {$fileId}: Found " . count($chunks) . " chunks");
 
                 foreach ($chunks as $chunk) {
                     $chunkEmbedding = json_decode($chunk['embedding'], true);
@@ -2621,25 +2731,14 @@ class LmController
                 }
             }
 
-            error_log("Total chunks searched: {$totalChunksSearched}");
-            error_log("Chunks above threshold ({$similarityThreshold}): " . count($similarities));
-
             usort($similarities, function ($a, $b) {
                 return $b['similarity'] <=> $a['similarity'];
             });
 
             $topK = min(15, count($similarities));
             $topChunks = array_slice($similarities, 0, $topK);
-            
-            if (!empty($topChunks)) {
-                $avgSimilarity = array_sum(array_column($topChunks, 'similarity')) / count($topChunks);
-                error_log("Average similarity of top chunks: " . number_format($avgSimilarity, 4));
-            }
-
-            error_log("Top chunks selected: " . count($topChunks) . " out of " . count($similarities) . " total similarities");
 
             if (empty($topChunks)) {
-                error_log("ERROR: No chunks found above similarity threshold");
                 echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents that matches your query. Please try a different query or select different documents.']);
                 exit();
             }
@@ -2647,30 +2746,19 @@ class LmController
             $context = '';
             foreach ($topChunks as $index => $chunk) {
                 $context .= $chunk['chunkText'] . "\n\n";
-                if ($index < 3) {
-                    $preview = substr($chunk['chunkText'], 0, 100) . (strlen($chunk['chunkText']) > 100 ? '...' : '');
-                    error_log("Top chunk " . ($index + 1) . " (File ID: {$chunk['fileId']}, Similarity: " . number_format($chunk['similarity'], 4) . "): {$preview}");
-                }
             }
 
             if (empty($context)) {
-                error_log("ERROR: No context generated from chunks");
                 echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents.']);
                 exit();
             }
 
-            error_log("Context length: " . strlen($context) . " characters");
-            error_log("Synthesizing document...");
-
             $document = $this->gemini->synthesizeDocument($context, $description);
 
             if (empty($document)) {
-                error_log("ERROR: Failed to synthesize document from Gemini");
                 echo json_encode(['success' => false, 'message' => 'Failed to synthesize document.']);
                 exit();
             }
-
-            error_log("Document synthesized successfully. Document length: " . strlen($document) . " characters");
 
             $formattedDocument = $this->gemini->formatContent($document);
 
@@ -2683,7 +2771,6 @@ class LmController
             $timestamp = date('Y-m-d_H-i-s');
             $fileName = $documentTypeName . '_' . $timestamp . '.txt';
 
-            error_log("Saving synthesized document as file: {$fileName}");
             $fileContent = $formattedDocument;
             $savedFileId = $this->lmModel->uploadFileToGCS(
                 $userId,
@@ -2695,8 +2782,6 @@ class LmController
             );
 
             if ($savedFileId) {
-                error_log("Document saved successfully. File ID: {$savedFileId}");
-
                 try {
                     $chunks = $this->lmModel->splitTextIntoChunks($formattedDocument, $savedFileId);
                     $embeddings = [];
@@ -2704,15 +2789,10 @@ class LmController
                         $embeddings[] = $this->gemini->generateEmbedding($chunk);
                     }
                     $this->lmModel->saveChunksToDB($chunks, $embeddings, $savedFileId);
-                    error_log("Chunks and embeddings generated for saved document. Chunks: " . count($chunks));
                 } catch (\Exception $e) {
-                    error_log("Warning: Failed to generate chunks for saved document: " . $e->getMessage());
+                    // Failed to generate chunks for saved document
                 }
-            } else {
-                error_log("WARNING: Failed to save synthesized document as file");
             }
-
-            error_log("=== DOCUMENT HUB SYNTHESIS END ===");
 
             echo json_encode([
                 'success' => true,
@@ -2724,7 +2804,6 @@ class LmController
             ]);
 
         } catch (\Throwable $e) {
-            error_log('Error synthesizing document hub: ' . $e->getMessage());
             echo json_encode(['success' => false, 'message' => 'An error occurred while synthesizing the document.']);
         }
         exit();

@@ -87,6 +87,83 @@ if (isset($flashcards) && is_array($flashcards)) {
             background-color: #A855F7;
             border-color: #A855F7;
         }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown menu styling */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
     </style>
 </head>
 
@@ -190,8 +267,12 @@ if (isset($flashcards) && is_array($flashcards)) {
                                             <small class="text-muted d-block">Created: <?php echo htmlspecialchars($set[0]['createdAt']); ?></small>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                Actions
+                                            <button class="action-btn"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-display="static"
+                                                aria-expanded="false">
+                                                <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
                                                 <li><a class="dropdown-item view-set-btn" href="#" data-title="<?= htmlspecialchars($title) ?>">View Set</a></li>

@@ -62,6 +62,7 @@ define('SAVE_SUMMARY_AS_FILE', BASE_PATH . 'lm/saveSummaryAsFile');
 define('EXPORT_SUMMARY_PDF', BASE_PATH . 'lm/exportSummaryAsPdf');
 define('EXPORT_SUMMARY_DOCX', BASE_PATH . 'lm/exportSummaryAsDocx');
 define('EXPORT_SUMMARY_TXT', BASE_PATH . 'lm/exportSummaryAsTxt');
+define('AUDIO_SUMMARY', BASE_PATH . 'lm/audioSummary');
 
 // Note routes
 define('NOTE', BASE_PATH . 'lm/note');
@@ -73,6 +74,7 @@ define('SAVE_NOTE_AS_FILE', BASE_PATH . 'lm/saveNoteAsFile');
 define('EXPORT_NOTE_PDF', BASE_PATH . 'lm/exportNoteAsPdf');
 define('EXPORT_NOTE_DOCX', BASE_PATH . 'lm/exportNoteAsDocx');
 define('EXPORT_NOTE_TXT', BASE_PATH . 'lm/exportNoteAsTxt');
+define('AUDIO_NOTE', BASE_PATH . 'lm/audioNote');
 
 // Mindmap routes
 define('MINDMAP', BASE_PATH . 'lm/mindmap');

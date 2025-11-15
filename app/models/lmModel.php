@@ -179,6 +179,263 @@ class LmModel
     // ============================================================================
 
     /**
+     * Upload audio file to Google Cloud Storage and save metadata to audio table for summary
+     */
+    public function uploadAudioFileToGCSForSummary(int $summaryId, int $sourceFileId, string $localAudioPath): string
+    {
+        if(empty($localAudioPath) || !file_exists($localAudioPath)){
+            throw new \Exception("Audio file not found locally.");
+        }
+
+        $audioExtension = pathinfo($localAudioPath, PATHINFO_EXTENSION) ?: 'wav';
+        $uniqueFileName = 'summary_' . $summaryId . '_' . uniqid('', true) . '.' . $audioExtension;
+        
+        // Get file info to determine folder structure
+        $conn = $this->db->connect();
+        $fileStmt = $conn->prepare("SELECT userID, folderID FROM file WHERE fileID = :fileID");
+        $fileStmt->bindParam(':fileID', $sourceFileId, \PDO::PARAM_INT);
+        $fileStmt->execute();
+        $fileInfo = $fileStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$fileInfo) {
+            throw new \Exception("Source file not found.");
+        }
+        
+        $userId = (int)$fileInfo['userID'];
+        $folderId = $fileInfo['folderID'];
+        
+        $logicalFolderPath = '';
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
+        $bucket = $this->storage->bucket($this->bucketName);
+        $audioContent = file_get_contents($localAudioPath);
+        
+        $options = [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
+        ];
+        
+        $bucket->upload($audioContent, $options);
+
+        // Clean up local file
+        @unlink($localAudioPath);
+
+        // Create unique fileID for this summary's audio
+        $audioFileId = $this->getAudioFileIdForSummary($summaryId, $sourceFileId);
+        
+        // Ensure the virtual file entry exists in file table
+        $this->ensureAudioFileEntry($audioFileId, $userId, $folderId);
+        
+        // Save to audio table
+        $stmt = $conn->prepare("INSERT INTO audio (fileID, audioPath) VALUES (:fileID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':audioPath', $gcsObjectName);
+        $stmt->execute();
+        
+        return $gcsObjectName;
+    }
+
+    /**
+     * Upload audio file to Google Cloud Storage and save metadata to audio table for note
+     */
+    public function uploadAudioFileToGCSForNote(int $noteId, int $sourceFileId, string $localAudioPath): string
+    {
+        if(empty($localAudioPath) || !file_exists($localAudioPath)){
+            throw new \Exception("Audio file not found locally.");
+        }
+
+        $audioExtension = pathinfo($localAudioPath, PATHINFO_EXTENSION) ?: 'wav';
+        $uniqueFileName = 'note_' . $noteId . '_' . uniqid('', true) . '.' . $audioExtension;
+        
+        // Get file info to determine folder structure
+        $conn = $this->db->connect();
+        $fileStmt = $conn->prepare("SELECT userID, folderID FROM file WHERE fileID = :fileID");
+        $fileStmt->bindParam(':fileID', $sourceFileId, \PDO::PARAM_INT);
+        $fileStmt->execute();
+        $fileInfo = $fileStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$fileInfo) {
+            throw new \Exception("Source file not found.");
+        }
+        
+        $userId = (int)$fileInfo['userID'];
+        $folderId = $fileInfo['folderID'];
+        
+        $logicalFolderPath = '';
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
+        $bucket = $this->storage->bucket($this->bucketName);
+        $audioContent = file_get_contents($localAudioPath);
+        
+        $options = [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
+        ];
+        
+        $bucket->upload($audioContent, $options);
+
+        // Clean up local file
+        @unlink($localAudioPath);
+
+        // Create unique fileID for this note's audio
+        $audioFileId = $this->getAudioFileIdForNote($noteId, $sourceFileId);
+        
+        // Ensure the virtual file entry exists in file table
+        $this->ensureAudioFileEntry($audioFileId, $userId, $folderId);
+        
+        // Save to audio table
+        $stmt = $conn->prepare("INSERT INTO audio (fileID, audioPath) VALUES (:fileID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':audioPath', $gcsObjectName);
+        $stmt->execute();
+        
+        return $gcsObjectName;
+    }
+
+    /**
+     * Ensure audio file entry exists in file table (for virtual fileIDs)
+     */
+    private function ensureAudioFileEntry(int $audioFileId, int $userId, $folderId): void
+    {
+        $conn = $this->db->connect();
+        
+        // Check if file entry exists
+        $checkStmt = $conn->prepare("SELECT fileID FROM file WHERE fileID = :fileID");
+        $checkStmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $checkStmt->execute();
+        
+        if (!$checkStmt->fetch()) {
+            // Create virtual file entry for audio
+            $insertStmt = $conn->prepare("INSERT INTO file (fileID, userID, folderID, name, fileType, filePath) VALUES (:fileID, :userID, :folderID, :name, :fileType, :filePath)");
+            $insertStmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+            $insertStmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+            $insertStmt->bindParam(':folderID', $folderId, $folderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+            $name = 'audio_' . $audioFileId;
+            $insertStmt->bindParam(':name', $name);
+            $fileType = 'wav';
+            $insertStmt->bindParam(':fileType', $fileType);
+            $filePath = '';
+            $insertStmt->bindParam(':filePath', $filePath);
+            $insertStmt->execute();
+        }
+    }
+
+    /**
+     * Get audio file for a specific summary ID from audio table
+     */
+    public function getAudioFileForSummary(int $summaryId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        
+        // Get summary and its fileID
+        $summary = $conn->prepare("SELECT s.fileID FROM summary s 
+                                   INNER JOIN file f ON s.fileID = f.fileID 
+                                   WHERE s.summaryID = :summaryID AND f.userID = :userID");
+        $summary->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
+        $summary->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $summary->execute();
+        $summaryData = $summary->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$summaryData) {
+            return null;
+        }
+        
+        // Create a unique fileID for this summary's audio by using summaryID as identifier
+        // We'll use a hash or combination to create a unique identifier
+        $audioFileId = $this->getAudioFileIdForSummary($summaryId, $summaryData['fileID']);
+        
+        // Get audio record from audio table
+        $query = "SELECT a.* FROM audio a 
+                  INNER JOIN file f ON a.fileID = f.fileID 
+                  WHERE a.fileID = :fileID AND f.userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Get audio file for a specific note ID from audio table
+     */
+    public function getAudioFileForNote(int $noteId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        
+        // Get note and its fileID
+        $note = $conn->prepare("SELECT n.fileID FROM note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                WHERE n.noteID = :noteID AND f.userID = :userID");
+        $note->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $note->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $note->execute();
+        $noteData = $note->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$noteData) {
+            return null;
+        }
+        
+        // Create a unique fileID for this note's audio
+        $audioFileId = $this->getAudioFileIdForNote($noteId, $noteData['fileID']);
+        
+        // Get audio record from audio table
+        $query = "SELECT a.* FROM audio a 
+                  INNER JOIN file f ON a.fileID = f.fileID 
+                  WHERE a.fileID = :fileID AND f.userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Get unique fileID for summary audio (creates a virtual fileID based on summaryID)
+     */
+    private function getAudioFileIdForSummary(int $summaryId, int $sourceFileId): int
+    {
+        // Create a unique identifier: use a large offset to avoid conflicts
+        // Format: 1000000000 + summaryID (assuming summaryIDs won't exceed this)
+        return 1000000000 + $summaryId;
+    }
+
+    /**
+     * Get unique fileID for note audio (creates a virtual fileID based on noteID)
+     */
+    private function getAudioFileIdForNote(int $noteId, int $sourceFileId): int
+    {
+        // Create a unique identifier: use a different large offset for notes
+        // Format: 2000000000 + noteID (assuming noteIDs won't exceed this)
+        return 2000000000 + $noteId;
+    }
+
+    /**
+     * Get signed URL for audio file from GCS
+     */
+    public function getAudioSignedUrl(string $gcsPath): string
+    {
+        $bucket = $this->storage->bucket($this->bucketName);
+        $object = $bucket->object($gcsPath);
+        
+        if (!$object->exists()) {
+            throw new \Exception("Audio file not found in Google Cloud Storage.");
+        }
+
+        return $object->signedUrl(new \DateTimeImmutable('+1 hour'), ['version' => 'v4']);
+    }
+
+
+
+
+    /**
      * Upload file to Google Cloud Storage and save metadata to database
      */
     public function uploadFileToGCS($userId, $folderId, $extractedText, $fileContent = null, $file = null, $originalFileName = null)
@@ -912,21 +1169,25 @@ class LmModel
     }
 
     /**
-     * Update mindmap payload (markdown + structure)
+     * Update mindmap data payload
      */
     public function updateMindmap(int $mindmapId, int $fileId, int $userId, array $payload): bool
     {
         $conn = $this->db->connect();
-        $data = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $dataJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        
         $stmt = $conn->prepare("UPDATE mindmap m 
                                 INNER JOIN file f ON m.fileID = f.fileID 
                                 SET m.data = :data
-                                WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
-        $stmt->bindParam(':data', $data);
+                                WHERE m.mindmapID = :mindmapID 
+                                AND m.fileID = :fileID 
+                                AND f.userID = :userID");
+        $stmt->bindParam(':data', $dataJson);
         $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
         $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         $stmt->execute();
+        
         return $stmt->rowCount() > 0;
     }
 
@@ -949,19 +1210,23 @@ class LmModel
     {
         $conn = $this->db->connect();
         
-        // If userId is provided, verify ownership through file table
         if ($userId !== null) {
+            // Verify ownership through file table
             $stmt = $conn->prepare("SELECT m.* FROM mindmap m 
                                     INNER JOIN file f ON m.fileID = f.fileID 
-                                    WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
-            $stmt->bindParam(':mindmapID', $mindmapId);
-            $stmt->bindParam(':fileID', $fileId);
-            $stmt->bindParam(':userID', $userId);
+                                    WHERE m.mindmapID = :mindmapID 
+                                    AND m.fileID = :fileID 
+                                    AND f.userID = :userID");
+            $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+            $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         } else {
-            // Fallback to original query if userId not provided (for backward compatibility)
-            $stmt = $conn->prepare("SELECT * FROM mindmap WHERE mindmapID = :mindmapID AND fileID = :fileID");
-            $stmt->bindParam(':mindmapID', $mindmapId);
-            $stmt->bindParam(':fileID', $fileId);
+            // Basic query without ownership check
+            $stmt = $conn->prepare("SELECT * FROM mindmap 
+                                    WHERE mindmapID = :mindmapID 
+                                    AND fileID = :fileID");
+            $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
         }
         
         $stmt->execute();
