@@ -201,12 +201,29 @@ class LmController
         $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : null;
         $currentFolderId = isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : null;
 
+        // Filter out audio files
+        $audioFileTypes = ['wav', 'mp3', 'ogg', 'm4a', 'aac', 'flac', 'wma'];
+        $filterAudioFiles = function($files) use ($audioFileTypes) {
+            return array_filter($files, function($file) use ($audioFileTypes) {
+                $fileType = strtolower($file['fileType'] ?? '');
+                return !in_array($fileType, $audioFileTypes);
+            });
+        };
+
         if (!empty($searchQuery)) {
             $fileList = $this->lmModel->searchFilesAndFolders($userId, $searchQuery);
+            // Filter out audio files from search results
+            if (isset($fileList['files'])) {
+                $fileList['files'] = $filterAudioFiles($fileList['files']);
+            }
             $currentFolderName = 'Search Results for "' . htmlspecialchars($searchQuery) . '"';
             $currentFolderPath = [];
         } else {
             $fileList = $this->lmModel->getFoldersAndFiles($userId, $currentFolderId);
+            // Filter out audio files
+            if (isset($fileList['files'])) {
+                $fileList['files'] = $filterAudioFiles($fileList['files']);
+            }
             $currentFolderName = 'Home';
             $currentFolderPath = [];
 
