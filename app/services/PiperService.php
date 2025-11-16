@@ -5,10 +5,76 @@ namespace App\Services;
 class PiperService{
     private string $modelPath;
     private string $tempDir;
+    private string $piperPath;
     
     public function __construct(){
-        $this->modelPath = "C:\\Users\\manti\\piper-models\\en_US-amy-medium.onnx";
-        $this->tempDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $this->modelPath = $this->getModelPath();
+        $this->tempDir = $this->getTempDir();
+        $this->piperPath = $this->getPiperPath();
+    }
+
+    /**
+     * Get the model path based on the operating system
+     */
+    private function getModelPath(): string
+    {
+        $envPath = getenv('PIPER_MODEL_PATH');
+        if ($envPath) {
+            return $envPath;
+        }
+
+        $os = strtoupper(substr(PHP_OS, 0, 3));
+        $username = ($os === 'WIN') ? (getenv('USERNAME') ?: 'manti') : (getenv('USER') ?: 'yeohmantik');
+        
+        return ($os === 'WIN') 
+            ? "C:\\Users\\{$username}\\piper-models\\en_US-amy-medium.onnx"
+            : "/Applications/XAMPP/xamppfiles/htdocs/studyaid/models-piper/en_US-amy-medium.onnx";
+    }
+
+    /**
+     * Get a writable temporary directory based on OS
+     */
+    private function getTempDir(): string
+    {
+        $systemTempDir = sys_get_temp_dir();
+        if (is_writable($systemTempDir)) {
+            return rtrim($systemTempDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        }
+
+        // Fallback to application directory
+        $appTempDir = __DIR__ . '/../../temp/piper/';
+        if (!is_dir($appTempDir)) {
+            @mkdir($appTempDir, 0755, true);
+        }
+        if (is_dir($appTempDir) && is_writable($appTempDir)) {
+            return $appTempDir;
+        }
+
+        return rtrim($systemTempDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    }
+
+    /**
+     * Get the piper executable path based on OS
+     */
+    private function getPiperPath(): string
+    {
+        $envPath = getenv('PIPER_PATH');
+        if ($envPath && file_exists($envPath) && is_executable($envPath)) {
+            return $envPath;
+        }
+
+        $os = strtoupper(substr(PHP_OS, 0, 3));
+        $commonPaths = ($os === 'WIN') 
+            ? ['C:\\piper\\piper.exe', 'C:\\Program Files\\piper\\piper.exe']
+            : ['/opt/anaconda3/bin/piper', '/usr/local/bin/piper', '/opt/homebrew/bin/piper', '/usr/bin/piper'];
+
+        foreach ($commonPaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        return 'piper';
     }
 
     /**
@@ -48,18 +114,23 @@ class PiperService{
             if ($isWindows) {
                 // Windows: Use cmd /c to properly handle pipes
                 $command = sprintf(
-                    'cmd /c type %s | piper --model %s --output_file %s',
+                    'cmd /c type %s | %s --model %s --output_file %s',
                     escapeshellarg($inputFile),
+                    escapeshellarg($this->piperPath),
                     escapeshellarg($this->modelPath),
                     escapeshellarg($outputPath)
                 );
             } else {
-                // Unix/Linux: Use cat
+                // macOS/Unix: Use sh -c to ensure pipe works correctly
                 $command = sprintf(
-                    'cat %s | piper --model %s --output_file %s',
-                    escapeshellarg($inputFile),
-                    escapeshellarg($this->modelPath),
-                    escapeshellarg($outputPath)
+                    '/bin/sh -c %s',
+                    escapeshellarg(sprintf(
+                        'cat %s | %s --model %s --output_file %s',
+                        escapeshellarg($inputFile),
+                        escapeshellarg($this->piperPath),
+                        escapeshellarg($this->modelPath),
+                        escapeshellarg($outputPath)
+                    ))
                 );
             }
 
@@ -105,8 +176,9 @@ class PiperService{
         }
 
         $command = sprintf(
-            'echo %s | piper --model %s --output_raw',
+            'echo %s | %s --model %s --output_raw',
             escapeshellarg($text),
+            escapeshellarg($this->piperPath),
             escapeshellarg($this->modelPath)
         );
 
@@ -117,6 +189,5 @@ class PiperService{
     }
 
 }
-
 
 ?>

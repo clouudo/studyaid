@@ -1935,11 +1935,7 @@ class LmController
 
         $paragraphs = preg_split('/\n\s*\n/', $content);
         foreach ($paragraphs as $paragraph) {
-            $paragraph = trim($paragraph);
-            if (!empty($paragraph)) {
-                $section->addText($paragraph);
-                $section->addTextBreak(1);
-            }
+            $paragraph = trim($paragraph); 
         }
 
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';

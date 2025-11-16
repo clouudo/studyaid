@@ -23,6 +23,27 @@ class LmModel
             'keyFilePath' => $config['key_file_path']
         ]);
         $this->bucketName = $config['bucket_name'];
+        
+        // Set custom temp directory for php://temp to avoid permission issues
+        $this->setCustomTempDir();
+    }
+
+    /**
+     * Set custom temp directory for PHP to avoid permission issues with system temp
+     */
+    private function setCustomTempDir(): void
+    {
+        $customTempDir = __DIR__ . '/../../temp';
+        if (!is_dir($customTempDir)) {
+            @mkdir($customTempDir, 0777, true);
+        }
+        if (is_dir($customTempDir) && is_writable($customTempDir)) {
+            putenv('TMPDIR=' . $customTempDir);
+            // Also set it in PHP's ini if possible
+            if (function_exists('ini_set')) {
+                @ini_set('sys_temp_dir', $customTempDir);
+            }
+        }
     }
 
     // ============================================================================
@@ -212,14 +233,20 @@ class LmModel
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
 
         $bucket = $this->storage->bucket($this->bucketName);
-        $audioContent = file_get_contents($localAudioPath);
+        
+        // Use file stream instead of file_get_contents to avoid temp file permission issues
+        $audioStream = fopen($localAudioPath, 'rb');
+        if (!$audioStream) {
+            throw new \Exception("Failed to open audio file for reading.");
+        }
         
         $options = [
             'name' => $gcsObjectName,
             'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
         ];
         
-        $bucket->upload($audioContent, $options);
+        $bucket->upload($audioStream, $options);
+        // Note: GCS upload() automatically closes the stream, so no need to fclose()
 
         // Clean up local file
         @unlink($localAudioPath);
@@ -273,14 +300,20 @@ class LmModel
         $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
 
         $bucket = $this->storage->bucket($this->bucketName);
-        $audioContent = file_get_contents($localAudioPath);
+        
+        // Use file stream instead of file_get_contents to avoid temp file permission issues
+        $audioStream = fopen($localAudioPath, 'rb');
+        if (!$audioStream) {
+            throw new \Exception("Failed to open audio file for reading.");
+        }
         
         $options = [
             'name' => $gcsObjectName,
             'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
         ];
         
-        $bucket->upload($audioContent, $options);
+        $bucket->upload($audioStream, $options);
+        // Note: GCS upload() automatically closes the stream, so no need to fclose()
 
         // Clean up local file
         @unlink($localAudioPath);
