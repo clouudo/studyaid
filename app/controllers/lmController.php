@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
+use App\Services\OCRService;
 use PDO;
 use App\Services\PiperService;
 
@@ -15,6 +16,7 @@ class LmController
     private $gemini;
     private $userModel;
     private $PiperService;
+    private $ocrService;
 
 
     private const SESSION_CURRENT_FILE_ID = 'current_file_id';
@@ -25,6 +27,7 @@ class LmController
         $this->gemini = new GeminiService();
         $this->userModel = new UserModel();
         $this->PiperService = new PiperService();
+        $this->ocrService = new OCRService();
     }
 
     // ============================================================================
@@ -74,6 +77,164 @@ class LmController
     // ============================================================================
 
     /**
+     * Check if file extension is an image type
+     */
+    private function isImageFile(string $extension): bool
+    {
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'];
+        return in_array(strtolower($extension), $imageExtensions);
+    }
+
+    /**
+     * Extract text from file using appropriate method (OCR for images, model method for others)
+     */
+    private function extractTextFromFile(string $tmpName, string $fileExtension): string
+    {
+        if ($this->isImageFile($fileExtension)) {
+            $fileName = basename($tmpName);
+            error_log("[OCR] Starting OCR processing for image: {$fileName} (Extension: {$fileExtension})");
+            
+            try {
+                $ocrResult = $this->ocrService->recognizeText($tmpName);
+                if ($ocrResult['success'] && !empty($ocrResult['text'])) {
+                    $extractedText = trim($ocrResult['text']);
+                    $engine = $ocrResult['engine'] ?? 'unknown';
+                    $confidence = isset($ocrResult['confidence']) ? round($ocrResult['confidence'] * 100, 2) : 'N/A';
+                    $processingTime = isset($ocrResult['processing_time']) ? round($ocrResult['processing_time'], 2) : 'N/A';
+                    
+                    error_log("[OCR] SUCCESS - Image: {$fileName} | Engine: {$engine} | Text length: " . strlen($extractedText) . " chars | Confidence: {$confidence}% | Processing time: {$processingTime}s");
+                    return $extractedText;
+                } else {
+                    $errorMsg = $ocrResult['error'] ?? 'No text detected in image';
+                    $engine = $ocrResult['engine'] ?? 'unknown';
+                    error_log("[OCR] FAILED - Image: {$fileName} | Engine: {$engine} | Error: {$errorMsg}");
+                    // Return empty string but don't throw exception - file will still be saved
+                    return '';
+                }
+            } catch (\Exception $e) {
+                error_log("[OCR] EXCEPTION - Image: {$fileName} | Exception: " . $e->getMessage());
+                // Return empty string but don't throw exception - file will still be saved
+                return '';
+            }
+        }
+        
+        return $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
+    }
+
+    /**
+     * Normalize file array from $_FILES structure
+     */
+    private function normalizeFileArray(array $files, int $index): ?array
+    {
+        if (!is_array($files['name'])) {
+            return [
+                'name' => $files['name'],
+                'type' => $files['type'],
+                'tmp_name' => $files['tmp_name'],
+                'error' => $files['error'],
+                'size' => $files['size']
+            ];
+        }
+
+        if ($files['error'][$index] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        return [
+            'name' => $files['name'][$index],
+            'type' => $files['type'][$index],
+            'tmp_name' => $files['tmp_name'][$index],
+            'error' => $files['error'][$index],
+            'size' => $files['size'][$index]
+        ];
+    }
+
+    /**
+     * Process a single file upload
+     */
+    private function processFileUpload(array $file, int $userId, ?int $folderId): array
+    {
+        $uploadedFileName = $file['name'];
+        $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
+        $tmpName = $file['tmp_name'];
+        $isImage = $this->isImageFile($fileExtension);
+
+        // Extract text using OCR for images, or standard extraction for other files
+        $extractedText = $this->extractTextFromFile($tmpName, $fileExtension);
+        
+        // For images, log OCR result
+        if ($isImage) {
+            if (empty($extractedText)) {
+                error_log("[OCR] WARNING - No text extracted from image: {$uploadedFileName}. File will still be saved.");
+            } else {
+                error_log("[OCR] COMPLETE - Successfully extracted " . strlen($extractedText) . " characters from image: {$uploadedFileName}");
+            }
+        }
+
+        // Format the extracted text (even if empty, file will still be saved)
+        $formattedText = !empty($extractedText) 
+            ? $this->gemini->formatContent($extractedText) 
+            : '';
+
+        // Read file content for storage
+        $fileContent = file_get_contents($tmpName);
+        if ($fileContent === false) {
+            throw new \Exception("Error reading file: {$uploadedFileName}");
+        }
+
+        // Upload file to GCS and save metadata to database
+        // Note: File is saved even if extracted text is empty (for images without text)
+        $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $uploadedFileName);
+
+        // Only create chunks and embeddings if text was extracted
+        if (!empty($formattedText)) {
+            $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
+            $embeddings = [];
+            foreach ($chunks as $chunk) {
+                $embeddings[] = $this->gemini->generateEmbedding($chunk);
+            }
+            $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
+        } else {
+            error_log("No text content to chunk for file {$uploadedFileName} (ID: {$newFileId}). Chunks and embeddings skipped.");
+        }
+
+        return ['success' => true, 'fileId' => $newFileId, 'hasText' => !empty($formattedText)];
+    }
+
+    /**
+     * Handle upload response and redirect
+     */
+    private function handleUploadResponse(int $uploadedCount, int $failedCount, array $errors, int $userId): void
+    {
+        if ($uploadedCount > 0 && $failedCount === 0) {
+            $_SESSION['message'] = $uploadedCount === 1
+                ? "File uploaded successfully!"
+                : "{$uploadedCount} files uploaded successfully!";
+
+            if ($uploadedCount === 1) {
+                $lastFile = $this->lmModel->getLatestFileForUser($userId);
+                if ($lastFile) {
+                    $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
+                    header('Location: ' . DISPLAY_DOCUMENT);
+                    exit();
+                }
+            }
+        } elseif ($uploadedCount > 0 && $failedCount > 0) {
+            $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
+            if (!empty($errors)) {
+                $_SESSION['error'] = implode('<br>', $errors);
+            }
+        } else {
+            $_SESSION['error'] = !empty($errors)
+                ? implode('<br>', $errors)
+                : "Failed to upload files. Please try again.";
+        }
+
+        header('Location: ' . NEW_DOCUMENT);
+        exit();
+    }
+
+    /**
      * VIEW: Display the new document upload form
      * ACTION: Handle document upload (POST)
      */
@@ -93,89 +254,31 @@ class LmController
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
 
             for ($i = 0; $i < $fileCount; $i++) {
-                if (!is_array($files['name'])) {
-                    $file = [
-                        'name' => $files['name'],
-                        'type' => $files['type'],
-                        'tmp_name' => $files['tmp_name'],
-                        'error' => $files['error'],
-                        'size' => $files['size']
-                    ];
-                    $i = $fileCount;
-                } else {
-                    if ($files['error'][$i] !== UPLOAD_ERR_OK) {
-                        $errors[] = "Error uploading {$files['name'][$i]}: Upload error code {$files['error'][$i]}";
-                        $failedCount++;
-                        continue;
-                    }
-
-                    $file = [
-                        'name' => $files['name'][$i],
-                        'type' => $files['type'][$i],
-                        'tmp_name' => $files['tmp_name'][$i],
-                        'error' => $files['error'][$i],
-                        'size' => $files['size'][$i]
-                    ];
-                }
-
-                $uploadedFileName = $file['name'];
-                $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
-                $tmpName = $file['tmp_name'];
-                $originalFileName = $uploadedFileName;
-
-                $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
-                $formattedText = $this->gemini->formatContent($extractedText);
-                $fileContent = file_get_contents($tmpName);
-
-                if ($fileContent === false) {
-                    $errors[] = "Error reading file: {$uploadedFileName}";
+                $file = $this->normalizeFileArray($files, $i);
+                
+                if ($file === null) {
+                    $fileName = is_array($files['name']) ? $files['name'][$i] : $files['name'];
+                    $errorCode = is_array($files['error']) ? $files['error'][$i] : $files['error'];
+                    $errors[] = "Error uploading {$fileName}: Upload error code {$errorCode}";
                     $failedCount++;
                     continue;
                 }
 
                 try {
-                    $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
-
-                    $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
-                    $embeddings = [];
-                    foreach ($chunks as $chunk) {
-                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
-                    }
-
-                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
+                    $this->processFileUpload($file, $userId, $folderId);
                     $uploadedCount++;
                 } catch (\Exception $e) {
-                    $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
+                    $errors[] = "Error uploading {$file['name']}: " . $e->getMessage();
                     $failedCount++;
                 }
+
+                // Break loop if single file (non-array)
+                if (!is_array($files['name'])) {
+                    break;
+                }
             }
 
-            if ($uploadedCount > 0 && $failedCount === 0) {
-                $_SESSION['message'] = $uploadedCount === 1
-                    ? "File uploaded successfully!"
-                    : "{$uploadedCount} files uploaded successfully!";
-
-                if ($uploadedCount === 1) {
-                    $lastFile = $this->lmModel->getLatestFileForUser($userId);
-                    if ($lastFile) {
-                        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
-                        header('Location: ' . DISPLAY_DOCUMENT);
-                        exit();
-                    }
-                }
-            } elseif ($uploadedCount > 0 && $failedCount > 0) {
-                $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
-                if (!empty($errors)) {
-                    $_SESSION['error'] = implode('<br>', $errors);
-                }
-            } else {
-                $_SESSION['error'] = !empty($errors)
-                    ? implode('<br>', $errors)
-                    : "Failed to upload files. Please try again.";
-            }
-
-            header('Location: ' . NEW_DOCUMENT);
-            exit();
+            $this->handleUploadResponse($uploadedCount, $failedCount, $errors, $userId);
         }
 
         $this->checkSession();

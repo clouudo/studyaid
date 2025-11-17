@@ -394,9 +394,9 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <div id="dropZone" class="drop-zone-content">
                                 <div class="upload-icon">📄</div>
                                 <div class="upload-title">Click or drag to upload document</div>
-                                <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT</div>
+                                <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
                             </div>
-                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt" multiple>
+                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
                         </div>
                         <div id="fileListContainer" style="display: none; margin-top: 20px;">
                             <div id="fileList"></div>
@@ -485,6 +485,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     else if (['doc', 'docx'].includes(ext)) fileIcon = '📝';
                     else if (ext === 'pptx') fileIcon = '📊';
                     else if (ext === 'txt') fileIcon = '📄';
+                    else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'].includes(ext)) fileIcon = '🖼️';
                     
                     fileItem.innerHTML = `
                         <div class="file-info" data-file-index="${index}">
