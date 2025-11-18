@@ -286,15 +286,14 @@ class OCRService
 
     private function detectTesseractPath(): string{
         $possiblePaths = [
-            'tesseract',
-            //Windows
-            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
-            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
             //macOS
             '/usr/local/bin/tesseract',
             '/opt/homebrew/bin/tesseract',
+            //Windows
+            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
             //Linux
-            '/usr/bin/tesseract',
+            'tesseract',
         ];
 
         foreach($possiblePaths as $path){
