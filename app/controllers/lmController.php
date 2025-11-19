@@ -6,6 +6,7 @@ use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
 use PDO;
+use App\Config\Database;
 
 class LmController
 {
@@ -1854,6 +1855,26 @@ class LmController
     }
 
     /**
+     * ACTION (JSON API): Get quiz statistics
+     */
+    public function getQuizStatistics()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_GET['file_id']) ? (int)$_GET['file_id'] : null;
+
+        try {
+            $stats = $this->lmModel->getQuizStatistics($userId, $fileId);
+            echo json_encode(['success' => true, 'data' => $stats]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
      * ACTION (JSON API): Retrieve a specific quiz by ID
      */
     public function viewQuiz()
@@ -1871,23 +1892,87 @@ class LmController
         }
 
         try {
-            $questions = $this->lmModel->getQuestionByQuiz($quizId);
+            $quiz = $this->lmModel->getQuizById($quizId);
+            if (!$quiz || (int)$quiz['fileID'] !== $fileId) {
+                echo json_encode(['success' => false, 'message' => 'Quiz not found.']);
+                exit();
+            }
 
-            if (!$questions || empty($questions['question'])) {
+            $questionRow = $this->lmModel->getQuestionByQuiz($quizId);
+            if (!$questionRow || empty($questionRow['question'])) {
                 echo json_encode(['success' => false, 'message' => 'No questions found']);
                 exit();
             }
 
-            $quesArray = json_decode($questions['question'], true);
-
+            $decoded = json_decode($questionRow['question'], true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 echo json_encode(['success' => false, 'message' => 'Invalid quiz data format']);
                 exit();
             }
 
-            $quizData = isset($quesArray['quiz']) ? $quesArray['quiz'] : $quesArray;
+            $quizData = isset($decoded['quiz']) ? $decoded['quiz'] : $decoded;
+            $alreadyAttempted = $quiz['status'] === 'completed' || $this->lmModel->hasQuizAttempt($quizId, $userId);
 
-            echo json_encode(['success' => true, 'quiz' => $quizData]);
+            echo json_encode([
+                'success' => true,
+                'quiz' => $quizData,
+                'examMode' => (int)$quiz['examMode'],
+                'status' => $quiz['status'],
+                'alreadyCompleted' => $alreadyAttempted,
+                'questionConfig' => $quiz['questionConfig'] ? json_decode($quiz['questionConfig'], true) : null
+            ]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function viewQuizAttempt()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+
+        if ($quizId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Quiz ID not provided.']);
+            exit();
+        }
+
+        try {
+            $quiz = $this->lmModel->getQuizById($quizId);
+            if (!$quiz || (int)$quiz['fileID'] !== $fileId) {
+                echo json_encode(['success' => false, 'message' => 'Quiz not found.']);
+                exit();
+            }
+
+            $attempt = $this->lmModel->getLatestQuizAttempt($quizId, $userId);
+            if (!$attempt) {
+                echo json_encode(['success' => false, 'message' => 'No attempt found for this quiz.']);
+                exit();
+            }
+
+            $questionRow = $this->lmModel->getQuestionByQuiz($quizId);
+            $decoded = $questionRow ? json_decode($questionRow['question'], true) : null;
+            if ($questionRow && json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode(['success' => false, 'message' => 'Invalid quiz data.']);
+                exit();
+            }
+            $quizData = isset($decoded['quiz']) ? $decoded['quiz'] : $decoded;
+
+            echo json_encode([
+                'success' => true,
+                'quiz' => $quizData,
+                'attempt' => [
+                    'answers' => json_decode($attempt['answers'] ?? '[]', true),
+                    'feedback' => json_decode($attempt['feedback'] ?? '[]', true),
+                    'score' => $attempt['score'],
+                    'examMode' => (int)$attempt['examMode'],
+                    'createdAt' => $attempt['createdAt']
+                ]
+            ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
@@ -1919,6 +2004,40 @@ class LmController
         }
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
             $questionType = trim($_POST['questionType']);
+        $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'medium';
+        $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
+        $examMode = isset($_POST['examMode']) ? (int)$_POST['examMode'] : 0;
+        $totalQuestions = isset($_POST['totalQuestions']) ? (int)$_POST['totalQuestions'] : 10;
+        $totalQuestions = max(1, min(25, $totalQuestions));
+        $distributionRaw = $_POST['questionDistribution'] ?? '{}';
+        $distribution = json_decode($distributionRaw, true);
+        if (!is_array($distribution)) {
+            $distribution = [];
+        }
+        $allowedTypes = [
+            'multiple_choice',
+            'checkbox',
+            'true_false',
+            'short_answer',
+            'long_answer'
+        ];
+        $normalizedDistribution = [];
+        $totalRequested = 0;
+        foreach ($allowedTypes as $type) {
+            $value = isset($distribution[$type]) ? (int)$distribution[$type] : 0;
+            if ($value < 0) {
+                $value = 0;
+            }
+            $normalizedDistribution[$type] = $value;
+            $totalRequested += $value;
+        }
+        if ($totalRequested === 0) {
+            $normalizedDistribution['multiple_choice'] = $totalQuestions;
+            $totalRequested = $totalQuestions;
+        }
+        if ($totalRequested !== $totalQuestions) {
+            echo json_encode(['success' => false, 'message' => 'Total question distribution must equal selected question quantity.']);
+            exit();
         }
 
         if ($fileId === 0) {
@@ -1944,10 +2063,20 @@ class LmController
                 $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
             } elseif ($questionType == 'shortQuestion') {
                 $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
+            $quizJson = $this->gemini->generateMixedQuiz($sourceText, $normalizedDistribution, $totalQuestions, $questionDifficulty, $context);
+            $decodedQuiz = json_decode($quizJson, true);
+            if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
+                echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
+                exit();
             }
 
             $decodedQuiz = json_decode($quizData, true);
             $totalQuestions = count($decodedQuiz['quiz']);
+            $quizArray = $decodedQuiz['quiz'];
+            if (count($quizArray) !== $totalQuestions) {
+                echo json_encode(['success' => false, 'message' => 'Generated quiz does not match requested question count.']);
+                exit();
+            }
 
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
             $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
@@ -1965,6 +2094,23 @@ class LmController
             } elseif ($questionType == 'shortQuestion') {
                 echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             }
+            $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
+            $config = [
+                'distribution' => $normalizedDistribution,
+                'difficulty' => $questionDifficulty,
+                'instructions' => $instructions,
+                'examMode' => $examMode,
+                'totalQuestions' => $totalQuestions
+            ];
+            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $config, $examMode);
+            $this->lmModel->saveQuestion($quizId, 'Mixed', json_encode(['quiz' => $quizArray]));
+
+            echo json_encode([
+                'success' => true,
+                'quiz' => $quizArray,
+                'quizId' => $quizId,
+                'examMode' => $examMode
+            ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -1991,6 +2137,17 @@ class LmController
         }
 
         try {
+            $quiz = $this->lmModel->getQuizById($quizId);
+            if (!$quiz) {
+                echo json_encode(['success' => false, 'message' => 'Quiz not found.']);
+                exit();
+            }
+
+            if ($quiz['status'] === 'completed' || $this->lmModel->hasQuizAttempt($quizId, $userId)) {
+                echo json_encode(['success' => false, 'message' => 'This quiz has already been completed.']);
+                exit();
+            }
+
             $questionData = $this->lmModel->getQuestionByQuiz($quizId);
             if (!$questionData) {
                 echo json_encode(['success' => false, 'message' => 'Quiz questions not found.']);
@@ -1998,18 +2155,113 @@ class LmController
             }
 
             $questions = json_decode($questionData['question'], true);
-            $quizArray = isset($questions['quiz']) ? $questions['quiz'] : $questions;
-
-            foreach ($userAnswers as $index => $answer) {
-                if (isset($quizArray[$index])) {
-                    $this->lmModel->saveUserAnswer($questionData['questionID'], json_encode([
-                        'questionIndex' => $index,
-                        'userAnswer' => $answer
-                    ]));
-                }
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode(['success' => false, 'message' => 'Invalid quiz data.']);
+                exit();
             }
 
-            echo json_encode(['success' => true, 'message' => 'Answers saved successfully']);
+            $quizArray = isset($questions['quiz']) ? $questions['quiz'] : $questions;
+            $totalQuestions = count($quizArray);
+            if ($totalQuestions === 0) {
+                echo json_encode(['success' => false, 'message' => 'No questions available to grade.']);
+                exit();
+            }
+
+            $results = [];
+            $totalScore = 0;
+            $examModeEnabled = (int)$quiz['examMode'];
+            $questionDifficulty = '';
+            $config = $quiz['questionConfig'] ? json_decode($quiz['questionConfig'], true) : [];
+            if (is_array($config) && isset($config['difficulty'])) {
+                $questionDifficulty = (string)$config['difficulty'];
+            }
+
+            foreach ($quizArray as $index => $question) {
+                $type = strtolower(str_replace(' ', '_', $question['type'] ?? 'multiple_choice'));
+                $expectedAnswer = $question['answer'] ?? '';
+                $userAnswer = $userAnswers[$index] ?? null;
+                $questionScore = 0;
+                $isCorrect = false;
+                $suggestion = '';
+
+                switch ($type) {
+                    case 'multiple_choice':
+                    case 'true_false':
+                        if ($userAnswer !== null) {
+                            $isCorrect = strcasecmp(trim((string)$userAnswer), trim((string)$expectedAnswer)) === 0;
+                            $questionScore = $isCorrect ? 1 : 0;
+                        }
+                        break;
+                    case 'checkbox':
+                        $expectedArray = array_map('strtolower', (array)$expectedAnswer);
+                        $givenArray = array_map('strtolower', (array)$userAnswer);
+                        sort($expectedArray);
+                        sort($givenArray);
+                        $isCorrect = $expectedArray === $givenArray && !empty($expectedArray);
+                        $questionScore = $isCorrect ? 1 : 0;
+                        break;
+                    case 'short_answer':
+                    case 'long_answer':
+                        $evaluation = $this->gemini->evaluateOpenAnswer(
+                            $question['question'] ?? '',
+                            is_array($expectedAnswer) ? json_encode($expectedAnswer) : (string)$expectedAnswer,
+                            (string)$userAnswer,
+                            $type,
+                            $questionDifficulty
+                        );
+                        $questionScore = isset($evaluation['score']) ? (float)$evaluation['score'] : 0;
+                        $isCorrect = isset($evaluation['isCorrect']) ? (bool)$evaluation['isCorrect'] : false;
+                        $suggestion = $evaluation['suggestion'] ?? '';
+                        break;
+                    default:
+                        if ($userAnswer !== null) {
+                            $isCorrect = strcasecmp(trim((string)$userAnswer), trim((string)$expectedAnswer)) === 0;
+                            $questionScore = $isCorrect ? 1 : 0;
+                        }
+                        break;
+                }
+
+                $totalScore += $questionScore;
+                $results[] = [
+                    'index' => $index,
+                    'type' => $type,
+                    'question' => $question['question'] ?? '',
+                    'options' => $question['options'] ?? [],
+                    'userAnswer' => $userAnswer,
+                    'correctAnswer' => $expectedAnswer,
+                    'isCorrect' => $isCorrect,
+                    'score' => $questionScore,
+                    'explanation' => $question['explanation'] ?? '',
+                    'suggestion' => $suggestion
+                ];
+            }
+
+            $percentageScore = $totalQuestions > 0 ? round(($totalScore / $totalQuestions) * 100, 2) : 0;
+
+            $this->lmModel->saveQuizAttempt(
+                $quizId,
+                $userId,
+                $userAnswers,
+                $results,
+                null,
+                $percentageScore,
+                $examModeEnabled
+            );
+
+            // Always save score for both practice and exam mode
+            $this->lmModel->updateQuizStatus(
+                $quizId,
+                'completed',
+                (string)$percentageScore
+            );
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Quiz graded successfully.',
+                'results' => $results,
+                'percentage' => $percentageScore,
+                'examMode' => $examModeEnabled
+            ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
@@ -2171,19 +2423,10 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $flashcardAmount = '';
-        $flashcardType = '';
-        $instructions = '';
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
-            $flashcardAmount = trim($_POST['flashcardAmount']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardType'])) {
-            $flashcardType = trim($_POST['flashcardType']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
-            $instructions = trim($_POST['instructions']);
-        }
+        $flashcardAmount = isset($_POST['flashcardAmount']) ? (int)$_POST['flashcardAmount'] : 15;
+        $flashcardAmount = max(1, min(25, $flashcardAmount));
+        $flashcardType = isset($_POST['flashcardType']) ? trim($_POST['flashcardType']) : 'medium';
+        $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
 
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
@@ -2301,4 +2544,254 @@ class LmController
 
     }
 
+
+    /**
+     * ACTION: Create flashcards manually
+     */
+    public function createFlashcard()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : $this->resolveFileId();
+        $title = trim($_POST['title'] ?? '');
+        $termsInput = $_POST['terms'] ?? [];
+        $definitionsInput = $_POST['definitions'] ?? [];
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        if ($title === '') {
+            echo json_encode(['success' => false, 'message' => 'Title is required.']);
+            exit();
+        }
+
+        if (!is_array($termsInput) || !is_array($definitionsInput)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid flashcard data submitted.']);
+            exit();
+        }
+
+        $file = $this->lmModel->getFile($userId, $fileId);
+        if (!$file) {
+            echo json_encode(['success' => false, 'message' => 'File not found or access denied.']);
+            exit();
+        }
+
+        $cleanTerms = [];
+        $cleanDefinitions = [];
+
+        foreach ($termsInput as $index => $termValue) {
+            $termValue = trim((string)$termValue);
+            $definitionValue = trim((string)($definitionsInput[$index] ?? ''));
+
+            if ($termValue === '' && $definitionValue === '') {
+                continue;
+            }
+
+            if ($termValue === '' || $definitionValue === '') {
+                echo json_encode(['success' => false, 'message' => 'Each flashcard needs both a term and a definition.']);
+                exit();
+            }
+
+            $cleanTerms[] = $termValue;
+            $cleanDefinitions[] = $definitionValue;
+        }
+
+        if (empty($cleanTerms)) {
+            echo json_encode(['success' => false, 'message' => 'Add at least one flashcard before saving.']);
+            exit();
+        }
+
+        $termString = json_encode(implode("\n", $cleanTerms));
+        $definitionString = json_encode(implode("\n", $cleanDefinitions));
+
+        try {
+            $this->lmModel->saveFlashcards($fileId, $title, $termString, $definitionString);
+            echo json_encode(['success' => true, 'message' => 'Flashcards saved successfully.']);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * ACTION: Update flashcards
+     */
+    public function updateFlashcard()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
+        $title = trim($_POST['title'] ?? '');
+        $termsInput = $_POST['terms'] ?? [];
+        $definitionsInput = $_POST['definitions'] ?? [];
+
+        if ($flashcardId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Flashcard ID not provided.']);
+            exit();
+        }
+
+        if ($title === '') {
+            echo json_encode(['success' => false, 'message' => 'Title is required.']);
+            exit();
+        }
+
+        if (!is_array($termsInput) || !is_array($definitionsInput)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid flashcard data submitted.']);
+            exit();
+        }
+
+        $flashcard = $this->lmModel->getFlashcardWithOwner($flashcardId, $userId);
+        if (!$flashcard) {
+            echo json_encode(['success' => false, 'message' => 'Flashcard not found or access denied.']);
+            exit();
+        }
+
+        $cleanTerms = [];
+        $cleanDefinitions = [];
+
+        foreach ($termsInput as $index => $termValue) {
+            $termValue = trim((string)$termValue);
+            $definitionValue = trim((string)($definitionsInput[$index] ?? ''));
+
+            if ($termValue === '' && $definitionValue === '') {
+                continue;
+            }
+
+            if ($termValue === '' || $definitionValue === '') {
+                echo json_encode(['success' => false, 'message' => 'Each flashcard needs both a term and a definition.']);
+                exit();
+            }
+
+            $cleanTerms[] = $termValue;
+            $cleanDefinitions[] = $definitionValue;
+        }
+
+        if (empty($cleanTerms)) {
+            echo json_encode(['success' => false, 'message' => 'Add at least one flashcard before saving.']);
+            exit();
+        }
+
+        $termString = json_encode(implode("\n", $cleanTerms));
+        $definitionString = json_encode(implode("\n", $cleanDefinitions));
+
+        try {
+            $this->lmModel->updateFlashcard($flashcardId, $title, $termString, $definitionString, $userId);
+            echo json_encode(['success' => true, 'message' => 'Flashcard updated successfully.']);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * ACTION: Delete a saved flashcard set
+     */
+    public function deleteFlashcard()
+    {
+        $this->checkSession();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($flashcardId === 0 || $fileId === 0) {
+            $_SESSION['error'] = "Flashcard information not provided.";
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+
+        try {
+            $database = new Database();
+            $conn = $database->connect();
+
+            $stmt = $conn->prepare("
+                DELETE fc FROM flashcard fc
+                INNER JOIN file f ON fc.fileID = f.fileID
+                WHERE fc.flashcardID = :flashcardId
+                  AND fc.fileID = :fileId
+                  AND f.userID = :userId
+            ");
+            $stmt->bindParam(':flashcardId', $flashcardId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileId', $fileId, \PDO::PARAM_INT);
+            $stmt->bindParam(':userId', $userId, \PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                $_SESSION['message'] = "Flashcard deleted successfully.";
+            } else {
+                $_SESSION['error'] = "Unable to delete flashcard. Please try again.";
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+        }
+
+        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $fileId;
+        header('Location: ' . FLASHCARD);
+        exit();
+    }
+
+    /**
+     * Delete a quiz
+     */
+    public function deleteQuiz()
+    {
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($quizId === 0 || $fileId === 0) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Quiz information not provided.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+
+        try {
+            $deleted = $this->lmModel->deleteQuiz($quizId, $userId);
+            
+            if ($deleted) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => 'Quiz deleted successfully.']);
+                exit();
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Unable to delete quiz. Quiz not found or you do not have permission.']);
+                exit();
+            }
+        } catch (\Throwable $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            exit();
+        }
+    }
 }

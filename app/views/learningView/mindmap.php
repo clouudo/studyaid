@@ -8,10 +8,22 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css" />
     <style>
+        :root {
+            --sa-primary: #6f42c1;
+            --sa-primary-dark: #593093;
+            --sa-accent: #e7d5ff;
+            --sa-accent-strong: #d4b5ff;
+            --sa-muted: #6c757d;
+            --sa-card-border: #ede1ff;
+        }
+
         #mindmap-container {
             width: 100%;
             min-height: 50px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.08);
+            background-color: #fff;
         }
 
         .markmap {
@@ -22,16 +34,94 @@
             background-color: #f8f9fa;
             padding: 30px;
         }
+        h4[onclick] {
+            transition: color 0.2s;
+        }
+        h4[onclick]:hover {
+            color: var(--sa-primary) !important;
+            text-decoration: underline;
+        }
+
+        .card {
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f6efff, #ffffff);
+            border-bottom: 1px solid var(--sa-card-border);
+            color: var(--sa-primary);
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: var(--sa-primary) !important;
+            border-color: var(--sa-primary) !important;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--sa-primary-dark) !important;
+            border-color: var(--sa-primary-dark) !important;
+        }
+
+        /* Snackbar Styles */
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s ease;
+            min-width: 300px;
+            max-width: 500px;
+        }
+        .snackbar.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .snackbar.success {
+            background-color: #28a745;
+        }
+        .snackbar.error {
+            background-color: #dc3545;
+        }
+        .snackbar-icon {
+            font-size: 1.2rem;
+        }
+        .snackbar-message {
+            flex: 1;
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 
 <body class="d-flex flex-column min-vh-100">
+    <!-- Snackbar Container -->
+    <div id="snackbar" class="snackbar">
+        <i class="snackbar-icon" id="snackbarIcon"></i>
+        <span class="snackbar-message" id="snackbarMessage"></span>
+    </div>
     <div class="d-flex flex-grow-1">
         <?php include 'app/views/sidebar.php'; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container-fluid upload-container">
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Mindmap</h3>
-                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name']); ?></h4>
+                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
+                    <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
+                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name']); ?></h4>
+                </form>
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Mindmap Form -->
@@ -40,7 +130,7 @@
                         <form id="mindmapForm" action="<?= GENERATE_MINDMAP ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
 
-                            <button type="submit" id="genMindmap" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Mindmap</button>
+                            <button type="submit" id="genMindmap" class="btn btn-primary">Generate Mindmap</button>
                         </form>
                     </div>
                 </div>
@@ -104,6 +194,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script>
+        // Snackbar function
+        function showSnackbar(message, type) {
+            const snackbar = document.getElementById('snackbar');
+            const snackbarMessage = document.getElementById('snackbarMessage');
+            const snackbarIcon = document.getElementById('snackbarIcon');
+            
+            snackbarMessage.textContent = message;
+            snackbar.className = 'snackbar ' + type;
+            
+            if (type === 'success') {
+                snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
+            } else if (type === 'error') {
+                snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+            }
+            
+            snackbar.classList.add('show');
+            
+            setTimeout(function() {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+
         let currentViewedMindmapId = null; // Track which mindmap is currently being viewed
 
         // Function to update export button states
@@ -161,13 +273,20 @@
                 if (json.success && json.markdown) {
                     container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
+                    showSnackbar('Mindmap generated successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 } else {
-                    container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to generate mindmap'}</div>`;
+                    showSnackbar(json.message || 'Failed to generate mindmap. Please try again.', 'error');
+                    container.innerHTML = '<p class="text-center p-3 text-muted">Failed to generate mindmap</p>';
                     submitButton.disabled = false;
                     submitButton.textContent = originalButtonText;
                 }
             } catch (err) {
-                container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+                showSnackbar('An error occurred while generating the mindmap. Please try again.', 'error');
+                console.error('Error:', err);
+                container.innerHTML = '<p class="text-center p-3 text-muted">Error generating mindmap</p>';
                 submitButton.disabled = false;
                 submitButton.textContent = originalButtonText;
             }
@@ -201,12 +320,15 @@
                     currentViewedMindmapId = id;
                     updateExportButtonStates(id);
                 } else {
-                    container.innerHTML = `<div class="alert alert-danger">Error: ${json.message || 'Failed to load mindmap'}</div>`;
+                    showSnackbar(json.message || 'Failed to load mindmap. Please try again.', 'error');
+                    container.innerHTML = '<p class="text-center p-3 text-muted">Failed to load mindmap</p>';
                     currentViewedMindmapId = null;
                     updateExportButtonStates(null);
                 }
             } catch (err) {
-                container.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+                showSnackbar('An error occurred while loading the mindmap. Please try again.', 'error');
+                console.error('Error:', err);
+                container.innerHTML = '<p class="text-center p-3 text-muted">Error loading mindmap</p>';
                 currentViewedMindmapId = null;
                 updateExportButtonStates(null);
             }
@@ -221,7 +343,7 @@
 
             // Check if this mindmap is currently being viewed
             if (currentViewedMindmapId !== id) {
-                alert('Please view this mindmap first before exporting.');
+                showSnackbar('Please view this mindmap first before exporting.', 'error');
                 return;
             }
 
@@ -230,7 +352,7 @@
 
             // Verify mindmap is displayed
             if (!markmapDiv || markmapDiv.children.length === 0) {
-                alert('Mindmap is not fully loaded. Please wait and try again.');
+                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
                 return;
             }
 
@@ -247,7 +369,7 @@
 
             // Check if this mindmap is currently being viewed
             if (currentViewedMindmapId !== id) {
-                alert('Please view this mindmap first before exporting.');
+                showSnackbar('Please view this mindmap first before exporting.', 'error');
                 return;
             }
 
@@ -256,7 +378,7 @@
 
             // Verify mindmap is displayed
             if (!markmapDiv || markmapDiv.children.length === 0) {
-                alert('Mindmap is not fully loaded. Please wait and try again.');
+                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
                 return;
             }
 
@@ -281,7 +403,8 @@
                 }, 200);
             } catch (err) {
                 console.error('Data URL download error:', err);
-                alert('Error downloading image: ' + err.message);
+                showSnackbar('Failed to download mindmap image. Please try again.', 'error');
+                console.error('Error downloading image:', err);
             }
         }
 
@@ -291,13 +414,13 @@
             const markmapDiv = container.querySelector('.markmap');
 
             if (!markmapDiv) {
-                alert('Please view the mindmap first before exporting.');
+                showSnackbar('Please view the mindmap first before exporting.', 'error');
                 return;
             }
 
             // Check if mindmap has content
             if (!markmapDiv.children || markmapDiv.children.length === 0) {
-                alert('Mindmap is not fully loaded. Please wait and try again.');
+                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
                 return;
             }
 
@@ -357,11 +480,13 @@
                     }
                 } catch (err) {
                     console.error('Export error:', err);
-                    alert('Error creating download: ' + err.message);
+                    showSnackbar('Failed to create download. Please try again.', 'error');
+                console.error('Error creating download:', err);
                 }
             }).catch(err => {
                 console.error('html2canvas error:', err);
-                alert('Error exporting mindmap: ' + err.message);
+                showSnackbar('Failed to export mindmap. Please try again.', 'error');
+                console.error('Error exporting mindmap:', err);
             });
         }
 
@@ -371,13 +496,13 @@
             const markmapDiv = container.querySelector('.markmap');
 
             if (!markmapDiv) {
-                alert('Please view the mindmap first before exporting.');
+                showSnackbar('Please view the mindmap first before exporting.', 'error');
                 return;
             }
 
             // Check if jsPDF is available
             if (typeof window.jspdf === 'undefined') {
-                alert('PDF library not loaded. Please refresh the page and try again.');
+                showSnackbar('PDF library not loaded. Please refresh the page and try again.', 'error');
                 return;
             }
 
@@ -456,10 +581,12 @@
                     // Save PDF
                     pdf.save(`mindmap_${mindmapId}_${new Date().getTime()}.pdf`);
                 } catch (err) {
-                    alert('Error exporting mindmap as PDF: ' + err.message);
+                    showSnackbar('Failed to export mindmap as PDF. Please try again.', 'error');
+                    console.error('Error exporting mindmap as PDF:', err);
                 }
             }).catch(err => {
-                alert('Error capturing mindmap: ' + err.message);
+                showSnackbar('Failed to capture mindmap. Please try again.', 'error');
+                console.error('Error capturing mindmap:', err);
             });
         }
 

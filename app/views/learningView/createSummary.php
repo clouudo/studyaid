@@ -14,7 +14,7 @@
         <?php include VIEW_SIDEBAR; ?>
         <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
             <div class="container">
-                <h3 class="mb-4" style="color: #A855F7;">Generate Summary</h3>
+                <h3 class="mb-4" style="color: #e7d5ff;">Generate Summary</h3>
 
                 <div class="card mb-3">
                     <div class="card-body">
@@ -31,7 +31,7 @@
                                 <label class="form-label">Instructions (optional)</label>
                                 <input type="text" name="instructions" class="form-control" placeholder="e.g. In paragraph format" />
                             </div>
-                            <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">Generate Summary</button>
+                            <button type="submit" class="btn btn-primary" style="background-color: #e7d5ff; border: none;">Generate Summary</button>
                         </form>
                     </div>
                 </div>

@@ -83,11 +83,15 @@ PROMPT;
         return $this->generateText($model, $prompt);
     }
 
-    public function generateFlashcards(string $sourceText, ?string $instructions = null, ?string $flashcardAmount = null, ?string $flashcardType = null): string
+    // ============================================================================
+    // FLASHCARD PAGE (flashcard.php)
+    // ============================================================================
+    public function generateFlashcards(string $sourceText, ?string $instructions = null, ?int $flashcardAmount = null, ?string $flashcardType = null): string
     {
-        if ($flashcardAmount == null) {
-            $flashcardAmount = 'standard, (10-20 flashcards)';
+        if ($flashcardAmount === null) {
+            $flashcardAmount = 15;
         }
+        $flashcardAmount = max(1, min(25, $flashcardAmount));
         if ($flashcardType == null) {
             $flashcardType = 'medium';
         }
@@ -109,8 +113,74 @@ PROMPT;
         Output ONLY valid JSON, no markdown, no extra text.
 
         PROMPT;
-        $prompt = $schema . "\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . "Flashcard Amount: " . $flashcardAmount . "\n\n" . "Level of Difficulty: " . $flashcardType . "\n\n" . 'Content: ' . $sourceText;
+        $prompt = $schema . "\n"
+            . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '')
+            . "Flashcard Amount: " . $flashcardAmount . " flashcards\n\n"
+            . "Level of Difficulty: " . $flashcardType . "\n\n"
+            . 'Content: ' . $sourceText;
         $output = $this->generateText($model, $prompt);
+        return $this->cleanJsonOutput($output);
+    }
+
+    // ============================================================================
+    // QUIZ PAGE (quiz.php)
+    // ============================================================================
+    public function generateMixedQuiz(
+        string $sourceText,
+        array $distribution,
+        int $totalQuestions,
+        string $questionDifficulty = 'medium',
+        ?string $instructions = null
+    ): string {
+        $model = $this->models['quiz'] ?? $this->defaultModel;
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 8192,
+        ]);
+
+        $typeBreakdown = [];
+        foreach ($distribution as $type => $count) {
+            if ($count > 0) {
+                $label = ucfirst(str_replace('_', ' ', $type));
+                $typeBreakdown[] = "{$label}: {$count}";
+            }
+        }
+        $typeLines = implode("\n", $typeBreakdown);
+
+        $schema = <<<PROMPT
+You are an educational quiz generator. Create {$totalQuestions} questions using the provided document content.
+Match this distribution:
+{$typeLines}
+
+Question type rules:
+- multiple_choice: Provide exactly 4 options array, answer must match one option text.
+- checkbox: Provide 4 options, answer must be an array of the correct option texts (multiple allowed).
+- true_false: Provide two options (True, False) and answer must be "True" or "False".
+- short_answer: Open-ended response 1-2 sentences, include concise answer field.
+- long_answer: Paragraph-style answer 3-5 sentences, include concise answer summary.
+
+Return JSON ONLY in this structure:
+{
+  "quiz": [
+    {
+      "type": "multiple_choice|checkbox|true_false|short_answer|long_answer",
+      "question": "string",
+      "options": ["A","B","C","D"],   // only for multiple_choice, checkbox, true_false
+      "answer": "string or array",
+      "explanation": "short reasoning for the answer"
+    }
+  ]
+}
+PROMPT;
+
+        $prompt = $schema . "\n"
+            . "Question Difficulty: {$questionDifficulty}\n"
+            . "Total Questions: {$totalQuestions}\n"
+            . ($instructions ? ("Constraints: {$instructions}\n") : '')
+            . "\nContent:\n{$sourceText}";
+
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents, $generationConfig);
+        $output = $this->extractText($result);
         return $this->cleanJsonOutput($output);
     }
 
@@ -151,6 +221,59 @@ PROMPT;
         return $this->cleanJsonOutput($output);
     }
 
+    public function evaluateOpenAnswer(
+        string $question,
+        string $expectedAnswer,
+        string $userAnswer,
+        string $type = 'short_answer',
+        string $difficulty = 'medium'
+    ): array {
+        $model = $this->models['quiz'] ?? $this->defaultModel;
+        if (trim($userAnswer) === '') {
+            return [
+                'score' => 0,
+                'isCorrect' => false,
+                'suggestion' => 'No answer provided.'
+            ];
+        }
+
+        $prompt = <<<PROMPT
+You are grading a student's response for a {$type} question (difficulty: {$difficulty}).
+Compare the student's answer with the expected answer. Provide:
+- score: value between 0 and 1 (two decimal places) representing correctness.
+- isCorrect: true if score >= 0.6, false otherwise.
+- suggestion: short constructive feedback referencing missing information or improvements. If answer is excellent, acknowledge it.
+
+Return JSON ONLY:
+{
+  "score": 0.0,
+  "isCorrect": true,
+  "suggestion": "string"
+}
+
+Question: {$question}
+Expected Answer: {$expectedAnswer}
+Student Answer: {$userAnswer}
+PROMPT;
+
+        $contents = [$this->buildUserContent($prompt)];
+        $result = $this->postGenerate($model, $contents);
+        $output = $this->extractText($result);
+        $clean = $this->cleanJsonOutput($output);
+        $decoded = json_decode($clean, true);
+        if (!is_array($decoded)) {
+            return [
+                'score' => 0,
+                'isCorrect' => false,
+                'suggestion' => 'Unable to evaluate answer automatically.'
+            ];
+        }
+        return [
+            'score' => isset($decoded['score']) ? (float)$decoded['score'] : 0,
+            'isCorrect' => isset($decoded['isCorrect']) ? (bool)$decoded['isCorrect'] : false,
+            'suggestion' => $decoded['suggestion'] ?? ''
+        ];
+    }
     public function generateShortQuestion(string $sourceText, ?string $instructions = null, ?string $questionAmount = null, ?string $questionDifficulty = null){
         if ($questionAmount == null) {
             $questionAmount = 'standard, (10-20 questions)';

@@ -205,7 +205,6 @@ function isActive($link_url, $current_url)
     color: #212529;
     padding: 10px 16px;
     border-radius: 6px;
-    margin: 2px 4px;
   }
 
   .dropdown-item:hover {

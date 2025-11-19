@@ -25,6 +25,60 @@ class LmModel
         $this->bucketName = $config['bucket_name'];
     }
 
+    /**
+     * Ensure quiz schema has required columns/tables.
+     */
+    private function ensureQuizSchema(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+
+        try {
+            $conn = $this->db->connect();
+            $columnSql = [
+                'examMode' => "ALTER TABLE quiz ADD COLUMN examMode TINYINT(1) NOT NULL DEFAULT 0 AFTER totalQuestions",
+                'status' => "ALTER TABLE quiz ADD COLUMN status ENUM('pending','completed') NOT NULL DEFAULT 'pending' AFTER examMode",
+                'questionConfig' => "ALTER TABLE quiz ADD COLUMN questionConfig LONGTEXT NULL AFTER title"
+            ];
+
+            foreach ($columnSql as $column => $sql) {
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quiz' AND COLUMN_NAME = :column");
+                $stmt->bindParam(':column', $column);
+                $stmt->execute();
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $conn->exec($sql);
+                }
+            }
+
+            // Ensure markAt allows NULL
+            $conn->exec("ALTER TABLE quiz MODIFY markAt DATETIME NULL DEFAULT NULL");
+
+            // Ensure quiz_attempt table exists
+            $conn->exec("
+                CREATE TABLE IF NOT EXISTS quiz_attempt (
+                    attemptID INT(11) NOT NULL AUTO_INCREMENT,
+                    quizID INT(11) NOT NULL,
+                    userID INT(11) NOT NULL,
+                    answers LONGTEXT NOT NULL,
+                    feedback LONGTEXT NULL,
+                    suggestions LONGTEXT NULL,
+                    score DECIMAL(5,2) NULL,
+                    examMode TINYINT(1) NOT NULL DEFAULT 0,
+                    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (attemptID),
+                    KEY quiz_attempt_quiz_idx (quizID),
+                    KEY quiz_attempt_user_idx (userID)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
+        } catch (\Throwable $e) {
+            error_log('Quiz schema ensure failed: ' . $e->getMessage());
+        }
+
+        $checked = true;
+    }
+
     // ============================================================================
     // UTILITY/HELPER METHODS
     // ============================================================================
@@ -918,6 +972,41 @@ class LmModel
         return $stmt->execute();
     }
 
+    /**
+     * Get a specific flashcard ensuring it belongs to the user
+     */
+    public function getFlashcardWithOwner(int $flashcardId, int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT fc.* 
+                                FROM flashcard fc
+                                INNER JOIN file f ON fc.fileID = f.fileID
+                                WHERE fc.flashcardID = :flashcardID AND f.userID = :userID");
+        $stmt->bindParam(':flashcardID', $flashcardId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Update a flashcard (title, term, definition) with ownership check
+     */
+    public function updateFlashcard(int $flashcardId, string $title, string $term, string $definition, int $userId): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE flashcard fc
+                                INNER JOIN file f ON fc.fileID = f.fileID
+                                SET fc.title = :title, fc.term = :term, fc.definition = :definition
+                                WHERE fc.flashcardID = :flashcardID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':term', $term);
+        $stmt->bindParam(':definition', $definition);
+        $stmt->bindParam(':flashcardID', $flashcardId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+
     // ============================================================================
     // QUIZ PAGE (quiz.php)
     // ============================================================================
@@ -925,13 +1014,23 @@ class LmModel
     /**
      * Save a quiz to database
      */
-    public function saveQuiz(int $fileId, int $totalQuestions, string $title, ?int $totalScore = null): int
-    {
+    public function saveQuiz(
+        int $fileId,
+        int $totalQuestions,
+        string $title,
+        array $questionConfig = [],
+        int $examMode = 0,
+        ?int $totalScore = null
+    ): int {
+        $this->ensureQuizSchema();
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, title, totalScore) VALUES (:fileID, :totalQuestions, :title, :totalScore)");
+        $configJson = !empty($questionConfig) ? json_encode($questionConfig) : null;
+        $stmt = $conn->prepare("INSERT INTO quiz (fileID, totalQuestions, examMode, status, title, questionConfig, totalScore) VALUES (:fileID, :totalQuestions, :examMode, 'pending', :title, :questionConfig, :totalScore)");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->bindParam(':totalQuestions', $totalQuestions);
+        $stmt->bindParam(':examMode', $examMode, \PDO::PARAM_INT);
         $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':questionConfig', $configJson);
         $stmt->bindParam(':totalScore', $totalScore);
         $stmt->execute();
         return (int)$conn->lastInsertId();
@@ -969,6 +1068,7 @@ class LmModel
      */
     public function getQuizByFile(int $fileId)
     {
+        $this->ensureQuizSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM quiz WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
@@ -981,6 +1081,7 @@ class LmModel
      */
     public function getQuizById(int $quizId)
     {
+        $this->ensureQuizSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM quiz WHERE quizID = :quizID");
         $stmt->bindParam(':quizID', $quizId);
@@ -1005,11 +1106,148 @@ class LmModel
      */
     public function saveScore(int $quizId, string $percentageScore): bool
     {
+        $this->ensureQuizSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("UPDATE quiz SET totalScore = :totalScore, markAt = NOW() WHERE quizID = :quizID");
         $stmt->bindParam(':quizID', $quizId);
         $stmt->bindParam(':totalScore', $percentageScore);
         return $stmt->execute();
+    }
+
+    public function updateQuizStatus(int $quizId, string $status = 'completed', ?string $score = null): bool
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $sql = "UPDATE quiz SET status = :status";
+        if ($score !== null) {
+            $sql .= ", totalScore = :totalScore, markAt = NOW()";
+        }
+        $sql .= " WHERE quizID = :quizID";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':status', $status);
+        if ($score !== null) {
+            $stmt->bindParam(':totalScore', $score);
+        }
+        $stmt->bindParam(':quizID', $quizId);
+        return $stmt->execute();
+    }
+
+    public function saveQuizAttempt(
+        int $quizId,
+        int $userId,
+        array $answers,
+        array $feedback = [],
+        ?array $suggestions = null,
+        ?float $score = null,
+        int $examMode = 0
+    ): int {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO quiz_attempt (quizID, userID, answers, feedback, suggestions, score, examMode) VALUES (:quizID, :userID, :answers, :feedback, :suggestions, :score, :examMode)");
+        $answersJson = json_encode($answers);
+        $feedbackJson = !empty($feedback) ? json_encode($feedback) : null;
+        $suggestionsJson = $suggestions ? json_encode($suggestions) : null;
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->bindParam(':answers', $answersJson);
+        $stmt->bindParam(':feedback', $feedbackJson);
+        $stmt->bindParam(':suggestions', $suggestionsJson);
+        $stmt->bindParam(':score', $score);
+        $stmt->bindParam(':examMode', $examMode, \PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    public function getLatestQuizAttempt(int $quizId, int $userId)
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM quiz_attempt WHERE quizID = :quizID AND userID = :userID ORDER BY createdAt DESC LIMIT 1");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    public function hasQuizAttempt(int $quizId, int $userId): bool
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM quiz_attempt WHERE quizID = :quizID AND userID = :userID");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return (bool)$stmt->fetchColumn();
+    }
+
+    /**
+     * Get quiz statistics for a user
+     */
+    public function getQuizStatistics(int $userId, ?int $fileId = null): array
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        
+        $fileCondition = $fileId ? "AND q.fileID = :fileID" : "";
+        $params = [':userID' => $userId];
+        if ($fileId) {
+            $params[':fileID'] = $fileId;
+        }
+        
+        // Get all completed quizzes with their attempts
+        // Use COALESCE to prefer totalScore from quiz table, fall back to attempt score
+        $sql = "SELECT 
+                    q.quizID,
+                    q.title,
+                    q.examMode,
+                    COALESCE(q.totalScore, qa.score) as totalScore,
+                    q.createdAt,
+                    COALESCE(q.markAt, qa.createdAt) as markAt,
+                    q.status,
+                    qa.score as attemptScore,
+                    qa.createdAt as attemptDate
+                FROM quiz q
+                LEFT JOIN quiz_attempt qa ON q.quizID = qa.quizID AND qa.userID = :userID
+                WHERE q.fileID IN (SELECT fileID FROM file WHERE userID = :userID) $fileCondition
+                AND q.status = 'completed'
+                AND (q.totalScore IS NOT NULL OR qa.score IS NOT NULL)
+                ORDER BY COALESCE(q.markAt, qa.createdAt, q.createdAt) DESC";
+        
+        $stmt = $conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Get overall statistics
+        // Use COALESCE to prefer totalScore, fall back to attempt score for practice quizzes
+        $statsSql = "SELECT 
+                        COUNT(DISTINCT q.quizID) as totalQuizzes,
+                        COUNT(DISTINCT CASE WHEN q.examMode = 1 THEN q.quizID END) as examQuizzes,
+                        COUNT(DISTINCT CASE WHEN q.examMode = 0 THEN q.quizID END) as practiceQuizzes,
+                        AVG(COALESCE(q.totalScore, qa.score)) as avgScore,
+                        AVG(CASE WHEN q.examMode = 1 THEN COALESCE(q.totalScore, qa.score) ELSE NULL END) as avgExamScore,
+                        AVG(CASE WHEN q.examMode = 0 THEN COALESCE(q.totalScore, qa.score) ELSE NULL END) as avgPracticeScore,
+                        MAX(COALESCE(q.totalScore, qa.score)) as maxScore,
+                        MIN(COALESCE(q.totalScore, qa.score)) as minScore
+                    FROM quiz q
+                    LEFT JOIN quiz_attempt qa ON q.quizID = qa.quizID AND qa.userID = :userID
+                    WHERE q.fileID IN (SELECT fileID FROM file WHERE userID = :userID) $fileCondition
+                    AND q.status = 'completed'
+                    AND (q.totalScore IS NOT NULL OR qa.score IS NOT NULL)";
+        
+        $statsStmt = $conn->prepare($statsSql);
+        foreach ($params as $key => $value) {
+            $statsStmt->bindValue($key, $value);
+        }
+        $statsStmt->execute();
+        $stats = $statsStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        return [
+            'quizzes' => $results,
+            'statistics' => $stats
+        ];
     }
 
     /**
@@ -1029,6 +1267,38 @@ class LmModel
         }
         
         return null;
+    }
+
+    /**
+     * Delete a quiz and all related data (questions, answers, etc.)
+     * CASCADE constraints in database will handle related records
+     */
+    public function deleteQuiz(int $quizId, int $userId): bool
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        
+        // Verify ownership before deletion
+        $stmt = $conn->prepare("
+            SELECT q.quizID 
+            FROM quiz q
+            INNER JOIN file f ON q.fileID = f.fileID
+            WHERE q.quizID = :quizID AND f.userID = :userID
+        ");
+        $stmt->bindParam(':quizID', $quizId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        if (!$stmt->fetch(\PDO::FETCH_ASSOC)) {
+            return false; // Quiz not found or user doesn't own it
+        }
+        
+        // Delete the quiz (CASCADE will delete related questions, answers, etc.)
+        $deleteStmt = $conn->prepare("DELETE FROM quiz WHERE quizID = :quizID");
+        $deleteStmt->bindParam(':quizID', $quizId, \PDO::PARAM_INT);
+        $deleteStmt->execute();
+        
+        return $deleteStmt->rowCount() > 0;
     }
 
     // ============================================================================

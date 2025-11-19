@@ -8,6 +8,21 @@
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <style>
+        :root {
+            --sa-primary: #6f42c1;
+            --sa-primary-dark: #593093;
+            --sa-accent: #e7d5ff;
+            --sa-accent-strong: #d4b5ff;
+            --sa-muted: #6c757d;
+            --sa-card-border: #ede1ff;
+        }
+
+        .card {
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+        }
+
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -74,33 +89,15 @@
         .password-toggle .form-control {
             padding-right: 40px;
         }
-        .btn-create {
-            background-color: #e7d5ff;
-            border: none;
-            color: #6f42c1;
-            padding: 10px 24px;
+        .form-control-lg {
+            border: 2px solid var(--sa-card-border);
             border-radius: 8px;
-            font-weight: 600;
+            padding: 0.75rem 1rem;
         }
-        .btn-create:hover {
-            background-color: #6f42c1;
-            color: white;
-        }
-        .card-header {
-            background-color: #6f42c1 !important;
-            color: white !important;
-        }
-        .btn-danger {
-            background-color: #dc3545;
-            border: none;
-            color: white;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        .btn-danger:hover {
-            background-color: #c82333;
-            color: white;
+
+        .form-control-lg:focus {
+            border-color: var(--sa-primary);
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
         }
         .modal-close-btn {
             background-color: transparent;
@@ -131,7 +128,7 @@
                 <div id="snackbar" class="snackbar">
                     <i class="snackbar-icon" id="snackbarIcon"></i>
                     <span class="snackbar-message" id="snackbarMessage"></span>
-                </div>
+                    </div>
                 
                 <?php
                 $successMessage = null;
@@ -148,84 +145,96 @@
 
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Manage Profile</h3>
 
-            <div class="row">
+            <div class="row g-4">
                     <!-- Profile Information Section -->
-                    <div class="col-md-8">
+                    <div class="col-lg-8">
                         <div class="card mb-4">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Profile Information</h5>
+                            <div class="card-header d-flex align-items-center" style="background: linear-gradient(135deg, #f6efff, #ffffff); border-bottom: 1px solid var(--sa-card-border);">
+                                <i class="bi bi-person-circle me-3" style="font-size: 1.5rem; color: #6f42c1;"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-0" style="color: #6f42c1; font-weight: 600;">Profile Information</h5>
+                                    <small class="text-muted">Update your personal details</small>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <form id="profileForm" action="<?= BASE_PATH ?>user/updateProfile" method="POST">
-                                    <div class="mb-3">
-                                        <label for="username" class="form-label">Username</label>
-                                        <input type="text" class="form-control" id="username" name="username" 
+                                    <div class="mb-4">
+                                        <label for="username" class="form-label fw-semibold">Username</label>
+                                        <input type="text" class="form-control form-control-lg" id="username" name="username" 
                                                value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="email" class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="email" name="email" 
+                                    <div class="mb-4">
+                                        <label for="email" class="form-label fw-semibold">Email</label>
+                                        <input type="email" class="form-control form-control-lg" id="email" name="email" 
                                                value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
                                     </div>
                                     <div class="d-flex justify-content-end">
-                                        <button type="submit" class="btn btn-create">Update Profile</button>
+                                        <button type="submit" class="btn btn-primary" style="background-color: #6f42c1; border: none; padding: 10px 24px; font-weight: 600;">Update Profile</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
 
                         <!-- Change Password Section -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-key me-2"></i>Change Password</h5>
+                        <div class="card mb-4">
+                            <div class="card-header d-flex align-items-center" style="background: linear-gradient(135deg, #f6efff, #ffffff); border-bottom: 1px solid var(--sa-card-border);">
+                                <i class="bi bi-key me-3" style="font-size: 1.5rem; color: #6f42c1;"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-0" style="color: #6f42c1; font-weight: 600;">Change Password</h5>
+                                    <small class="text-muted">Update your account password</small>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <form id="passwordForm" action="<?= BASE_PATH ?>user/changePassword" method="POST">
-                                    <div class="mb-3">
-                                        <label for="currentPassword" class="form-label">Current Password</label>
+                                    <div class="mb-4">
+                                        <label for="currentPassword" class="form-label fw-semibold">Current Password</label>
                                         <div class="password-toggle">
-                                            <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                                        <input type="password" class="form-control form-control-lg" id="currentPassword" name="currentPassword" required>
                                             <button type="button" class="password-toggle-btn" onclick="toggleCurrentPassword()">
                                                 <i class="bi bi-eye-fill" id="toggleCurrentPasswordIcon"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="newPassword" class="form-label">New Password</label>
+                                    <div class="mb-4">
+                                        <label for="newPassword" class="form-label fw-semibold">New Password</label>
                                         <div class="password-toggle">
-                                            <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                                        <input type="password" class="form-control form-control-lg" id="newPassword" name="newPassword" required>
                                             <button type="button" class="password-toggle-btn" onclick="toggleNewPassword()">
                                                 <i class="bi bi-eye-fill" id="toggleNewPasswordIcon"></i>
                                             </button>
                                         </div>
-                                        <div class="form-text">Password must be at least 8 characters long.</div>
+                                        <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i>Password must be at least 8 characters long.</div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <div class="mb-4">
+                                        <label for="confirmPassword" class="form-label fw-semibold">Confirm New Password</label>
                                         <div class="password-toggle">
-                                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                        <input type="password" class="form-control form-control-lg" id="confirmPassword" name="confirmPassword" required>
                                             <button type="button" class="password-toggle-btn" onclick="toggleConfirmPassword()">
                                                 <i class="bi bi-eye-fill" id="toggleConfirmPasswordIcon"></i>
                                             </button>
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-end">
-                                        <button type="submit" class="btn btn-create">Change Password</button>
+                                        <button type="submit" class="btn btn-primary" style="background-color: #6f42c1; border: none; padding: 10px 24px; font-weight: 600;">Change Password</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
 
                         <!-- Delete Account Section -->
-                        <div class="card mt-4">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Delete Account</h5>
+                        <div class="card">
+                            <div class="card-header d-flex align-items-center" style="background: linear-gradient(135deg, #fff5f5, #ffffff); border-bottom: 1px solid #f8d7da;">
+                                <i class="bi bi-exclamation-triangle me-3" style="font-size: 1.5rem; color: #dc3545;"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-0" style="color: #dc3545; font-weight: 600;">Delete Account</h5>
+                                    <small class="text-muted">Permanently delete your account</small>
+                                </div>
                             </div>
                             <div class="card-body">
-                                <p class="text-muted mb-3">Once you delete your account, you will not be able to recover it. This action cannot be undone.</p>
+                                <p class="text-muted mb-4">Once you delete your account, you will not be able to recover it. This action cannot be undone.</p>
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                                        Delete Account
+                                        <i class="bi bi-trash me-2"></i>Delete Account
                                     </button>
                                 </div>
                             </div>
@@ -233,15 +242,21 @@
                     </div>
 
                     <!-- Profile Summary Sidebar -->
-                    <div class="col-md-4">
+                    <div class="col-lg-4">
                         <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Account Summary</h5>
+                            <div class="card-header d-flex align-items-center" style="background: linear-gradient(135deg, #f6efff, #ffffff); border-bottom: 1px solid var(--sa-card-border);">
+                                <i class="bi bi-info-circle me-3" style="font-size: 1.5rem; color: #6f42c1;"></i>
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-0" style="color: #6f42c1; font-weight: 600;">Account Summary</h5>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <div class="text-center mb-3">
-                                    <h5><?= htmlspecialchars($user['username'] ?? 'Username') ?></h5>
-                                    <p class="text-muted"><?= htmlspecialchars($user['email'] ?? 'email@example.com') ?></p>
+                            <div class="card-body text-center">
+                                <div class="mb-4">
+                                    <div class="mb-3" style="width: 80px; height: 80px; margin: 0 auto; background: linear-gradient(135deg, #6f42c1, #5a32a3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; font-weight: 600;">
+                                        <?= strtoupper(substr(htmlspecialchars($user['username'] ?? 'U'), 0, 1)) ?>
+                                    </div>
+                                    <h5 class="mb-1"><?= htmlspecialchars($user['username'] ?? 'Username') ?></h5>
+                                    <p class="text-muted mb-0"><i class="bi bi-envelope me-1"></i><?= htmlspecialchars($user['email'] ?? 'email@example.com') ?></p>
                                 </div>
                             </div>
                         </div>

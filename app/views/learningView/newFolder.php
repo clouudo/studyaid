@@ -244,7 +244,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                         <div>
                             <label for="folderName" class="form-label fw-semibold">Folder Name</label>
                             <input type="text" class="form-control form-input-theme" id="folderName" name="folderName" placeholder="Enter your folder name here..." required>
-                        </div>
+                    </div>
                         <div>
                             <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
                             <div class="folder-select-wrapper">
@@ -252,7 +252,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                                 <i class="bi bi-chevron-expand folder-select-icon"></i>
                             </div>
                         </div>
-                    </div>
+                    </div>  
 
                     <div class="action-buttons">
                         <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
@@ -276,7 +276,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <div class="modal-body">
                     <?php if (!empty($allUserFolders)): ?>
                         <ul class="folder-list">
-                            <?php echo buildFolderTree($allUserFolders); ?>
+                    <?php echo buildFolderTree($allUserFolders); ?>
                         </ul>
                     <?php else: ?>
                         <p class="text-muted text-center py-4">No folders available. Create a folder first.</p>

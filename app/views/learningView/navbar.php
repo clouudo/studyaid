@@ -41,12 +41,12 @@
 
 <style>
     .nav-item.active{
-        background-color: #A855F7 !important;
+        background-color: #e7d5ff !important;
     }
     
     .nav-item.active .nav-link{
-        background-color: #A855F7 !important;
-        color: white !important;
+        background-color: #e7d5ff !important;
+        color: #6f42c1 !important;
     }
 </style>
 

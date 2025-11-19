@@ -81,15 +81,21 @@ define('DELETE_MINDMAP', BASE_PATH . 'lm/deleteMindmap');
 
 //Flashcard routes
 define('VIEW_FLASHCARD_ROUTE', BASE_PATH . 'lm/viewFlashcard');
+define('DELETE_FLASHCARD', BASE_PATH . 'lm/deleteFlashcard');
+define('CREATE_FLASHCARD_MANUAL', BASE_PATH . 'lm/createFlashcard');
+define('UPDATE_FLASHCARD', BASE_PATH . 'lm/updateFlashcard');
 
 // Chatbot, Quiz, Flashcard routes
 define('CHATBOT', BASE_PATH . 'lm/chatbot');
 define('QUIZ', BASE_PATH . 'lm/quiz');
 define('VIEW_QUIZ_ROUTE', BASE_PATH . 'lm/viewQuiz');
+define('VIEW_QUIZ_ATTEMPT', BASE_PATH . 'lm/viewQuizAttempt');
 define('SAVE_SCORE', BASE_PATH . 'lm/saveScore');
+define('GET_QUIZ_STATISTICS', BASE_PATH . 'lm/getQuizStatistics');
 define('FLASHCARD', BASE_PATH . 'lm/flashcard');
 define('GENERATE_QUIZ', BASE_PATH . 'lm/generateQuiz');
 define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
+define('DELETE_QUIZ', BASE_PATH . 'lm/deleteQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
 define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
 
