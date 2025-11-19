@@ -216,9 +216,7 @@ PROMPT;
             . ($instructions ? ("Constraints: {$instructions}\n") : '')
             . "\nContent:\n{$sourceText}";
 
-        $contents = [$this->buildUserContent($prompt)];
-        $result = $this->postGenerate($model, $contents, $generationConfig);
-        $output = $this->extractText($result);
+        $output = $this->generateText($model, $prompt, $generationConfig);
         return $this->cleanJsonOutput($output);
     }
 
@@ -312,6 +310,151 @@ PROMPT;
             'suggestion' => $decoded['suggestion'] ?? ''
         ];
     }
+
+    /**
+     * Evaluates quiz answers by comparing user answers with correct answers
+     * @param array $userAnswers Array of user answers indexed by question ID
+     * @param array $questions Array of questions with their correct answers and options
+     * @return array Feedback with score, feedback text, and suggestions
+     */
+    public function evaluateAnswers(array $userAnswers, array $questions): array
+    {
+        $totalQuestions = count($questions);
+        $correctCount = 0;
+        $feedbackItems = [];
+        $suggestions = [];
+        $results = []; // Structured results for frontend
+
+        foreach ($questions as $question) {
+            $questionId = $question['questionID'];
+            $questionType = strtolower($question['type'] ?? 'multiple_choice');
+            $userAnswer = $userAnswers[$questionId] ?? null;
+            $correctAnswer = $question['answer'] ?? '';
+
+            $isCorrect = false;
+            $suggestion = '';
+
+            if ($userAnswer === null || $userAnswer === '') {
+                $feedbackItems[] = "Question {$questionId}: No answer provided.";
+                $suggestions[] = "Question {$questionId}: Please review the question and provide an answer.";
+                $suggestion = "Please review the question and provide an answer.";
+                
+                // Add to results array
+                $results[] = [
+                    'questionID' => $questionId,
+                    'question' => $question['question'] ?? '',
+                    'type' => $questionType,
+                    'userAnswer' => null,
+                    'correctAnswer' => is_array($correctAnswer) ? $correctAnswer : [$correctAnswer],
+                    'isCorrect' => false,
+                    'suggestion' => $suggestion,
+                    'options' => $question['options'] ?? []
+                ];
+                continue;
+            }
+
+            // Evaluate based on question type
+            switch ($questionType) {
+                case 'multiple_choice':
+                case 'true_false':
+                    // Normalize both answers for comparison (trim, lowercase for case-insensitive)
+                    $normalizedUserAnswer = trim(strtolower((string)$userAnswer));
+                    $normalizedCorrectAnswer = trim(strtolower((string)$correctAnswer));
+                    $isCorrect = ($normalizedUserAnswer === $normalizedCorrectAnswer);
+                    
+                    // Log for debugging if incorrect
+                    if (!$isCorrect) {
+                        $userAnswerStr = is_array($userAnswer) ? json_encode($userAnswer) : (string)$userAnswer;
+                        $correctAnswerStr = is_array($correctAnswer) ? json_encode($correctAnswer) : (string)$correctAnswer;
+                        error_log("[Quiz Evaluation] MCQ mismatch - Question ID: {$questionId}, User: '{$userAnswerStr}', Correct: '{$correctAnswerStr}'");
+                        $suggestion = "Review the correct answer: " . (is_array($correctAnswer) ? implode(', ', $correctAnswer) : $correctAnswer);
+                    }
+                    break;
+
+                case 'checkbox':
+                    // For checkbox, user answer is an array, correct answer might be JSON
+                    $userAnswerArray = is_array($userAnswer) ? $userAnswer : json_decode($userAnswer, true);
+                    $correctAnswerArray = is_array($correctAnswer) ? $correctAnswer : json_decode($correctAnswer, true);
+                    
+                    if (is_array($userAnswerArray) && is_array($correctAnswerArray)) {
+                        sort($userAnswerArray);
+                        sort($correctAnswerArray);
+                        $isCorrect = ($userAnswerArray === $correctAnswerArray);
+                    } else {
+                        $isCorrect = false;
+                    }
+                    
+                    if (!$isCorrect) {
+                        $suggestion = "Review the correct answer(s): " . (is_array($correctAnswer) ? implode(', ', $correctAnswer) : $correctAnswer);
+                    }
+                    break;
+
+                case 'short_answer':
+                case 'long_answer':
+                    // Use AI evaluation for open-ended questions
+                    $evaluation = $this->evaluateOpenAnswer(
+                        $question['question'] ?? '',
+                        $correctAnswer,
+                        is_array($userAnswer) ? json_encode($userAnswer) : $userAnswer,
+                        $questionType,
+                        'medium'
+                    );
+                    $isCorrect = $evaluation['isCorrect'];
+                    if (!$isCorrect && !empty($evaluation['suggestion'])) {
+                        $suggestions[] = "Question {$questionId}: " . $evaluation['suggestion'];
+                        $suggestion = $evaluation['suggestion'];
+                    }
+                    break;
+
+                default:
+                    $isCorrect = (trim($userAnswer) === trim($correctAnswer));
+                    if (!$isCorrect) {
+                        $suggestion = "Review the correct answer: " . (is_array($correctAnswer) ? implode(', ', $correctAnswer) : $correctAnswer);
+                    }
+            }
+
+            if ($isCorrect) {
+                $correctCount++;
+                $feedbackItems[] = "Question {$questionId}: Correct!";
+            } else {
+                // Convert correct answer to string for display (handles arrays for checkbox)
+                $correctAnswerDisplay = is_array($correctAnswer) 
+                    ? implode(', ', $correctAnswer) 
+                    : (string)$correctAnswer;
+                $feedbackItems[] = "Question {$questionId}: Incorrect. Expected: {$correctAnswerDisplay}";
+                if ($questionType !== 'short_answer' && $questionType !== 'long_answer') {
+                    $suggestions[] = "Question {$questionId}: Review the correct answer: {$correctAnswerDisplay}";
+                }
+            }
+            
+            // Add structured result for frontend
+            $results[] = [
+                'questionID' => $questionId,
+                'question' => $question['question'] ?? '',
+                'type' => $questionType,
+                'userAnswer' => is_array($userAnswer) ? $userAnswer : [$userAnswer],
+                'correctAnswer' => is_array($correctAnswer) ? $correctAnswer : [$correctAnswer],
+                'isCorrect' => $isCorrect,
+                'suggestion' => $suggestion,
+                'options' => $question['options'] ?? [],
+                'explanation' => $question['explanation'] ?? ''
+            ];
+        }
+
+        $score = $totalQuestions > 0 ? ($correctCount / $totalQuestions) * 100 : 0;
+        $percentage = round($score, 2);
+
+        return [
+            'score' => $percentage,
+            'percentage' => $percentage, // For frontend compatibility
+            'feedback' => implode("\n", $feedbackItems),
+            'suggestions' => implode("\n", $suggestions),
+            'correctCount' => $correctCount,
+            'totalQuestions' => $totalQuestions,
+            'results' => $results // Structured results array for frontend
+        ];
+    }
+
     public function generateShortQuestion(string $sourceText, ?string $instructions = null, ?string $questionAmount = null, ?string $questionDifficulty = null){
         if ($questionAmount == null) {
             $questionAmount = 'standard, (10-20 questions)';

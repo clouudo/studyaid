@@ -78,6 +78,34 @@ class PiperService{
     }
 
     /**
+     * Sanitize text by removing invalid Unicode surrogate characters
+     * Surrogate characters (U+D800 to U+DFFF) are invalid in UTF-8 and cause encoding errors
+     * @param string $text The text to sanitize
+     * @return string Sanitized text
+     */
+    private function sanitizeUnicode(string $text): string
+    {
+        // Remove invalid surrogate characters (U+D800 to U+DFFF)
+        // These are invalid Unicode code points that can't be encoded in UTF-8
+        $text = preg_replace('/[\x{D800}-\x{DFFF}]/u', '', $text);
+        
+        // Ensure valid UTF-8 encoding
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            // If text is not valid UTF-8, try to convert it
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        }
+        
+        // Remove control characters and other problematic characters
+        // Keep only printable characters, spaces, tabs, and newlines
+        $text = preg_replace('/[\x{00}-\x{08}\x{0B}\x{0C}\x{0E}-\x{1F}\x{7F}-\x{9F}]/u', '', $text);
+        
+        // Remove any remaining invalid UTF-8 sequences by converting to UTF-8 and back
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        
+        return $text;
+    }
+
+    /**
      * Synthesize text to speech and save as WAV file
      * @param string $text The text to convert to speech
      * @return string|null Path to generated audio file, or null on failure
@@ -89,10 +117,18 @@ class PiperService{
             return null;
         }
 
+        // Sanitize Unicode to remove invalid surrogate characters
+        $text = $this->sanitizeUnicode($text);
+        
+        if (empty(trim($text))) {
+            error_log("PiperService: Text became empty after sanitization");
+            return null;
+        }
+
         // Truncate very long text to avoid command line length issues
         $maxLength = 10000;
-        if (strlen($text) > $maxLength) {
-            $text = substr($text, 0, $maxLength) . '...';
+        if (mb_strlen($text, 'UTF-8') > $maxLength) {
+            $text = mb_substr($text, 0, $maxLength, 'UTF-8') . '...';
             error_log("PiperService: Text truncated to {$maxLength} characters");
         }
 
@@ -101,8 +137,10 @@ class PiperService{
         $inputFile = $this->tempDir . uniqid('piper_input_', true) . '.txt';
 
         try {
-            // Write text to temporary input file (more reliable than piping on Windows)
-            if (file_put_contents($inputFile, $text) === false) {
+            // Write text to temporary input file with UTF-8 encoding
+            // Use mb_convert_encoding to ensure proper UTF-8 encoding
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+            if (file_put_contents($inputFile, $text, LOCK_EX) === false) {
                 error_log("PiperService: Failed to create input file: {$inputFile}");
                 return null;
             }
@@ -172,6 +210,13 @@ class PiperService{
     public function streamAudio(string $text): bool
     {
         if (empty($text)) {
+            return false;
+        }
+
+        // Sanitize Unicode to remove invalid surrogate characters
+        $text = $this->sanitizeUnicode($text);
+        
+        if (empty(trim($text))) {
             return false;
         }
 

@@ -496,107 +496,10 @@
                                             <span id="questionCountLabel" class="badge rounded-pill" style="background-color: var(--sa-accent); color: var(--sa-primary-dark); font-size: 1rem; min-width: 48px;"><?php echo $defaultQuestionTotal; ?></span>
                                         </label>
                                         <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>">
-                <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px;"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
-                <?php require_once VIEW_NAVBAR; ?>
-
-                <!-- Generate Quiz Form -->
-                <div class="card" id="generateQuizCard">
-                    <div class="card-body">
-                        <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
-                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                            <label for="questionAmount" class="form-label">Question Amount</label>
-                            <br>
-                            <div class="btn-group mb-3" role="group">
-                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" value="fewer (5-10 questions)" id="fewerQuestions">
-                                <label class="btn btn-outline-secondary" for="fewerQuestions">Fewer Questions</label>
-                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" checked value="standard (10-20 questions)" id="defaultQuestions">
-                                <label class="btn btn-outline-secondary" for="defaultQuestions">Standard (Default)</label>
-                                <input type="radio" class="btn-check" name="questionAmount" autcomplete="off" value="more (15-25 questions)" id="moreQuestions">
-                                <label class="btn btn-outline-secondary" for="moreQuestions">More Questions</label>
-                            </div>
-                            <br>
-                            <label for="questionDifficulty" class="form-label">Level of Difficulty</label>
-                            <br>
-                            <div class="btn-group mb-3" role="group">
-                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" value="easy" id="easy">
-                                <label class="btn btn-outline-secondary" for="easy">Easy</label>
-                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" checked value="medium" id="medium">
-                                <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
-                                <input type="radio" class="btn-check" name="questionDifficulty" autcomplete="off" value="hard" id="hard">
-                                <label class="btn btn-outline-secondary" for="hard">Hard</label>
-                            </div>
-                            <br>
-                            <label for="questionType" class="form-label">Type of Question</label>
-                            <br>
-                            <div class="btn-group mb-3" role="group">
-                                <input type="radio" class="btn-check" name="questionType" autcomplete="off" checked value="mcq" id="multipleChoice">
-                                <label class="btn btn-outline-secondary" for="multipleChoice">Multiple Choice (Default)</label>
-                                <input type="radio" class="btn-check" name="questionType" autcomplete="off" value="shortQuestion" id="shortQuestion">
-                                <label class="btn btn-outline-secondary" for="shortQuestion">Short Question</label>
-                            </div>
-                            <div class="mb-3">
-                                <label for="instructions" class="form-label">Instructions (optional)</label>
-                                <input type="text" id="instructions" name="instructions" class="form-control" placeholder="Describe your instructions">
-                            </div>
-                            <button type="submit" id="genQuiz" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                                <i class="bi bi-lightning-charge me-2"></i>Generate Quiz
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Generated Quizzes -->
-                <div class="card mt-4" id="quizListCard">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Generated Quizzes</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="list-group list-group-flush" id="quizList">
-                            <?php if (!empty($quizList)): ?>
-                                <?php foreach ($quizList as $quiz): ?>
-                                    <div class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div class="flex-grow-1">
-                                                <strong><?= htmlspecialchars($quiz['title']) ?></strong><br>
-                                                <small class="text-muted">Created: <?= htmlspecialchars($quiz['createdAt'] ?? '') ?></small>
-                                        </div>
-                                        <div class="dropdown">
-                                                <button class="action-btn"
-                                                    type="button"
-                                                    id="dropdownQuizActions<?php echo $quiz['quizID']; ?>"
-                                                    data-bs-toggle="dropdown"
-                                                    data-bs-display="static"
-                                                    aria-expanded="false">
-                                                    <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
-                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
-                                                <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <form method="POST" action="#" style="display: inline;">
-                                                        <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
-                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                            </div>
-                                        </div>
                                     </div>
-                                    <label class="form-label">Level of Difficulty</label>
-                                    <div class="btn-group mb-3 flex-wrap" role="group">
-                                        <input type="radio" class="btn-check" name="questionDifficulty" value="easy" id="easy">
-                                        <label class="btn btn-outline-secondary" for="easy">Easy</label>
-                                        <input type="radio" class="btn-check" name="questionDifficulty" checked value="medium" id="medium">
-                                        <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
-                                        <input type="radio" class="btn-check" name="questionDifficulty" value="hard" id="hard">
-                                        <label class="btn btn-outline-secondary" for="hard">Hard</label>
-                                    </div>
-                                    <div class="border rounded-3 p-3 mb-3 bg-light question-distribution">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <label class="form-label mb-0">Question type distribution</label>
+                                    <div class="mb-3">
+                                        <label class="form-label">Question Distribution</label>
+                                        <div class="question-distribution-container">
                                             <small class="text-muted">
                                                 Assigned: <span id="questionTypeTotal" class="fw-semibold"><?php echo $defaultQuestionTotal; ?></span> /
                                                 <span id="questionTypeQuota" class="fw-semibold"><?php echo $defaultQuestionTotal; ?></span>
@@ -856,13 +759,17 @@
             }, 3000);
         }
 
-        // Confirmation dialog function
+        // Confirmation dialog function (kept for backward compatibility, but uses modal)
         function showConfirmation(message, onConfirm, onCancel = null) {
-            if (confirm(message)) {
-                if (onConfirm) onConfirm();
-            } else {
-                if (onCancel) onCancel();
-            }
+            showConfirmModal({
+                message: message,
+                title: 'Confirm Action',
+                confirmText: 'Confirm',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: onConfirm,
+                onCancel: onCancel
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1263,14 +1170,47 @@
                     const formData = new FormData(generateQuizForm);
                     formData.append('totalQuestions', totalQuestions);
                     formData.append('questionDistribution', JSON.stringify(buildDistributionPayload()));
-                    formData.append('questionDifficulty', document.querySelector('input[name="questionDifficulty"]:checked').value);
-                    formData.append('examMode', document.querySelector('input[name="examMode"]:checked').value);
+                    
+                    // Get questionDifficulty with null check and default
+                    const questionDifficultyInput = document.querySelector('input[name="questionDifficulty"]:checked');
+                    const questionDifficulty = questionDifficultyInput ? questionDifficultyInput.value : 'medium';
+                    formData.append('questionDifficulty', questionDifficulty);
+                    
+                    // Get examMode with null check and default
+                    const examModeInput = document.querySelector('input[name="examMode"]:checked');
+                    const examMode = examModeInput ? examModeInput.value : '0';
+                    formData.append('examMode', examMode);
 
                     const response = await fetch(generateQuizForm.action, {
                         method: 'POST',
                         body: formData
                     });
-                    const data = await response.json();
+
+                    // Get response text first (can only read once)
+                    const responseText = await response.text();
+
+                    // Check if response is ok
+                    if (!response.ok) {
+                        console.error('HTTP Error:', response.status, responseText);
+                        showSnackbar(`Server error (${response.status}): ${responseText.substring(0, 100)}`, 'error');
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalText;
+                        return;
+                    }
+
+                    // Try to parse JSON response
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON Parse Error:', parseError);
+                        console.error('Response text:', responseText);
+                        showSnackbar('Invalid response from server. Please check console for details.', 'error');
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalText;
+                        return;
+                    }
+
                     if (!data.success) {
                         showSnackbar(data.message || 'Failed to generate quiz. Please try again.', 'error');
                         submitButton.disabled = false;
@@ -1282,8 +1222,13 @@
                         window.location.reload();
                     }, 1000);
                 } catch (error) {
-                    showSnackbar('An error occurred while generating the quiz. Please try again.', 'error');
-                    console.error('Error:', error);
+                    console.error('Quiz Generation Error:', error);
+                    console.error('Error details:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name
+                    });
+                    showSnackbar(`Error: ${error.message || 'An error occurred while generating the quiz. Please try again.'}`, 'error');
                 } finally {
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalText;
@@ -1854,9 +1799,13 @@
                     const fileId = deleteBtn.dataset.fileId;
                     const quizTitle = deleteBtn.closest('tr')?.querySelector('.quiz-title')?.textContent?.trim() || 'this quiz';
                     if (!quizId || !fileId) return;
-                    showConfirmation(
-                        `Are you sure you want to delete "${quizTitle}"? This action cannot be undone and all quiz data will be permanently removed.`,
-                        async () => {
+                    showConfirmModal({
+                        message: 'Are you sure you want to delete the quiz "' + quizTitle + '"? This action cannot be undone.',
+                        title: 'Delete Quiz',
+                        confirmText: 'Delete',
+                        cancelText: 'Cancel',
+                        danger: true,
+                        onConfirm: async () => {
                             try {
                                 const formData = new FormData();
                                 formData.append('quiz_id', quizId);
@@ -1879,7 +1828,7 @@
                                 console.error('Error deleting quiz:', error);
                             }
                         }
-                    );
+                    });
                     return;
                 }
             });
@@ -1927,6 +1876,7 @@
             });
         });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

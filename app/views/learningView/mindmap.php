@@ -104,6 +104,7 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
+        }
 
         .action-btn {
             background-color: transparent;
@@ -253,12 +254,15 @@
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Mindmap</h3>
                 <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
                     <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name']); ?></h4>
+                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Generate Mindmap Form -->
                 <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Generate Mindmap with AI</h5>
+                    </div>
                     <div class="card-body">
                         <form id="mindmapForm" action="<?= GENERATE_MINDMAP ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
@@ -971,7 +975,6 @@
                 } catch (err) {
                     console.error('Export error:', err);
                     showSnackbar('Failed to create download. Please try again.', 'error');
-                console.error('Error creating download:', err);
                 }
             }).catch(err => {
                 console.error('html2canvas error:', err);

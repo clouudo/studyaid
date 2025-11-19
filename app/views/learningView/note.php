@@ -20,16 +20,8 @@
             --sa-card-border: #ede1ff;
         }
 
-        .upload-container {
+        body {
             background-color: #f8f9fa;
-            padding: 30px;
-        }
-        h4[onclick] {
-            transition: color 0.2s;
-        }
-        h4[onclick]:hover {
-            color: var(--sa-primary) !important;
-            text-decoration: underline;
         }
 
         .card {
@@ -45,6 +37,11 @@
             font-weight: 600;
         }
 
+        .card-header h5 {
+            color: inherit;
+            font-weight: 600;
+        }
+
         .btn-primary {
             background-color: var(--sa-primary) !important;
             border-color: var(--sa-primary) !important;
@@ -57,6 +54,402 @@
             border-color: var(--sa-primary-dark) !important;
         }
 
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+        }
+
+        .page-header {
+            color: #212529;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .breadcrumb-container {
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb {
+            background-color: var(--sa-accent-strong);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 0;
+        }
+
+        .breadcrumb-item a {
+            color: var(--sa-primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb-item a:hover {
+            color: var(--sa-primary-dark);
+            text-decoration: underline;
+        }
+
+        .breadcrumb-item.active {
+            color: #495057;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .form-control-search {
+            background-color: var(--sa-accent);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #212529;
+        }
+
+        .form-control-search:focus {
+            background-color: var(--sa-accent);
+            border: 2px solid var(--sa-primary);
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+            color: #212529;
+        }
+
+        .btn-search {
+            background-color: var(--sa-primary);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
+        }
+
+        .btn-search:hover {
+            background-color: var(--sa-primary-dark);
+            color: white;
+        }
+
+        .list-group-item {
+            background-color: white;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+            border-color: var(--sa-accent-strong);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.1);
+        }
+
+        .list-group-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--sa-primary);
+        }
+
+        .list-group-item.drag-over {
+            background-color: var(--sa-accent);
+            border: 2px solid var(--sa-primary);
+        }
+
+        .file-folder-link {
+            color: #212529;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .file-folder-link:hover {
+            color: var(--sa-primary);
+        }
+
+        .file-folder-link i {
+            color: var(--sa-primary);
+            margin-right: 12px;
+            font-size: 1.25rem;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: var(--sa-accent);
+            color: var(--sa-primary);
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            color: var(--sa-primary);
+            background-color: var(--sa-accent);
+        }
+        /* Only apply to dropdowns in the main content, not sidebar */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--sa-accent-strong) !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+        
+        /* Exclude sidebar dropdowns from the above rules - let Bootstrap handle it */
+        .sidebar-wrapper .dropdown-menu,
+        .sidebar-wrapper .dropup .dropdown-menu {
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            margin-bottom: 8px !important;
+            border-radius: 8px !important;
+            border: 1px solid #e9ecef !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+            background-color: white !important;
+            min-width: 150px !important;
+            width: auto !important;
+            max-width: none !important;
+            padding: 0.5rem 0 !important;
+            transform: none !important;
+        }
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        /* Action dropdowns (Rename, Move, Delete) should be in front */
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        /* Only apply to dropdowns in the main content */
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+        
+        /* Sidebar dropup should go up - override any conflicting styles */
+        .sidebar-wrapper .dropup.show .dropdown-menu,
+        .sidebar-wrapper .dropup[data-bs-popper-placement] .dropdown-menu {
+            z-index: 1050 !important;
+            display: block !important;
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            margin-bottom: 8px !important;
+        }
+
+        .list-group-item {
+            position: relative;
+            z-index: 1;
+            overflow: visible;
+            isolation: isolate;
+        }
+
+        .list-group-item .dropdown {
+            z-index: 2147483646;
+            position: relative;
+            overflow: visible;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show {
+            z-index: 2147483646 !important;
+            position: relative;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+            isolation: auto;
+        }
+        
+        /* Ensure list-group-item doesn't clip dropdown when it's open */
+        .list-group-item.dropdown-open {
+            z-index: 2147483645 !important;
+            overflow: visible !important;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #212529;
+            background-color: transparent;
+            cursor: pointer;
+            border: none;
+            margin: 0 !important;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--sa-accent) !important;
+            color: var(--sa-primary-dark) !important;
+        }
+
+        .dropdown-item:active,
+        .dropdown-item.active,
+        .dropdown-item:focus {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+            outline: none;
+        }
+
+        .list-group {
+            overflow: visible;
+        }
+
+        .upload-container {
+            overflow: visible;
+        }
+
+        .search-container .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .search-container .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        .search-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        /* Remove any blue colors from dropdowns */
+        .dropdown-item:focus,
+        .dropdown-item:focus-visible {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Ensure dropdown menu doesn't have blue borders or backgrounds */
+        .dropdown-menu * {
+            border-color: transparent !important;
+        }
+
+        /* Override Bootstrap default blue colors */
+        .dropdown-item:not(:disabled):not(.disabled):active,
+        .dropdown-item:not(:disabled):not(.disabled).active {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+        }
+
+        /* Ensure dropdown stays within container */
+        .list-group-item .dropdown-menu {
+            max-width: calc(100vw - 20px);
+        }
+        @media (min-width: 768px) {
+            .list-group-item .dropdown-menu {
+                max-width: 250px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--sa-accent-strong);
+            margin-bottom: 16px;
+        }
+
+        .modal-close-btn:hover {
+            background-color: var(--sa-primary) !important;
+            color: white !important;
+        }
+
+        .btn-cancel:hover {
+            background-color: var(--sa-accent-strong) !important;
+            color: var(--sa-primary-dark) !important;
+        }
+
+        .btn-create:hover {
+            background-color: var(--sa-primary) !important;
+            color: white !important;
+        }
+
+        .folder-item:hover {
+            background-color: var(--sa-accent) !important;
+            color: var(--sa-primary-dark) !important;
+            text-decoration: none !important;
+        }
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -67,15 +460,15 @@
             color: white;
             padding: 16px 24px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
             display: flex;
             align-items: center;
             gap: 12px;
-            z-index: 9999;
             opacity: 0;
-            transition: all 0.3s ease;
-            min-width: 300px;
-            max-width: 500px;
+            transition: all 0.3s ease-in-out;
         }
         .snackbar.show {
             transform: translateX(-50%) translateY(0);
@@ -93,192 +486,6 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
-
-        /* Split Screen Layout for Note Editor */
-        .note-split-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            min-height: 500px;
-        }
-
-        .note-split-container.single-view {
-            grid-template-columns: 1fr;
-        }
-
-        .note-editor-panel {
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .note-preview-panel {
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            background-color: #ffffff;
-            overflow-y: auto;
-            padding: 1rem;
-        }
-
-        #noteSplitEditor {
-            flex: 1;
-            resize: none;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            border: none;
-            padding: 1rem;
-            outline: none;
-        }
-
-        .note-editor-header {
-            padding: 0.75rem 1rem;
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .note-editor-footer {
-            padding: 0.5rem 1rem;
-            background-color: #f8f9fa;
-            border-top: 1px solid #dee2e6;
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-
-        .view-toggle-active {
-            background-color: #A855F7 !important;
-            color: white !important;
-            border-color: #A855F7 !important;
-        }
-
-        .note-preview-panel h1, .note-preview-panel h2, .note-preview-panel h3,
-        .note-preview-panel h4, .note-preview-panel h5, .note-preview-panel h6 {
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .note-preview-panel p {
-            margin-bottom: 0.75rem;
-        }
-
-        .note-preview-panel ul, .note-preview-panel ol {
-            margin-bottom: 0.75rem;
-            padding-left: 2rem;
-        }
-
-        .note-preview-panel code {
-            background-color: #f8f9fa;
-            padding: 0.2rem 0.4rem;
-            border-radius: 0.25rem;
-            font-size: 0.875em;
-        }
-
-        .action-btn {
-            background-color: transparent;
-            border: none;
-            color: #6c757d;
-            padding: 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            background-color: #e7d5ff;
-            color: #6f42c1;
-        }
-
-        /* Dropdown menu styling */
-        main .dropdown-menu,
-        .upload-container .dropdown-menu {
-            position: absolute !important;
-            inset: auto auto auto auto !important;
-            top: calc(100% + 8px) !important;
-            right: 0 !important;
-            left: auto !important;
-            margin: 0 !important;
-            border-radius: 12px !important;
-            border: 1px solid #d4b5ff !important;
-            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
-            background-color: #ffffff !important;
-            min-width: 180px !important;
-            width: 180px !important;
-            max-width: 180px !important;
-            padding: 8px 0 !important;
-            overflow: hidden !important;
-            transform: none !important;
-            z-index: 2147483647 !important;
-        }
-
-        .dropdown-menu li {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .dropdown-menu li + li {
-            border-top: 1px solid #f0e6ff;
-        }
-
-        .list-group-item .dropdown.show .dropdown-menu {
-            z-index: 2147483647 !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
-        }
-
-        .dropdown {
-            position: relative;
-            z-index: 2147483646;
-        }
-
-        .dropdown.show {
-            z-index: 2147483646 !important;
-        }
-
-        main .dropdown.show .dropdown-menu,
-        .upload-container .dropdown.show .dropdown-menu {
-            z-index: 2147483647 !important;
-            display: block !important;
-            position: absolute !important;
-            top: calc(100% + 8px) !important;
-            right: 0 !important;
-            left: auto !important;
-            transform: none !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
-        }
-
-        .note-preview-panel pre {
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 0.375rem;
-            overflow-x: auto;
-            margin-bottom: 0.75rem;
-        }
-
-        /* Limit image sizes in note previews */
-        .note-preview-panel img,
-        .note-preview img {
-            display: block;
-            max-width: 100%;
-            max-height: 400px;
-            height: auto;
-            object-fit: contain;
-            border-radius: 0.375rem;
-            margin: 1rem auto;
-        }
-
-        /* Smaller image preview in upload modal */
-        #imagePreview {
-            max-width: 100%;
-            max-height: 200px;
-            object-fit: contain;
         }
     </style>
 </head>
@@ -296,10 +503,13 @@
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Note</h3>
                 <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
                     <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name']); ?></h4>
+                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Generate Note with AI</h5>
+                    </div>
                     <div class="card-body">
                         <form id="noteForm" action="<?= GENERATE_NOTES ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
@@ -512,6 +722,155 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <script>
+        // Main note editor toolbar and preview functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const editor = document.getElementById('noteContent');
+            const preview = document.getElementById('preview');
+            const toolbar = document.getElementById('toolbar');
+
+            // Only initialize if all elements exist (main editor, not inline editors)
+            if (!editor || !preview || !toolbar) return;
+
+            function debounce(fn, ms) {
+                let id;
+                return (...args) => {
+                    clearTimeout(id);
+                    id = setTimeout(() => fn(...args), ms);
+                }
+            }
+
+            function render() {
+                const raw = editor.value || '';
+                const html = marked.parse(raw, { gfm: true, breaks: true });
+                preview.innerHTML = DOMPurify.sanitize(html);
+            }
+
+            const debounceRender = debounce(render, 100);
+            editor.addEventListener('input', debounceRender);
+            render();
+
+            function getSelection() {
+                return {
+                    start: editor.selectionStart,
+                    end: editor.selectionEnd,
+                    value: editor.value
+                };
+            }
+
+            function setSelection(start, end) {
+                editor.selectionStart = start;
+                editor.selectionEnd = end;
+                editor.focus();
+            }
+
+            function replaceSelection(transform) {
+                const { start, end, value } = getSelection();
+                const before = value.slice(0, start);
+                const selected = value.slice(start, end);
+                const after = value.slice(end);
+
+                const { text, cursorStart, cursorEnd } = transform(selected);
+                editor.value = before + text + after;
+                setSelection(before.length + cursorStart, before.length + cursorEnd);
+                render();
+            }
+
+            function wrapInline(wrapperLeft, wrapperRight = wrapperLeft) {
+                return (selected) => {
+                    const text = (selected && selected.length) ? selected : 'text';
+                    const wrapped = `${wrapperLeft}${text}${wrapperRight}`;
+                    return {
+                        text: wrapped, cursorStart: wrapperLeft.length, cursorEnd: wrapperLeft.length + text.length
+                    };
+                };
+            }
+
+            function toggleHeading(level = 1) {
+                const prefix = '#'.repeat(level) + ' ';
+                return (selected) => {
+                    const text = selected || 'Heading';
+                    const lines = text.split('\n').map(line => {
+                        const clean = line.replace(/^(#{1,6}\s+)?/, '');
+                        return prefix + clean;
+                    });
+                    const out = lines.join('\n');
+                    return { text: out, cursorStart: 0, cursorEnd: out.length };
+                };
+            }
+
+            function prefixLines(prefix, defaultText = 'List item'){
+                return (selected) => {
+                    const text = selected || defaultText;
+                    const out = text.split('\n').map(l => ( l ? `${prefix} ${l}` : `${prefix} `)).join('\n');
+                    return { text: out, cursorStart: 0, cursorEnd: out.length };
+                };
+            }
+
+            function orderedList(defaultText = 'First item\nSecond item'){
+                return (selected) =>{
+                    const text = selected || defaultText;
+                    const out = text.split('\n').map((l, i) => `${i + 1}. ${l || ''}`).join('\n');
+                    return { text: out, cursorStart: 0, cursorEnd: out.length };
+                }
+            }
+
+            const undoStack = [];
+            const redoStack = [];
+            let lastSnapshot = editor.value;
+
+            function snapshot(){
+                if (editor.value !== lastSnapshot) {
+                    undoStack.push(lastSnapshot);
+                    lastSnapshot = editor.value;
+                    redoStack.length = 0;
+                }
+            }
+
+            editor.addEventListener('input', snapshot);
+
+            function undo(){
+                if (!undoStack.length) return;
+                redoStack.push(lastSnapshot);
+                editor.value = undoStack.pop();
+                lastSnapshot = editor.value;
+                render();
+            }
+
+            function redo(){
+                if (!redoStack.length) return;
+                undoStack.push(lastSnapshot);
+                editor.value = redoStack.pop();
+                lastSnapshot = editor.value;
+                render();
+            }
+
+            const buttons = toolbar.querySelectorAll('button');
+            if (buttons.length >= 7) {
+                buttons[0].addEventListener('click', undo);
+                buttons[1].addEventListener('click', redo);
+                buttons[2].addEventListener('click', () => replaceSelection(wrapInline('**', '**')));
+                buttons[3].addEventListener('click', () => replaceSelection(wrapInline('*', '*')));
+                buttons[4].addEventListener('click', () => replaceSelection(toggleHeading(1)));
+                buttons[5].addEventListener('click', () => replaceSelection(prefixLines('-')));
+                buttons[6].addEventListener('click', () => replaceSelection(orderedList()));
+                // Image button (index 7) is handled separately in the image upload handler below
+            }
+
+            editor.addEventListener('keydown', (e) => {
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const ctrl = isMac ? e.metaKey : e.ctrlKey;
+
+                if (ctrl && e.key.toLowerCase() === 'b') {
+                    e.preventDefault();
+                    replaceSelection(wrapInline('**', '**'));
+                } else if (ctrl && e.key.toLowerCase() === 'i') {
+                    e.preventDefault();
+                    replaceSelection(wrapInline('*', '*'));
+                }
+            });
+        });
+    </script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
         .list-group-item { 
@@ -520,9 +879,210 @@
         .dropdown-menu { 
             z-index: 1060; 
         }
+
+        /* Split-view editor styles */
+        .note-split-container {
+            display: flex;
+            flex-direction: row;
+            gap: 0;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
+            max-height: 600px;
+        }
+
+        .note-split-container.single-view .note-preview-panel {
+            display: none !important;
+        }
+
+        .note-split-container.single-view .note-editor-panel {
+            width: 100% !important;
+            border-right: none !important;
+        }
+
+        .note-editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+            border-right: 1px solid #dee2e6;
+            background-color: #ffffff;
+            min-height: 400px;
+        }
+
+        .note-preview-panel {
+            flex: 1;
+            width: 50%;
+            background-color: #f8f9fa;
+            padding: 16px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .note-preview-panel .text-muted {
+            color: #adb5bd;
+            font-style: italic;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        .note-editor-header {
+            padding: 12px 16px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #495057;
+        }
+
+        .note-editor-footer {
+            padding: 8px 16px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .note-editor-panel .btn-toolbar {
+            padding: 8px 16px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 0;
+        }
+
+        .note-editor-panel textarea.note-edit-content {
+            flex: 1;
+            border: none;
+            border-radius: 0;
+            padding: 16px;
+            resize: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            min-height: 300px;
+            height: auto;
+            overflow-y: auto;
+        }
+
+        .note-editor-panel textarea.note-edit-content:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .note-preview-panel h1,
+        .note-preview-panel h2,
+        .note-preview-panel h3,
+        .note-preview-panel h4,
+        .note-preview-panel h5,
+        .note-preview-panel h6 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .note-preview-panel p {
+            margin-bottom: 1rem;
+        }
+
+        .note-preview-panel ul,
+        .note-preview-panel ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+
+        .note-preview-panel code {
+            background-color: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .note-preview-panel pre {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        .note-preview-panel pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .note-preview-panel img {
+            max-width: 50%;
+            max-height: 300px;
+            height: auto;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        /* Shrink images in main editor preview */
+        #preview img {
+            max-width: 50%;
+            max-height: 300px;
+            height: auto;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+
+        /* Shrink images in saved note preview */
+        .note-preview img {
+            max-width: 50%;
+            max-height: 300px;
+            height: auto;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+
+        /* Shrink image in upload modal preview */
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+            border-radius: 4px;
+            object-fit: contain;
+        }
+
+        .note-preview-panel blockquote {
+            border-left: 4px solid #6f42c1;
+            padding-left: 1rem;
+            margin-left: 0;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .view-toggle-active {
+            background-color: #6f42c1 !important;
+            color: white !important;
+            border-color: #6f42c1 !important;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .note-split-container {
+                flex-direction: column;
+                min-height: auto;
+                max-height: none;
+            }
+
+            .note-editor-panel,
+            .note-preview-panel {
+                width: 100% !important;
+                border-right: none !important;
+                border-bottom: 1px solid #dee2e6;
+            }
+
+            .note-preview-panel {
+                max-height: 400px;
+            }
+        }
     </style>
     <script>
-<<<<<<< HEAD
         // Snackbar function
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');
@@ -544,9 +1104,7 @@
                 snackbar.classList.remove('show');
             }, 3000);
         }
-=======
         const CURRENT_FILE_ID = '<?= htmlspecialchars($file['fileID']) ?>';
->>>>>>> d44b588c60ebb4463ce99ddfb944a1bd3a29802a
 
         document.getElementById('noteEditor').addEventListener('submit', async (e) => {
             e.preventDefault();

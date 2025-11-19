@@ -57,7 +57,6 @@ class OCRService
                     $keyFilePath = realpath($keyFilePath);
                     
                     if ($keyFilePath && file_exists($keyFilePath)) {
-                        error_log("[OCR] Found credentials file: " . $keyFilePath);
                         return $keyFilePath;
                     } else {
                         error_log("[OCR] Credentials file not found. Original path: " . ($config['key_file_path'] ?? 'unknown'));
@@ -235,7 +234,6 @@ class OCRService
                 'lines' => $lines
             ];
         } catch (\Exception $e) {
-            error_log("[OCR] Google Vision Error: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -499,15 +497,11 @@ class OCRService
                 ];
                 
                 $this->googleVisionClient = new ImageAnnotatorClient($options);
-                error_log("[OCR] Google Vision client initialized successfully with credentials from: " . basename($keyFilePath));
             } else {
                 // Try without explicit credentials (uses environment variable or default)
                 $this->googleVisionClient = new ImageAnnotatorClient();
-                error_log("[OCR] Google Vision client initialized without explicit credentials (using environment/default)");
             }
         } catch(\Exception $e){
-            error_log("[OCR] Google Vision client initialization failed: " . $e->getMessage());
-            error_log("[OCR] Google Vision will not be available as fallback. Tesseract will be used exclusively.");
             $this->googleVisionClient = null;
         }
     }

@@ -6,19 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Hub - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
     <style>
+        :root {
+            --sa-primary: #6f42c1;
+            --sa-primary-dark: #593093;
+            --sa-accent: #e7d5ff;
+            --sa-accent-strong: #d4b5ff;
+            --sa-muted: #6c757d;
+            --sa-card-border: #ede1ff;
+        }
+
         .selection-panel {
             background-color: white;
-            border-left: 1px solid #dee2e6;
-            height: calc(100vh - 60px);
+            border-left: 1px solid var(--sa-card-border);
+            height: 100vh;
             overflow-y: auto;
         }
 
         .content-panel {
             background-color: #f8f9fa;
-            height: calc(100vh - 60px);
+            height: 100vh;
             overflow-y: auto;
             width: 100%;
             flex: 1 1 auto;
@@ -35,27 +45,53 @@
 
         .document-item:hover,
         .folder-item:hover {
-            background-color: #f8f9fa;
+            background-color: var(--sa-accent);
         }
 
         .document-item.selected,
         .folder-item.selected {
-            background-color: #e7d5ff;
-            border-left: 3px solid #A855F7;
+            background-color: var(--sa-accent);
+            border-left: 3px solid var(--sa-primary);
+        }
+
+        .card {
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f6efff, #ffffff);
+            border-bottom: 1px solid var(--sa-card-border);
+            color: var(--sa-primary);
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: var(--sa-primary) !important;
+            border-color: var(--sa-primary) !important;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--sa-primary-dark) !important;
+            border-color: var(--sa-primary-dark) !important;
         }
 
         .tool-card {
-            border: 2px solid #dee2e6;
-            border-radius: 0.5rem;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
             transition: all 0.3s;
             cursor: pointer;
             height: 100%;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
         }
 
         .tool-card:hover {
-            border-color: #A855F7;
+            border-color: var(--sa-primary);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(168, 85, 247, 0.2);
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.15);
         }
 
         .tool-card .card-body {
@@ -66,14 +102,33 @@
             min-height: 200px;
         }
 
+        .tool-icon-wrapper {
+            background-color: var(--sa-accent);
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .tool-card:hover .tool-icon-wrapper {
+            background-color: var(--sa-primary);
+        }
+
+        .tool-card:hover .tool-icon {
+            color: white;
+        }
+
         .tool-icon {
-            font-size: 3rem;
-            color: #A855F7;
-            margin-bottom: 1rem;
+            font-size: 2.5rem;
+            color: var(--sa-primary);
+            transition: all 0.3s;
         }
 
         .selected-count {
-            background-color: #A855F7;
+            background-color: var(--sa-primary);
             color: white;
             border-radius: 50%;
             width: 24px;
@@ -103,6 +158,113 @@
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.5);
         }
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            box-shadow: inset 0 2px 8px rgba(111, 66, 193, 0.05);
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--sa-primary);
+            border-radius: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: var(--sa-primary-dark);
+        }
+
+        .message {
+            margin-bottom: 1.25rem;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            animation: fadeIn 0.3s ease-in;
+            max-width: 75%;
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, var(--sa-primary) 0%, var(--sa-primary-dark) 100%);
+            color: #fff;
+            margin-left: auto;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .message.bot {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 1px solid var(--sa-card-border);
+            margin-right: auto;
+            border-bottom-left-radius: 0.25rem;
+            color: #212529;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.5rem;
+            display: block;
+        }
+
+        .input-group {
+            box-shadow: 0 2px 8px rgba(111, 66, 193, 0.1);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .input-group .form-control {
+            border: 2px solid var(--sa-card-border);
+            border-right: none;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+        }
+
+        .input-group .form-control:focus {
+            border-color: var(--sa-primary);
+            box-shadow: none;
+        }
+
+        .input-group .btn-primary {
+            border-left: none;
+            padding: 0.75rem 1.5rem;
+        }
     </style>
 </head>
 
@@ -113,15 +275,17 @@
         <!-- Middle: Generation Tools -->
         <main class="content-panel flex-grow-1 p-4">
             <div class="container-fluid">
-                <h3 class="mb-4" style="color: #A855F7;">Document Hub</h3>
+                <h3 class="mb-4" style="color: var(--sa-primary);">Document Hub</h3>
                 <p class="text-muted mb-4">Select documents or folders from the right panel, then choose a tool to generate content.</p>
 
                 <div class="row g-4">
                     <!-- Synthesize Document -->
                     <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="reportTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-file-text tool-icon"></i>
+                        <div class="card tool-card h-100" id="reportTool">
+                            <div class="card-body text-center d-flex flex-column justify-content-center">
+                                <div class="tool-icon-wrapper mb-3">
+                                    <i class="bi bi-file-text tool-icon"></i>
+                                </div>
                                 <h5 class="card-title">Synthesize Document</h5>
                                 <p class="card-text text-muted">Create a synthesized document from selected documents</p>
                             </div>
@@ -130,9 +294,11 @@
 
                     <!-- Document Hub Chatbot -->
                     <div class="col-md-6 col-lg-4">
-                        <div class="card tool-card" id="chatbotTool">
-                            <div class="card-body text-center">
-                                <i class="bi bi-chat-dots tool-icon"></i>
+                        <div class="card tool-card h-100" id="chatbotTool">
+                            <div class="card-body text-center d-flex flex-column justify-content-center">
+                                <div class="tool-icon-wrapper mb-3">
+                                    <i class="bi bi-chat-dots tool-icon"></i>
+                                </div>
                                 <h5 class="card-title">Document Hub Chatbot</h5>
                                 <p class="card-text text-muted">Ask questions across multiple selected documents</p>
                             </div>
@@ -142,25 +308,34 @@
 
                 <!-- Chatbot Panel (will show chatbot interface) -->
                 <div class="card mt-4" id="chatbotPanel" style="display: none;">
-                    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #A855F7; color: white;">
-                        <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>Document Hub Chatbot</h5>
-                        <button class="btn btn-sm btn-outline-light" id="closeChatbotBtn">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-chat-dots me-3" style="font-size: 1.5rem;"></i>
+                            <div class="flex-grow-1">
+                                <h5 class="mb-0">Document Hub Chatbot</h5>
+                                <small class="text-muted">Ask questions about your selected documents</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="closeChatbotBtn">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="chat-container mb-3" id="chatContainer" style="height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 1rem; background-color: #f8f9fa;">
-                            <div class="message bot" style="margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background-color: white; border: 1px solid #dee2e6; margin-right: 20%;">
-                                <div class="fw-bold">StudyAid Bot</div>
-                                <div>Hello! I can answer questions using information from your selected documents. Ask me anything!</div>
-                                <div class="message-time" style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.25rem;"><?= date('H:i') ?></div>
+                    <div class="chat-container mb-3" id="chatContainer">
+                            <div class="message bot">
+                                <div class="message-header">
+                                    <i class="bi bi-robot"></i>
+                                    <span>StudyAid Bot</span>
+                                </div>
+                                <div class="message-content">Hello! I can answer questions using information from your selected documents. Ask me anything!</div>
+                                <div class="message-time"><?= date('H:i') ?></div>
                             </div>
                         </div>
                         <form id="chatbotForm">
-                            <div class="input-group">
+                        <div class="input-group">
                                 <input type="text" class="form-control" id="chatbotQuestionInput" placeholder="Type your question here..." required>
-                                <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
-                                    <i class="bi bi-send me-2"></i>Send
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-send me-2"></i>
                                 </button>
                             </div>
                         </form>
@@ -187,7 +362,7 @@
             <div class="card h-100">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0" style="color: #A855F7;">Select Documents <small class="text-muted">(Max 3)</small></h5>
+                        <h5 class="mb-0" style="color: var(--sa-primary);">Select Documents <small class="text-muted">(Max 3)</small></h5>
                         <span class="badge bg-primary selected-count" id="selectedCount">0</span>
                     </div>
                 </div>
@@ -264,7 +439,7 @@
     <div class="modal fade" id="reportFormModal" tabindex="-1" aria-labelledby="reportFormModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background-color: #A855F7; color: white;">
+                <div class="modal-header" style="background-color: var(--sa-primary); color: white;">
                     <h5 class="modal-title" id="reportFormModalLabel">
                         <i class="bi bi-file-text"></i> Synthesize Document
                     </h5>
@@ -298,7 +473,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary" style="background-color: #A855F7; border: none;">
+                        <button type="submit" class="btn btn-primary">
                             <i class="bi bi-play-fill"></i> Synthesize Document
                         </button>
                     </div>
@@ -310,6 +485,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+        // Pass checked documents from PHP to JavaScript
+        const CHECKED_DOCUMENTS = <?= json_encode($checkedDocuments ?? []) ?>;
+        const SAVE_CHECKED_DOCUMENTS_URL = '<?= SAVE_CHECKED_DOCUMENTS ?>';
+        
         document.addEventListener('DOMContentLoaded', function() {
             let selectedFiles = new Set();
             let selectedFolders = new Set();
@@ -365,7 +544,7 @@
                 if (total >= MAX_SELECTION) {
                     countElement.style.backgroundColor = '#dc3545'; // Red when at limit
                 } else {
-                    countElement.style.backgroundColor = '#A855F7'; // Purple when under limit
+                    countElement.style.backgroundColor = '#6f42c1'; // Purple when under limit
                 }
                 
                 // Enable/disable checkboxes based on limit
@@ -384,6 +563,21 @@
             }
 
 
+
+            // Function to save checked documents to session
+            function saveCheckedDocumentsToSession() {
+                const checkedFileIds = Array.from(selectedFiles).map(id => parseInt(id));
+                
+                fetch(SAVE_CHECKED_DOCUMENTS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fileIds: checkedFileIds })
+                }).catch(error => {
+                    console.error('Error saving checked documents:', error);
+                });
+            }
 
             // Function to update folder checkbox state based on child files
             function updateFolderCheckboxState(folderId) {
@@ -420,6 +614,29 @@
                 }
             }
 
+            // Restore checked documents from session (after functions are defined)
+            if (CHECKED_DOCUMENTS && CHECKED_DOCUMENTS.length > 0) {
+                CHECKED_DOCUMENTS.forEach(fileId => {
+                    const checkbox = document.querySelector(`.document-checkbox[data-file-id="${fileId}"]`);
+                    if (checkbox) {
+                        const fileItem = checkbox.closest('.document-item');
+                        checkbox.checked = true;
+                        selectedFiles.add(fileId.toString());
+                        if (fileItem) {
+                            fileItem.classList.add('selected');
+                        }
+                        
+                        // Update parent folder checkbox state if this file is in a folder
+                        const folderContainer = fileItem ? fileItem.closest('.folder-children') : null;
+                        if (folderContainer) {
+                            const folderId = folderContainer.id.replace('folder_children_', '');
+                            updateFolderCheckboxState(folderId);
+                        }
+                    }
+                });
+                updateSelectedCount();
+            }
+
             // Handle document checkbox
             document.addEventListener('change', function(e) {
                 if (e.target.classList.contains('document-checkbox')) {
@@ -448,6 +665,7 @@
                     }
                     
                     updateSelectedCount();
+                    saveCheckedDocumentsToSession();
                 }
 
                 if (e.target.classList.contains('folder-checkbox')) {
@@ -506,6 +724,7 @@
                         }
                     }
                     updateSelectedCount();
+                    saveCheckedDocumentsToSession();
                 }
             });
 
@@ -598,6 +817,7 @@
                 
                 // Ensure count is updated
                 updateSelectedCount();
+                saveCheckedDocumentsToSession();
                 
                 if (selectedCount < allFiles.length) {
                     alert(`Only ${selectedCount} document(s) selected (maximum ${MAX_SELECTION}).`);
@@ -615,6 +835,7 @@
                     item.classList.remove('selected');
                 });
                 updateSelectedCount();
+                saveCheckedDocumentsToSession();
             });
 
             // Search functionality
@@ -756,20 +977,32 @@
             function addChatMessage(text, isUser = false) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-                messageDiv.style.cssText = isUser 
-                    ? 'margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background-color: #A855F7; color: white; margin-left: 20%;'
-                    : 'margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background-color: white; border: 1px solid #dee2e6; margin-right: 20%;';
 
                 const sender = isUser ? 'You' : 'StudyAid Bot';
+                const icon = isUser ? 'bi-person-fill' : 'bi-robot';
                 const time = new Date().toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
 
+                let parsedContent;
+                if (isUser) {
+                    // Escape HTML for user messages
+                    const tempDiv = document.createElement('div');
+                    tempDiv.textContent = text;
+                    parsedContent = tempDiv.innerHTML;
+                } else {
+                    // Parse markdown for bot messages
+                    parsedContent = marked.parse(text || '');
+                }
+
                 messageDiv.innerHTML = `
-                    <div class="fw-bold">${sender}</div>
-                    <div>${isUser ? text.replace(/\n/g, '<br>') : text.replace(/\n/g, '<br>')}</div>
-                    <div class="message-time" style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.25rem;">${time}</div>
+                    <div class="message-header">
+                        <i class="bi ${icon}"></i>
+                        <span>${sender}</span>
+                    </div>
+                    <div class="message-content">${parsedContent}</div>
+                    <div class="message-time">${time}</div>
                 `;
 
                 chatContainer.appendChild(messageDiv);
@@ -791,10 +1024,10 @@
                 addChatMessage(question, true);
                 chatbotQuestionInput.value = '';
 
+                // Show loading indicator
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'message bot';
-                loadingDiv.style.cssText = 'margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background-color: white; border: 1px solid #dee2e6; margin-right: 20%;';
-                loadingDiv.innerHTML = '<div class="fw-bold">StudyAid Bot</div><div><i class="bi bi-hourglass-split"></i> Thinking...</div>';
+                loadingDiv.innerHTML = '<div class="message-header"><i class="bi bi-robot"></i><span>StudyAid Bot</span></div><div class="message-content"><i class="bi bi-hourglass-split me-2"></i>Thinking...</div>';
                 chatContainer.appendChild(loadingDiv);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -812,16 +1045,21 @@
 
                     const data = await response.json();
 
-                    chatContainer.removeChild(loadingDiv);
+                    // Remove loading indicator
+                    if (chatContainer.contains(loadingDiv)) {
+                        chatContainer.removeChild(loadingDiv);
+                    }
 
                     if (data.success) {
-                        addChatMessage(data.response || data.message);
+                        addChatMessage(data.response || data.message, false);
                     } else {
-                        addChatMessage('Sorry, I encountered an error: ' + (data.message || 'Unknown error'));
+                        addChatMessage('Sorry, I encountered an error: ' + (data.message || 'Unknown error'), false);
                     }
                 } catch (error) {
-                    chatContainer.removeChild(loadingDiv);
-                    addChatMessage('Sorry, there was a network error. Please try again.');
+                    if (chatContainer.contains(loadingDiv)) {
+                        chatContainer.removeChild(loadingDiv);
+                    }
+                    addChatMessage('Sorry, there was a network error. Please try again.', false);
                 }
             });
 

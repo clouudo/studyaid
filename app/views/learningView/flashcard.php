@@ -545,31 +545,36 @@ if (isset($flashcards) && is_array($flashcards)) {
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" id="flashcardList">
                             <?php if ($flashcards): ?>
-                                <?php foreach ($flashcards as $flashcard): ?>
+                                <?php foreach ($flashcards as $flashcardSet): ?>
                                     <?php
-                                    $normalizedTitle = strtolower($flashcard['title'] ?? '');
-                                    $updatedTimestamp = strtotime($flashcard['createdAt'] ?? '') ?: 0;
+                                    $normalizedTitle = strtolower($flashcardSet['title'] ?? '');
+                                    $updatedTimestamp = strtotime($flashcardSet['createdAt'] ?? '') ?: 0;
+                                    $cardCount = isset($flashcardSet['cardCount']) ? (int)$flashcardSet['cardCount'] : 1;
+                                    $representativeFlashcardId = isset($flashcardSet['flashcardID']) ? (int)$flashcardSet['flashcardID'] : 0;
                                     ?>
                                     <div class="list-group-item d-flex justify-content-between align-items-center flashcard-item"
-                                        data-id="<?= htmlspecialchars($flashcard['flashcardID']) ?>"
-                                        data-title="<?= htmlspecialchars($normalizedTitle) ?>"
+                                        data-id="<?= htmlspecialchars($representativeFlashcardId) ?>"
+                                        data-title="<?= htmlspecialchars($normalizedTitle) ?>" 
                                         data-updated="<?= $updatedTimestamp ?>">
                                         <div class="flex-grow-1" style="min-width: 0;">
-                                            <strong title="<?php echo htmlspecialchars($flashcard['title']); ?>"><?php echo htmlspecialchars($flashcard['title']); ?></strong>
-                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars(date('Y-m-d H:i:s', strtotime($flashcard['createdAt'] ?? 'now'))); ?></small>
+                                            <strong title="<?php echo htmlspecialchars($flashcardSet['title']); ?>"><?php echo htmlspecialchars($flashcardSet['title']); ?></strong>
+                                            <small class="text-muted d-block">
+                                                <?php echo $cardCount; ?> card<?php echo $cardCount !== 1 ? 's' : ''; ?> • 
+                                                Updated: <?php echo htmlspecialchars(date('Y-m-d H:i:s', strtotime($flashcardSet['createdAt'] ?? 'now'))); ?>
+                                            </small>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="action-btn" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
+                                            <button class="action-btn" type="button" id="dropdownFileActions<?php echo $representativeFlashcardId; ?>" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>">
-                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($flashcard['flashcardID']) ?>">View</a></li>
-                                                <li><a class="dropdown-item edit-btn" href="#" data-id="<?= htmlspecialchars($flashcard['flashcardID']) ?>">Edit</a></li>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $representativeFlashcardId; ?>">
+                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($representativeFlashcardId) ?>" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">View</a></li>
+                                                <li><a class="dropdown-item edit-btn" href="#" data-id="<?= htmlspecialchars($representativeFlashcardId) ?>">Edit</a></li>
                                                 <li>
-                                                    <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;">
-                                                        <input type="hidden" name="flashcard_id" value="<?= htmlspecialchars($flashcard['flashcardID']) ?>">
+                                                    <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">
+                                                        <input type="hidden" name="title" value="<?= htmlspecialchars($flashcardSet['title']) ?>">
                                                         <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete Set</button>
                                                     </form>
                                                 </li>
                                             </ul>
@@ -1039,12 +1044,27 @@ if (isset($flashcards) && is_array($flashcards)) {
                     });
                     const json = await res.json();
                     if (json.success && json.flashcard) {
-                        const parsed = parseFlashcardEntries(json.flashcard);
+                        let terms = [];
+                        let definitions = [];
+                        
+                        // Handle both formats: cards array or term/definition strings
+                        if (json.flashcard.cards && Array.isArray(json.flashcard.cards) && json.flashcard.cards.length > 0) {
+                            // New format: cards array
+                            terms = json.flashcard.cards.map(card => card.term || '');
+                            definitions = json.flashcard.cards.map(card => card.definition || '');
+                        } else {
+                            // Old format: parse from term/definition strings
+                            const parsed = parseFlashcardEntries(json.flashcard);
+                            terms = parsed.terms;
+                            definitions = parsed.definitions;
+                        }
+                        
                         editFlashcardIdInput.value = id;
                         editFlashcardTitleInput.value = json.flashcard.title || '';
-                        populatePairs(editPairsContainer, parsed.terms, parsed.definitions, {
+                        populatePairs(editPairsContainer, terms, definitions, {
                             autoAppend: false
                         });
+                        // Add an empty row for adding new pairs
                         addPairRow(editPairsContainer, '', '', {
                             autoAppend: false
                         });
@@ -1107,13 +1127,23 @@ if (isset($flashcards) && is_array($flashcards)) {
             flashcard.classList.toggle('flipped');
         });
 
+        // Prevent multiple submissions
+        let isGenerating = false;
+        
         generateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             e.stopPropagation();
 
+            // Prevent multiple simultaneous submissions
+            if (isGenerating) {
+                console.log('Flashcard generation already in progress, ignoring duplicate submission');
+                return;
+            }
+
             const submitButton = generateForm.querySelector('#genFlashcards');
             const originalButtonText = submitButton.innerHTML;
 
+            isGenerating = true;
             submitButton.disabled = true;
             submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
 
@@ -1144,6 +1174,7 @@ if (isset($flashcards) && is_array($flashcards)) {
                     flashcardsModal.show();
                     
                     // Restore button
+                    isGenerating = false;
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
                     
@@ -1153,12 +1184,14 @@ if (isset($flashcards) && is_array($flashcards)) {
                     }
                 } else {
                     showSnackbar(data.message || 'Failed to generate flashcards. Please try again.', 'error');
+                    isGenerating = false;
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
                 }
                 } catch (error) {
                     showSnackbar('An error occurred while generating flashcards. Please try again.', 'error');
                     console.error('Error:', error);
+                    isGenerating = false;
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
                 }
@@ -1259,12 +1292,52 @@ if (isset($flashcards) && is_array($flashcards)) {
 
             function bindDeleteConfirmation(form) {
                 if (!form || form.dataset.bound === 'true') return;
-                form.addEventListener('submit', (event) => {
-                    const confirmed = confirm('Are you sure you want to delete this flashcard set? This action cannot be undone.');
-                    if (!confirmed) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    const listItem = form.closest('.flashcard-item');
+                    const flashcardTitle = listItem?.querySelector('strong')?.textContent?.trim() || 'this flashcard';
+                    const isSetDeletion = form.querySelector('input[name="title"]') !== null;
+                    const deletionType = isSetDeletion ? 'flashcard set' : 'flashcard';
+                    
+                    showConfirmModal({
+                        message: 'Are you sure you want to delete the ' + deletionType + ' "' + flashcardTitle + '"? This action cannot be undone.',
+                        title: 'Delete Flashcard ' + (isSetDeletion ? 'Set' : ''),
+                        confirmText: 'Delete',
+                        cancelText: 'Cancel',
+                        danger: true,
+                        onConfirm: async () => {
+                            const formData = new FormData(form);
+                            // Form already has the correct data (title or flashcard_id) from the form inputs
+
+                            try {
+                                const response = await fetch('<?= DELETE_FLASHCARD ?>', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                    showSnackbar(data.message || 'Flashcard deleted successfully.', 'success');
+                                    // Remove the flashcard item from the list
+                                    if (listItem) {
+                                        listItem.remove();
+                                    } else {
+                                        // If not found, reload the page
+                                        setTimeout(() => {
+                                            location.reload();
+                                        }, 1000);
+                                    }
+                                } else {
+                                    showSnackbar(data.message || 'Failed to delete flashcard. Please try again.', 'error');
+                                }
+                            } catch (error) {
+                                showSnackbar('An error occurred while deleting the flashcard. Please try again.', 'error');
+                                console.error('Error:', error);
+                            }
+                        }
+                    });
                 });
                 form.dataset.bound = 'true';
             }
@@ -1443,6 +1516,7 @@ if (isset($flashcards) && is_array($flashcards)) {
             });
         });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

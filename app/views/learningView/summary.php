@@ -19,18 +19,8 @@
             --sa-card-border: #ede1ff;
         }
 
-        .upload-container {
+        body {
             background-color: #f8f9fa;
-            padding: 30px;
-        }
-
-        h4[onclick] {
-            transition: color 0.2s;
-        }
-
-        h4[onclick]:hover {
-            color: var(--sa-primary) !important;
-            text-decoration: underline;
         }
 
         .card {
@@ -63,14 +53,402 @@
             border-color: var(--sa-primary-dark) !important;
         }
 
-        .list-group-item {
-            border-color: rgba(237, 225, 255, 0.8);
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
         }
 
-        .list-group-item strong {
+        .page-header {
+            color: #212529;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .breadcrumb-container {
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb {
+            background-color: var(--sa-accent-strong);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 0;
+        }
+
+        .breadcrumb-item a {
+            color: var(--sa-primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb-item a:hover {
+            color: var(--sa-primary-dark);
+            text-decoration: underline;
+        }
+
+        .breadcrumb-item.active {
+            color: #495057;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .form-control-search {
+            background-color: var(--sa-accent);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
             color: #212529;
         }
 
+        .form-control-search:focus {
+            background-color: var(--sa-accent);
+            border: 2px solid var(--sa-primary);
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
+            color: #212529;
+        }
+
+        .btn-search {
+            background-color: var(--sa-primary);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
+        }
+
+        .btn-search:hover {
+            background-color: var(--sa-primary-dark);
+            color: white;
+        }
+
+        .list-group-item {
+            background-color: white;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+            border-color: var(--sa-accent-strong);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.1);
+        }
+
+        .list-group-item.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--sa-primary);
+        }
+
+        .list-group-item.drag-over {
+            background-color: var(--sa-accent);
+            border: 2px solid var(--sa-primary);
+        }
+
+        .file-folder-link {
+            color: #212529;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .file-folder-link:hover {
+            color: var(--sa-primary);
+        }
+
+        .file-folder-link i {
+            color: var(--sa-primary);
+            margin-right: 12px;
+            font-size: 1.25rem;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: var(--sa-accent);
+            color: var(--sa-primary);
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            color: var(--sa-primary);
+            background-color: var(--sa-accent);
+        }
+        /* Only apply to dropdowns in the main content, not sidebar */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--sa-accent-strong) !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+        
+        /* Exclude sidebar dropdowns from the above rules - let Bootstrap handle it */
+        .sidebar-wrapper .dropdown-menu,
+        .sidebar-wrapper .dropup .dropdown-menu {
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            margin-bottom: 8px !important;
+            border-radius: 8px !important;
+            border: 1px solid #e9ecef !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+            background-color: white !important;
+            min-width: 150px !important;
+            width: auto !important;
+            max-width: none !important;
+            padding: 0.5rem 0 !important;
+            transform: none !important;
+        }
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        /* Action dropdowns (Rename, Move, Delete) should be in front */
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        /* Only apply to dropdowns in the main content */
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+        
+        /* Sidebar dropup should go up - override any conflicting styles */
+        .sidebar-wrapper .dropup.show .dropdown-menu,
+        .sidebar-wrapper .dropup[data-bs-popper-placement] .dropdown-menu {
+            z-index: 1050 !important;
+            display: block !important;
+            position: absolute !important;
+            bottom: calc(100% + 8px) !important;
+            top: auto !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            margin-bottom: 8px !important;
+        }
+
+        .list-group-item {
+            position: relative;
+            z-index: 1;
+            overflow: visible;
+            isolation: isolate;
+        }
+
+        .list-group-item .dropdown {
+            z-index: 2147483646;
+            position: relative;
+            overflow: visible;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show {
+            z-index: 2147483646 !important;
+            position: relative;
+            isolation: auto;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+            isolation: auto;
+        }
+        
+        /* Ensure list-group-item doesn't clip dropdown when it's open */
+        .list-group-item.dropdown-open {
+            z-index: 2147483645 !important;
+            overflow: visible !important;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #212529;
+            background-color: transparent;
+            cursor: pointer;
+            border: none;
+            margin: 0 !important;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--sa-accent) !important;
+            color: var(--sa-primary-dark) !important;
+        }
+
+        .dropdown-item:active,
+        .dropdown-item.active,
+        .dropdown-item:focus {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+            outline: none;
+        }
+
+        .list-group {
+            overflow: visible;
+        }
+
+        .upload-container {
+            overflow: visible;
+        }
+
+        .search-container .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .search-container .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        .search-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        /* Remove any blue colors from dropdowns */
+        .dropdown-item:focus,
+        .dropdown-item:focus-visible {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Ensure dropdown menu doesn't have blue borders or backgrounds */
+        .dropdown-menu * {
+            border-color: transparent !important;
+        }
+
+        /* Override Bootstrap default blue colors */
+        .dropdown-item:not(:disabled):not(.disabled):active,
+        .dropdown-item:not(:disabled):not(.disabled).active {
+            background-color: var(--sa-accent-strong) !important;
+            color: #212529 !important;
+        }
+
+        /* Ensure dropdown stays within container */
+        .list-group-item .dropdown-menu {
+            max-width: calc(100vw - 20px);
+        }
+        @media (min-width: 768px) {
+            .list-group-item .dropdown-menu {
+                max-width: 250px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--sa-accent-strong);
+            margin-bottom: 16px;
+        }
+
+        .modal-close-btn:hover {
+            background-color: var(--sa-primary) !important;
+            color: white !important;
+        }
+
+        .btn-cancel:hover {
+            background-color: var(--sa-accent-strong) !important;
+            color: var(--sa-primary-dark) !important;
+        }
+
+        .btn-create:hover {
+            background-color: var(--sa-primary) !important;
+            color: white !important;
+        }
+
+        .folder-item:hover {
+            background-color: var(--sa-accent) !important;
+            color: var(--sa-primary-dark) !important;
+            text-decoration: none !important;
+        }
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -81,15 +459,15 @@
             color: white;
             padding: 16px 24px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 500px;
             display: flex;
             align-items: center;
             gap: 12px;
-            z-index: 9999;
             opacity: 0;
-            transition: all 0.3s ease;
-            min-width: 300px;
-            max-width: 500px;
+            transition: all 0.3s ease-in-out;
         }
         .snackbar.show {
             transform: translateX(-50%) translateY(0);
@@ -107,81 +485,6 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
-        .action-btn {
-            background-color: transparent;
-            border: none;
-            color: #6c757d;
-            padding: 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            background-color: #e7d5ff;
-            color: #6f42c1;
-        }
-
-        /* Dropdown menu styling */
-        main .dropdown-menu,
-        .upload-container .dropdown-menu {
-            position: absolute !important;
-            inset: auto auto auto auto !important;
-            top: calc(100% + 8px) !important;
-            right: 0 !important;
-            left: auto !important;
-            margin: 0 !important;
-            border-radius: 12px !important;
-            border: 1px solid #d4b5ff !important;
-            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
-            background-color: #ffffff !important;
-            min-width: 180px !important;
-            width: 180px !important;
-            max-width: 180px !important;
-            padding: 8px 0 !important;
-            overflow: hidden !important;
-            transform: none !important;
-            z-index: 2147483647 !important;
-        }
-
-        .dropdown-menu li {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .dropdown-menu li + li {
-            border-top: 1px solid #f0e6ff;
-        }
-
-        .list-group-item .dropdown.show .dropdown-menu {
-            z-index: 2147483647 !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
-        }
-
-        .dropdown {
-            position: relative;
-            z-index: 2147483646;
-        }
-
-        .dropdown.show {
-            z-index: 2147483646 !important;
-        }
-
-        main .dropdown.show .dropdown-menu,
-        .upload-container .dropdown.show .dropdown-menu {
-            z-index: 2147483647 !important;
-            display: block !important;
-            position: absolute !important;
-            top: calc(100% + 8px) !important;
-            right: 0 !important;
-            left: auto !important;
-            transform: none !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
         }
     </style>
 </head>
@@ -199,10 +502,13 @@
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Summary</h3>
                 <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
                     <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
-                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name']); ?></h4>
+                    <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Generate Summary with AI</h5>
+                    </div>
                     <div class="card-body">
                         <form id="generateSummaryForm" action="<?= GENERATE_SUMMARY ?>" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
@@ -290,6 +596,204 @@
         }
     </style>
     <script>
+            /**
+             * Applies consistent dropdown styling to override Bootstrap defaults
+             *
+             * Behavior: Removes conflicting Bootstrap styles and applies custom theme
+             * styles with maximum z-index to ensure dropdowns appear above all content.
+             *
+             * @param {jQuery} $menu Dropdown menu element
+             * @param {jQuery} $dropdown Dropdown container element
+             * @param {boolean} isActionDropdown Whether this is an action dropdown (Rename/Move/Delete)
+             */
+            function applyDropdownStyles($menu, $dropdown, isActionDropdown) {
+                // Use maximum z-index to ensure dropdowns are always on top
+                const zIndex = '2147483647';
+                const zIndexDropdown = '2147483646';
+                $dropdown.css('z-index', zIndexDropdown);
+
+                // Get current style attribute and modify it
+                let currentStyle = $menu.attr('style') || '';
+
+                // Remove existing position, sizing, and z-index declarations that conflict with theme
+                currentStyle = currentStyle.replace(/width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/min-width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/max-width\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/z-index\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/top\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/right\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/left\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/inset\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/transform\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/position\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/margin(?:-top|-right|-bottom|-left)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/padding(?:-top|-right|-bottom|-left)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/border(?:-radius)?\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/box-shadow\s*:\s*[^;]+;?/gi, '');
+                currentStyle = currentStyle.replace(/background-color\s*:\s*[^;]+;?/gi, '');
+
+                // Add our styles with !important - use maximum z-index
+                const newStyles = [
+                    'position: absolute !important',
+                    'top: calc(100% + 8px) !important',
+                    'right: 0 !important',
+                    'left: auto !important',
+                    'margin: 0 !important',
+                    'width: 180px !important',
+                    'min-width: 180px !important',
+                    'max-width: 180px !important',
+                    'padding: 8px 0 !important',
+                    'border-radius: 12px !important',
+                    'border: 1px solid #d4b5ff !important',
+                    'box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important',
+                    'background-color: #ffffff !important',
+                    'overflow: hidden !important',
+                    'transform: none !important',
+                    'z-index: 2147483647 !important'
+                ].join('; ') + ';';
+
+                // Combine styles
+                const finalStyle = (currentStyle.trim() ? currentStyle.trim() + '; ' : '') + newStyles;
+                $menu.attr('style', finalStyle);
+            }
+
+            /**
+             * Dropdown show event handler
+             *
+             * Behavior: Applies custom styling when dropdown opens, ensuring proper
+             * z-index and positioning. Excludes sidebar dropdowns from custom styling.
+             */
+            $(document).on('show.bs.dropdown', '.dropdown', function(e) {
+                const $dropdown = $(this);
+                const $menu = $dropdown.find('.dropdown-menu');
+                const $listItem = $dropdown.closest('.list-group-item');
+                const $searchContainer = $dropdown.closest('.search-container');
+                const $sidebar = $dropdown.closest('.sidebar-wrapper');
+
+                // Skip sidebar dropdowns - let them use their own styling
+                if ($sidebar.length > 0) {
+                    return;
+                }
+
+                // Action dropdowns (in list items) get higher z-index than sort dropdown
+                if ($listItem.length > 0) {
+                    // This is an action dropdown (Rename, Move, Delete)
+                    // Add class to list item to raise its z-index
+                    $listItem.addClass('dropdown-open').css({
+                        'overflow': 'visible',
+                        'z-index': '2147483645'
+                    });
+                    applyDropdownStyles($menu, $dropdown, true);
+                } else if ($searchContainer.length > 0) {
+                    // This is the sort dropdown
+                    applyDropdownStyles($menu, $dropdown, false);
+                } else {
+                    // Other dropdowns
+                    applyDropdownStyles($menu, $dropdown, false);
+                }
+            });
+
+            /**
+             * Dropdown shown event handler
+             *
+             * Behavior: Reapplies styles after Bootstrap positioning, uses MutationObserver
+             * to maintain styles if Bootstrap/Popper.js modifies them. Ensures dropdowns
+             * remain visible and properly styled.
+             */
+            $(document).on('shown.bs.dropdown', '.dropdown', function() {
+                const $dropdown = $(this);
+                const $menu = $dropdown.find('.dropdown-menu');
+                const $listItem = $dropdown.closest('.list-group-item');
+                const $searchContainer = $dropdown.closest('.search-container');
+                const $sidebar = $dropdown.closest('.sidebar-wrapper');
+                const isActionDropdown = $listItem.length > 0;
+
+                // Skip sidebar dropdowns - let them use their own styling
+                if ($sidebar.length > 0) {
+                    return;
+                }
+
+                // Apply styles immediately
+                if (isActionDropdown) {
+                    // Ensure list item doesn't interfere with dropdown
+                    $listItem.css({
+                        'overflow': 'visible',
+                        'z-index': '2147483645'
+                    });
+                    applyDropdownStyles($menu, $dropdown, true);
+
+                    // Calculate position relative to viewport to ensure it's on top
+                    const buttonOffset = $dropdown.find('button').offset();
+                    const buttonWidth = $dropdown.find('button').outerWidth();
+                    const menuHeight = $menu.outerHeight() || 200;
+
+                    // Position dropdown absolutely but ensure it's visible
+                    $menu.css({
+                        'position': 'absolute',
+                        'top': 'calc(100% + 8px)',
+                        'right': '0',
+                        'left': 'auto',
+                        'z-index': '2147483647'
+                    });
+                } else if ($searchContainer.length > 0) {
+                    applyDropdownStyles($menu, $dropdown, false);
+                } else {
+                    applyDropdownStyles($menu, $dropdown, false);
+                }
+
+                // Use setTimeout to ensure styles are applied after Popper.js positioning
+                setTimeout(function() {
+                    if (isActionDropdown) {
+                        $listItem.css({
+                            'overflow': 'visible',
+                            'z-index': '2147483645'
+                        });
+                        applyDropdownStyles($menu, $dropdown, true);
+                    } else {
+                        applyDropdownStyles($menu, $dropdown, false);
+                    }
+                }, 10);
+
+                // Use MutationObserver to watch for style changes and reapply
+                if ($menu.length > 0) {
+                    const observer = new MutationObserver(function(mutations) {
+                        mutations.forEach(function(mutation) {
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                                setTimeout(function() {
+                                    applyDropdownStyles($menu, $dropdown, isActionDropdown);
+                                }, 5);
+                            }
+                        });
+                    });
+
+                    observer.observe($menu[0], {
+                        attributes: true,
+                        attributeFilter: ['style']
+                    });
+
+                // Disconnect observer when dropdown is hidden
+                $dropdown.one('hide.bs.dropdown', function() {
+                        observer.disconnect();
+                    });
+                }
+            });
+
+            /**
+             * Dropdown hide event handler
+             *
+             * Behavior: Resets list item styles when dropdown closes to restore
+             * normal overflow and z-index behavior.
+             */
+            $(document).on('hide.bs.dropdown', '.dropdown', function() {
+                // Reset styles when closing
+                const $listItem = $(this).closest('.list-group-item');
+                if ($listItem.length > 0) {
+                    $listItem.removeClass('dropdown-open').css({
+                        'overflow': '',
+                        'z-index': ''
+                    });
+                }
+            });
         // Snackbar function
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');

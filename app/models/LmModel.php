@@ -78,8 +78,15 @@ class LmModel
             // Ensure markAt allows NULL
             $conn->exec("ALTER TABLE quiz MODIFY markAt DATETIME NULL DEFAULT NULL");
 
+            // Ensure question table has explanation column
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'question' AND COLUMN_NAME = 'explanation'");
+            $stmt->execute();
+            if ((int)$stmt->fetchColumn() === 0) {
+                $conn->exec("ALTER TABLE question ADD COLUMN explanation TEXT NULL AFTER question");
+            }
+
             // Ensure quiz_attempt table exists
-            $conn->exec("
+            $conn->exec(" 
                 CREATE TABLE IF NOT EXISTS quiz_attempt (
                     attemptID INT(11) NOT NULL AUTO_INCREMENT,
                     quizID INT(11) NOT NULL,
@@ -95,6 +102,30 @@ class LmModel
                     KEY quiz_attempt_user_idx (userID)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
+
+            // Ensure question table exists
+            $conn->exec(" 
+                CREATE TABLE IF NOT EXISTS question (
+                    questionID INT(11) NOT NULL AUTO_INCREMENT,
+                    quizID INT(11) NOT NULL,
+                    type VARCHAR(50) NOT NULL,
+                    question TEXT NOT NULL,
+                    PRIMARY KEY (questionID),
+                    KEY question_quiz_idx (quizID)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
+
+            // Ensure option table exists
+            $conn->exec(" 
+                CREATE TABLE IF NOT EXISTS option (
+                    optionID INT(11) NOT NULL AUTO_INCREMENT,
+                    questionID INT(11) NOT NULL,
+                    text TEXT NOT NULL,
+                    isCorrect TINYINT(1) NOT NULL DEFAULT 0,
+                    PRIMARY KEY (optionID),
+                    KEY option_question_idx (questionID)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
         } catch (\Throwable $e) {
             error_log('Quiz schema ensure failed: ' . $e->getMessage());
         }
@@ -102,9 +133,9 @@ class LmModel
         $checked = true;
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // UTILITY/HELPER METHODS
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Extract text content from uploaded file based on file extension
@@ -251,9 +282,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // NEW DOCUMENT PAGE (newDocument.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Upload audio file to Google Cloud Storage and save metadata to audio table for summary
@@ -462,7 +493,7 @@ class LmModel
         if ($fileContent != null) { // If file is uploaded, upload to GCS
             $options = [
                 'name' => $gcsObjectName,
-                'metadata' => ['contentType' => 'text/plain']
+                'metadata' => ['contentType' => $file['type'] ?? 'text/plain']
             ];
         } else {
             $options = [
@@ -512,9 +543,9 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // ALL DOCUMENTS PAGE (allDocument.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Get folders and files for a specific parent folder
@@ -525,7 +556,7 @@ class LmModel
         $results = ['folders' => [], 'files' => []];
 
         // Get folders
-        $folderQuery = "SELECT folderID, name, parentFolderId FROM folder WHERE userID = :userID AND parentFolderId " . ($parentId === null ? "IS NULL" : "= :parentFolderId");
+        $folderQuery = "SELECT folderID, name, parentFolderId FROM folder WHERE userID = :userID AND " . ($parentId === null ? "parentFolderId IS NULL" : "parentFolderId = :parentFolderId");
         $folderStmt = $conn->prepare($folderQuery);
         $folderStmt->bindParam(':userID', $userId);
         if ($parentId !== null) {
@@ -535,7 +566,7 @@ class LmModel
         $results['folders'] = $folderStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // Get files
-        $fileQuery = "SELECT fileID, name, fileType FROM file WHERE userID = :userID AND folderID " . ($parentId === null ? "IS NULL" : "= :folderID");
+        $fileQuery = "SELECT fileID, name, fileType FROM file WHERE userID = :userID AND " . ($parentId === null ? "folderID IS NULL" : "folderID = :folderID");
         $fileStmt = $conn->prepare($fileQuery);
         $fileStmt->bindParam(':userID', $userId);
         if ($parentId !== null) {
@@ -671,23 +702,55 @@ class LmModel
             throw new \Exception("Folder not found or access denied.");
         }
 
+        $this->recursivelyDeleteFolder($folderId, $userId);
+
+        return true;
+    }
+
+    private function recursivelyDeleteFolder($folderId, $userId)
+    {
+        $conn = $this->db->connect();
         $bucket = $this->storage->bucket($this->bucketName);
+
+        // Get all files in the current folder
+        $filesQuery = "SELECT fileID, filePath FROM file WHERE folderID = :folderID AND userID = :userID";
+        $filesStmt = $conn->prepare($filesQuery);
+        $filesStmt->bindParam(':folderID', $folderId);
+        $filesStmt->bindParam(':userID', $userId);
+        $filesStmt->execute();
+        $files = $filesStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Delete all files in the current folder
+        foreach ($files as $file) {
+            $this->deleteDocument($file['fileID'], $userId);
+        }
+
+        // Get all subfolders in the current folder
+        $foldersQuery = "SELECT folderID FROM folder WHERE parentFolderId = :folderID AND userID = :userID";
+        $foldersStmt = $conn->prepare($foldersQuery);
+        $foldersStmt->bindParam(':folderID', $folderId);
+        $foldersStmt->bindParam(':userID', $userId);
+        $foldersStmt->execute();
+        $folders = $foldersStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Recursively delete all subfolders
+        foreach ($folders as $folder) {
+            $this->recursivelyDeleteFolder($folder['folderID'], $userId);
+        }
+
+        // Delete the folder from GCS
         $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
-
-
         $prefix = 'user_upload/' . $userId . '/content/' . $logicalFolderPath;
-        
         $objects = $bucket->objects(['prefix' => $prefix]);
-        // Delete all objects under the folder
-        foreach($objects as $obj){
+        foreach ($objects as $obj) {
             $obj->delete();
         }
 
-        // Delete the folder
+        // Delete the folder from the database
         $deleteQuery = "DELETE FROM folder WHERE folderID = :folderID";
         $deleteStmt = $conn->prepare($deleteQuery);
         $deleteStmt->bindParam(':folderID', $folderId);
-        return $deleteStmt->execute();
+        $deleteStmt->execute();
     }
 
     /**
@@ -933,9 +996,9 @@ class LmModel
         return true;
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // NEW FOLDER PAGE (newFolder.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Create a new folder in GCS and database
@@ -976,9 +1039,9 @@ class LmModel
         return $conn->lastInsertId();
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // SUMMARY PAGE (summary.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save a summary to database
@@ -1035,7 +1098,7 @@ class LmModel
     /**
      * Save summary as file from database and upload to GCS
      */
-    public function saveSummaryAsFile(int $summaryId, $filePath, $folderId)
+    public function saveSummaryAsFile(int $summaryId, $fileId, $folderId)
     {
         $conn = $this->db->connect();
         // Get summary with file info to get userId
@@ -1051,12 +1114,12 @@ class LmModel
         $userId = $summaryData['userID'];
 
         // Upload to GCS
-        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
+        $this->uploadFileToGCS($userId, $folderId, $sourceText, $sourceText, null, $title);
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // NOTE PAGE (note.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save a note to database
@@ -1113,7 +1176,7 @@ class LmModel
     /**
      * Save note as file from database and upload to GCS
      */
-    public function saveNoteAsFile(int $noteId, $filePath, $folderId)
+    public function saveNoteAsFile(int $noteId, $fileId, $folderId)
     {
         $conn = $this->db->connect();
         // Get note with file info to get userId
@@ -1129,7 +1192,7 @@ class LmModel
         $userId = $noteData['userID'];
 
         //Upload to GCS
-        $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
+        $this->uploadFileToGCS($userId, $folderId, $sourceText, $sourceText, null, $title);
     }
 
     /**
@@ -1189,9 +1252,9 @@ class LmModel
         ];
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // MINDMAP PAGE (mindmap.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save a mindmap to database
@@ -1283,9 +1346,9 @@ class LmModel
         return $stmt->execute();
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // FLASHCARD PAGE (flashcard.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save flashcards to database
@@ -1312,12 +1375,24 @@ class LmModel
     }
 
     /**
-     * Get all flashcards for a specific file
+     * Get all flashcards for a specific file, grouped by title (one entry per title/set)
      */
     public function getFlashcardsByFile(int $fileId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM flashcard WHERE fileID = :fileID ORDER BY createdAt DESC");
+        // Get distinct titles with their most recent flashcard info
+        $stmt = $conn->prepare("
+            SELECT 
+                title,
+                fileID,
+                MAX(createdAt) as createdAt,
+                MIN(flashcardID) as flashcardID,
+                COUNT(*) as cardCount
+            FROM flashcard 
+            WHERE fileID = :fileID 
+            GROUP BY title, fileID
+            ORDER BY createdAt DESC
+        ");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -1361,6 +1436,20 @@ class LmModel
     }
 
     /**
+     * Delete a single flashcard by ID with ownership check
+     */
+    public function deleteFlashcardById(int $flashcardId, int $userId): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("DELETE fc FROM flashcard fc
+                                INNER JOIN file f ON fc.fileID = f.fileID
+                                WHERE fc.flashcardID = :flashcardID AND f.userID = :userID");
+        $stmt->bindParam(':flashcardID', $flashcardId);
+        $stmt->bindParam(':userID', $userId);
+        return $stmt->execute();
+    }
+
+    /**
      * Get a specific flashcard ensuring it belongs to the user
      */
     public function getFlashcardWithOwner(int $flashcardId, int $userId)
@@ -1395,9 +1484,9 @@ class LmModel
         return $stmt->rowCount() > 0;
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // QUIZ PAGE (quiz.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save a quiz to database
@@ -1427,13 +1516,14 @@ class LmModel
     /**
      * Save a question to database
      */
-    public function saveQuestion(int $quizId, string $type, string $question): int
+    public function saveQuestion(int $quizId, string $type, string $question, ?string $explanation = null): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO question (quizID, type, question) VALUES (:quizID, :type, :question)");
+        $stmt = $conn->prepare("INSERT INTO question (quizID, type, question, explanation) VALUES (:quizID, :type, :question, :explanation)");
         $stmt->bindParam(':quizID', $quizId);
         $stmt->bindParam(':type', $type);
         $stmt->bindParam(':question', $question);
+        $stmt->bindParam(':explanation', $explanation);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }
@@ -1465,7 +1555,6 @@ class LmModel
     }
 
     /**
-<<<<<<< HEAD:app/models/LmModel.php
      * Get a specific quiz by ID
      */
     public function getQuizById(int $quizId)
@@ -1479,8 +1568,6 @@ class LmModel
     }
 
     /**
-=======
->>>>>>> d44b588c60ebb4463ce99ddfb944a1bd3a29802a:app/models/lmModel.php
      * Get question data for a specific quiz
      */
     public function getQuestionByQuiz(int $quizId)
@@ -1490,6 +1577,44 @@ class LmModel
         $stmt->bindParam(':quizID', $quizId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all questions for a specific quiz
+     */
+    public function getQuestionsByQuiz(int $quizId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM question WHERE quizID = :quizID ORDER BY questionID ASC");
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Save an option for a question
+     */
+    public function saveOption(int $questionId, string $text, bool $isCorrect): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO option (questionID, text, isCorrect) VALUES (:questionID, :text, :isCorrect)");
+        $stmt->bindParam(':questionID', $questionId);
+        $stmt->bindParam(':text', $text);
+        $stmt->bindParam(':isCorrect', $isCorrect, \PDO::PARAM_BOOL);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Get all options for a specific question
+     */
+    public function getOptionsByQuestion(int $questionId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM option WHERE questionID = :questionID ORDER BY optionID ASC");
+        $stmt->bindParam(':questionID', $questionId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
@@ -1670,7 +1795,7 @@ class LmModel
         $conn = $this->db->connect();
         
         // Verify ownership before deletion
-        $stmt = $conn->prepare("
+        $stmt = $conn->prepare(" 
             SELECT q.quizID 
             FROM quiz q
             INNER JOIN file f ON q.fileID = f.fileID
@@ -1692,9 +1817,9 @@ class LmModel
         return $deleteStmt->rowCount() > 0;
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // CHATBOT PAGE (chatbot.php)
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Save a chat message to database
@@ -1834,9 +1959,9 @@ class LmModel
         ];
     }
 
-    // ============================================================================
+    // ============================================================================ 
     // RAG UTILITY
-    // ============================================================================
+    // ============================================================================ 
 
     /**
      * Split text into overlapping chunks for RAG processing, breaks at sentence boundaries when possible
@@ -1909,4 +2034,3 @@ class LmModel
         }
     }
 }
-
