@@ -161,9 +161,9 @@ class LmController
     /**
      * Processes single file upload: extracts text, uploads to GCS, creates chunks and embeddings
      */
-    private function processFileUpload(array $file, int $userId, ?int $folderId): array
+    private function processFileUpload(array $file, int $userId, ?int $folderId, ?string $documentName): array
     {
-        $uploadedFileName = $file['name'];
+        $uploadedFileName = !empty($documentName) ? $documentName : $file['name'];
         $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
         $tmpName = $file['tmp_name'];
         $isImage = $this->isImageFile($fileExtension);
@@ -257,10 +257,11 @@ class LmController
             $files = $_FILES['document'];
             $uploadedCount = 0;
             $failedCount = 0;
+            $documentName = isset($_POST['documentName']) ? trim($_POST['documentName']) : null;
             $errors = [];
 
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
-
+            
             for ($i = 0; $i < $fileCount; $i++) {
                 $file = $this->normalizeFileArray($files, $i);
                 
@@ -273,7 +274,7 @@ class LmController
                 }
 
                 try {
-                    $this->processFileUpload($file, $userId, $folderId);
+                    $this->processFileUpload($file, $userId, $folderId, $documentName);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$file['name']}: " . $e->getMessage();
