@@ -97,7 +97,7 @@ class LmController
     /**
      * Extract text from file using appropriate method (OCR for images, model method for others)
      */
-    private function extractTextFromFile(string $tmpName, string $fileExtension): string
+    private function extractTextFromFile(string $tmpName, string $fileExtension, array $file): string
     {
         if ($this->isImageFile($fileExtension)) {
             $fileName = basename($tmpName);
@@ -164,12 +164,12 @@ class LmController
     private function processFileUpload(array $file, int $userId, ?int $folderId, ?string $documentName): array
     {
         $uploadedFileName = !empty($documentName) ? $documentName : $file['name'];
-        $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
+        $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
         $tmpName = $file['tmp_name'];
         $isImage = $this->isImageFile($fileExtension);
 
         // Extract text using OCR for images, or standard extraction for other files
-        $extractedText = $this->extractTextFromFile($tmpName, $fileExtension);
+        $extractedText = $this->extractTextFromFile($tmpName, $fileExtension, $file);
         
         // For images, log OCR result
         if ($isImage) {

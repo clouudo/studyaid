@@ -130,6 +130,7 @@ define('VIEW_CHATBOT', LEARNING_VIEWS_PATH . 'chatbot.php');
 define('VIEW_QUIZ', LEARNING_VIEWS_PATH . 'quiz.php');
 define('VIEW_FLASHCARD', LEARNING_VIEWS_PATH . 'flashcard.php');
 define('VIEW_NAVBAR', LEARNING_VIEWS_PATH . 'navbar.php');
+define('VIEW_CONFIRM', LEARNING_VIEWS_PATH . 'confirm.php');
 define('VIEW_DOCUMENT_HUB', LEARNING_VIEWS_PATH . 'multidoc.php');
 // ============================================================================
 // URL PATTERNS FOR isActive() FUNCTION
@@ -146,3 +147,4 @@ define('URL_CHATBOT', 'index.php?url=lm/chatbot');
 define('URL_FLASHCARD', 'index.php?url=lm/flashcard');
 define('URL_QUIZ', 'index.php?url=lm/quiz');
 define('URL_DOCUMENT_HUB', 'index.php?url=lm/documentHub');
+define('URL_DISPLAY_DOCUMENT', 'index.php?url=lm/displayDocument');

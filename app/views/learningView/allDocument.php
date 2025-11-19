@@ -1,4 +1,16 @@
 <?php
+/**
+ * Recursively builds a hierarchical folder tree HTML structure
+ * 
+ * Behavior: Traverses folders array and generates nested <ul><li> structure
+ * for folders matching the parent ID. Recursively processes child folders
+ * to create multi-level folder hierarchy.
+ * 
+ * @param array $folders Array of folder data with folderID and parentFolderId
+ * @param int|null $parentId Parent folder ID to filter children (null for root)
+ * @param int $level Current nesting level (for indentation, currently unused)
+ * @return string HTML string containing nested folder list structure
+ */
 function buildFolderTree($folders, $parentId = null, $level = 0)
 {
     $html = '';
@@ -486,6 +498,9 @@ ob_start();
                     </div>
                 
                 <?php
+                // Extract and clear session messages for display
+                // Behavior: Retrieves success/error messages from session, clears them
+                // to prevent re-display on page refresh, and stores in local variables
                 $successMessage = null;
                 $errorMessage = null;
                 if (isset($_SESSION['message'])) {
@@ -609,9 +624,9 @@ ob_start();
                                         <li><a class="dropdown-item move-btn" href="#" data-bs-toggle="modal" data-bs-target="#moveModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-type="file">Move</a></li>
                                         <li><a class="dropdown-item rename-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameModal" data-item-id="<?php echo $file['fileID']; ?>" data-item-name="<?php echo htmlspecialchars($file['name']); ?>" data-item-type="file">Rename</a></li>
                                         <li>
-                                            <form method="POST" action="<?= DELETE_DOCUMENT ?>" style="display: inline;">
+                                            <form method="POST" action="<?= DELETE_DOCUMENT ?>" style="display: inline;" class="delete-file-form" data-file-id="<?php echo $file['fileID']; ?>" data-file-name="<?php echo htmlspecialchars($file['name']); ?>">
                                                 <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
-                                                <button type="submit" id="deleteFileBtn" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                <button type="button" class="dropdown-item delete-file-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                             </form>
                                         </li>
                                     </ul>
@@ -697,6 +712,12 @@ ob_start();
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+    /**
+     * Document ready handler - initializes all document management functionality
+     * 
+     * Behavior: Sets up modals, dropdowns, drag-and-drop, sorting, and AJAX handlers
+     * for renaming, moving, deleting folders and files.
+     */
     $(document).ready(function() {
         var renameModal = $("#renameModal");
         var moveModal = $("#moveModal");
@@ -705,7 +726,16 @@ ob_start();
                 type: null
             };
 
-            // Function to apply consistent dropdown styling
+            /**
+             * Applies consistent dropdown styling to override Bootstrap defaults
+             * 
+             * Behavior: Removes conflicting Bootstrap styles and applies custom theme
+             * styles with maximum z-index to ensure dropdowns appear above all content.
+             * 
+             * @param {jQuery} $menu Dropdown menu element
+             * @param {jQuery} $dropdown Dropdown container element
+             * @param {boolean} isActionDropdown Whether this is an action dropdown (Rename/Move/Delete)
+             */
             function applyDropdownStyles($menu, $dropdown, isActionDropdown) {
                 // Use maximum z-index to ensure dropdowns are always on top
                 const zIndex = '2147483647';
@@ -757,7 +787,12 @@ ob_start();
                 $menu.attr('style', finalStyle);
             }
 
-            // Ensure dropdowns appear in front when opened (exclude sidebar dropdowns)
+            /**
+             * Dropdown show event handler
+             * 
+             * Behavior: Applies custom styling when dropdown opens, ensuring proper
+             * z-index and positioning. Excludes sidebar dropdowns from custom styling.
+             */
             $(document).on('show.bs.dropdown', '.dropdown', function(e) {
                 const $dropdown = $(this);
                 const $menu = $dropdown.find('.dropdown-menu');
@@ -788,6 +823,13 @@ ob_start();
                 }
             });
 
+            /**
+             * Dropdown shown event handler
+             * 
+             * Behavior: Reapplies styles after Bootstrap positioning, uses MutationObserver
+             * to maintain styles if Bootstrap/Popper.js modifies them. Ensures dropdowns
+             * remain visible and properly styled.
+             */
             $(document).on('shown.bs.dropdown', '.dropdown', function() {
                 const $dropdown = $(this);
                 const $menu = $dropdown.find('.dropdown-menu');
@@ -866,6 +908,12 @@ ob_start();
                 }
             });
 
+            /**
+             * Dropdown hide event handler
+             * 
+             * Behavior: Resets list item styles when dropdown closes to restore
+             * normal overflow and z-index behavior.
+             */
             $(document).on('hide.bs.dropdown', '.dropdown', function() {
                 // Reset styles when closing
                 const $listItem = $(this).closest('.list-group-item');
@@ -877,7 +925,12 @@ ob_start();
                 }
             });
 
-        // --- Rename Logic ---
+        /**
+         * Rename modal initialization
+         * 
+         * Behavior: Populates rename modal with item details when opened.
+         * Sets modal title, label, and input value based on item type and name.
+         */
         renameModal.on('show.bs.modal', function(event) {
             var button = $(event.relatedTarget);
             var itemId = button.data('item-id');
@@ -891,6 +944,12 @@ ob_start();
             renameModal.find('#saveRenameBtn').data('item-type', itemType);
         });
 
+        /**
+         * Save rename button handler
+         * 
+         * Behavior: Sends AJAX request to rename folder or file. Reloads page on success,
+         * shows error snackbar on failure.
+         */
         $('#saveRenameBtn').on('click', function() {
             var itemType = $(this).data('item-type');
             var itemId = $('#renameItemId').val();
@@ -913,18 +972,29 @@ ob_start();
                         location.reload();
                     },
                     error: function() {
-                        alert('An error occurred.');
+                        showSnackbar('An error occurred while renaming.', 'error');
                     }
             });
         });
 
-        // --- Move Logic ---
+        /**
+         * Move modal initialization
+         * 
+         * Behavior: Stores item ID and type when move modal opens for later use
+         * when user selects destination folder.
+         */
         moveModal.on('show.bs.modal', function(event) {
             var button = $(event.relatedTarget);
             itemToMove.id = button.data('item-id');
             itemToMove.type = button.data('item-type');
         });
 
+        /**
+         * Folder selection handler in move modal
+         * 
+         * Behavior: Moves item to selected folder via AJAX. Reloads page on success,
+         * shows error snackbar on failure.
+         */
         moveModal.on('click', '.folder-item', function(e) {
             e.preventDefault();
             var targetFolderId = $(this).data('folder-id');
@@ -946,12 +1016,18 @@ ob_start();
                         location.reload();
                     },
                     error: function() {
-                        alert('An error occurred during the move.');
+                        showSnackbar('An error occurred during the move.', 'error');
                     }
                 });
             });
 
-            // Sort functionality - Client-side sorting
+            /**
+             * Sort functionality - Client-side sorting
+             * 
+             * Behavior: Sorts document list items client-side based on selected sort type.
+             * Always keeps folders first, then files. Supports A-Z, Z-A, latest-oldest,
+             * and oldest-latest sorting.
+             */
             $(document).on('click', '.sort-option', function(e) {
                 e.preventDefault();
                 const sortType = $(this).data('sort');
@@ -1013,35 +1089,82 @@ ob_start();
                 }
         });
 
-        // Delete folder handler
-        $(document).on('click', '.delete-folder-btn', function(e) {
+        /**
+         * Delete file handler
+         * 
+         * Behavior: Shows confirmation modal before deleting file. On confirmation,
+         * submits delete form. Uses form submission instead of AJAX for consistency.
+         */
+        $(document).on('click', '.delete-file-btn', function(e) {
             e.preventDefault();
-            if (!confirm('Are you sure you want to delete this folder? This action cannot be undone.')) {
-                return;
-            }
-            var folderId = $(this).data('folder-id');
-            var url = '<?= BASE_PATH ?>lm/deleteFolder';
-                var data = {
-                    folder_id: folderId
-                };
-            $.ajax({ 
-                url: url, 
-                type: 'POST', 
-                data: data,
-                success: function(response) { 
-                    location.reload(); 
-                },
-                error: function() { 
-                    alert('An error occurred during the deletion.'); 
+            var $form = $(this).closest('.delete-file-form');
+            var fileId = $form.data('file-id');
+            var fileName = $form.data('file-name');
+            
+            showConfirmModal({
+                message: 'Are you sure you want to delete the file "' + fileName + '"? This action cannot be undone.',
+                title: 'Delete File',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
                 }
             });
         });
 
-            // Drag and Drop functionality
+        /**
+         * Delete folder handler
+         * 
+         * Behavior: Shows confirmation modal before deleting folder. On confirmation,
+         * sends AJAX request to delete folder and reloads page. Shows error snackbar on failure.
+         */
+        $(document).on('click', '.delete-folder-btn', function(e) {
+            e.preventDefault();
+            var folderId = $(this).data('folder-id');
+            var folderName = $(this).closest('.list-group-item').find('strong').text();
+            
+            showConfirmModal({
+                message: 'Are you sure you want to delete the folder "' + folderName + '"? This action cannot be undone.',
+                title: 'Delete Folder',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    var url = '<?= BASE_PATH ?>lm/deleteFolder';
+                    var data = {
+                        folder_id: folderId
+                    };
+                    $.ajax({ 
+                        url: url, 
+                        type: 'POST', 
+                        data: data,
+                        success: function(response) { 
+                            location.reload(); 
+                        },
+                        error: function() { 
+                            showSnackbar('An error occurred during the deletion.', 'error');
+                        }
+                    });
+                }
+            });
+        });
+
+            /**
+             * Drag and Drop functionality
+             * 
+             * Behavior: Enables drag-and-drop to move files and folders between folders.
+             * Provides visual feedback during drag and handles drop with validation.
+             */
             let draggedElement = null;
             let currentFolderId = <?php echo isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : 0; ?>;
 
-            // Drag start
+            /**
+             * Drag start handler
+             * 
+             * Behavior: Marks element as being dragged, adds visual class, and sets
+             * drag data transfer effect and HTML data.
+             */
             $(document).on('dragstart', '.list-group-item[draggable="true"]', function(e) {
                 draggedElement = this;
                 $(this).addClass('dragging');
@@ -1049,13 +1172,23 @@ ob_start();
                 e.originalEvent.dataTransfer.setData('text/html', this.outerHTML);
             });
 
-            // Drag end
+            /**
+             * Drag end handler
+             * 
+             * Behavior: Removes dragging visual class and clears drag-over highlights
+             * from all items when drag operation ends.
+             */
             $(document).on('dragend', '.list-group-item[draggable="true"]', function(e) {
                 $(this).removeClass('dragging');
                 $('.list-group-item').removeClass('drag-over');
             });
 
-            // Drag over
+            /**
+             * Drag over handler
+             * 
+             * Behavior: Prevents default behavior, sets drop effect, and adds visual
+             * highlight to valid drop targets (excluding dragged element itself).
+             */
             $(document).on('dragover', '.list-group-item[draggable="true"]', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1067,12 +1200,22 @@ ob_start();
                 }
             });
 
-            // Drag leave
+            /**
+             * Drag leave handler
+             * 
+             * Behavior: Removes drag-over highlight when drag leaves a drop target.
+             */
             $(document).on('dragleave', '.list-group-item[draggable="true"]', function(e) {
                 $(this).removeClass('drag-over');
             });
 
-            // Drop
+            /**
+             * Drop handler
+             * 
+             * Behavior: Handles file/folder drop operation. Validates drop target,
+             * prevents invalid moves (non-folder targets, self-move), shows confirmation
+             * modal, and performs move via AJAX. Shows error snackbar on validation failure.
+             */
             $(document).on('drop', '.list-group-item[draggable="true"]', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1085,56 +1228,71 @@ ob_start();
 
                 const draggedItemId = $(draggedElement).data('item-id');
                 const draggedItemType = $(draggedElement).data('item-type');
+                const draggedItemName = $(draggedElement).find('strong').text();
                 const targetItemId = $(this).data('item-id');
                 const targetItemType = $(this).data('item-type');
+                const targetItemName = $(this).find('strong').text();
 
                 // Only allow dropping on folders
                 if (targetItemType !== 'folder') {
-                    alert('You can only move items into folders.');
+                    showSnackbar('You can only move items into folders.', 'error');
                     return;
                 }
 
-                // Prevent moving folder into itself or its children
+                // Prevent moving folder into itself
                 if (draggedItemType === 'folder' && draggedItemId === targetItemId) {
-                    alert('Cannot move folder into itself.');
+                    showSnackbar('Cannot move folder into itself.', 'error');
                     return;
                 }
 
-                // Confirm move
-                if (!confirm('Move ' + draggedItemType + ' to this folder?')) {
-                    return;
-                }
+                // Show confirmation modal before moving
+                showConfirmModal({
+                    message: 'Move "' + draggedItemName + '" to "' + targetItemName + '"?',
+                    title: 'Move ' + (draggedItemType === 'folder' ? 'Folder' : 'File'),
+                    confirmText: 'Move',
+                    cancelText: 'Cancel',
+                    onConfirm: function() {
+                        // Perform move via AJAX
+                        const url = draggedItemType === 'folder' ?
+                            '<?= BASE_PATH ?>lm/moveFolder' :
+                            '<?= BASE_PATH ?>lm/moveFile';
+                        const data = draggedItemType === 'folder' ?
+                            {
+                                folderId: draggedItemId,
+                                newFolderId: targetItemId
+                            } :
+                            {
+                                fileId: draggedItemId,
+                                newFolderId: targetItemId
+                            };
 
-                // Perform move via AJAX
-                const url = draggedItemType === 'folder' ?
-                    '<?= BASE_PATH ?>lm/moveFolder' :
-                    '<?= BASE_PATH ?>lm/moveFile';
-                const data = draggedItemType === 'folder' ?
-                    {
-                        folderId: draggedItemId,
-                        newFolderId: targetItemId
-                    } :
-                    {
-                        fileId: draggedItemId,
-                        newFolderId: targetItemId
-                    };
-
-                $.ajax({
-                    url: url,
-                    type: 'POST',
-                    data: data,
-                    dataType: 'json',
-                    success: function(response) {
-                        location.reload();
-                    },
-                    error: function() {
-                        showSnackbar('An error occurred during the move.', 'error');
-                }
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            data: data,
+                            dataType: 'json',
+                            success: function(response) {
+                                location.reload();
+                            },
+                            error: function() {
+                                showSnackbar('An error occurred during the move.', 'error');
+                            }
+                        });
+                    }
+                });
             });
-        });
     });
     
-    // Snackbar function
+    /**
+     * Displays temporary notification snackbar message
+     * 
+     * Behavior: Shows animated notification at bottom of screen with
+     * appropriate icon based on type (success/error). Automatically hides
+     * after 3 seconds. Updates icon and styling based on message type.
+     * 
+     * @param {string} message Message text to display
+     * @param {string} type Message type: 'success' or 'error'
+     */
     function showSnackbar(message, type) {
         const snackbar = document.getElementById('snackbar');
         const snackbarMessage = document.getElementById('snackbarMessage');
@@ -1143,6 +1301,7 @@ ob_start();
         snackbarMessage.textContent = message;
         snackbar.className = 'snackbar ' + type;
         
+        // Set appropriate icon based on message type
         if (type === 'success') {
             snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
         } else if (type === 'error') {
@@ -1151,12 +1310,18 @@ ob_start();
         
         snackbar.classList.add('show');
         
+        // Auto-hide after 3 seconds
         setTimeout(function() {
             snackbar.classList.remove('show');
         }, 3000);
     }
     
-    // Show messages on page load
+    /**
+     * Display session messages on page load
+     * 
+     * Behavior: Checks for success/error messages from PHP session and
+     * displays them as snackbar notifications when DOM is ready.
+     */
     <?php if ($successMessage): ?>
     document.addEventListener('DOMContentLoaded', function() {
         showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
@@ -1169,6 +1334,7 @@ ob_start();
     });
     <?php endif; ?>
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

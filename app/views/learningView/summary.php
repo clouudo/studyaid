@@ -104,7 +104,7 @@
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
                     <div class="card-body">
-                        <form id="generateSummaryForm" action="#" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
+                        <form id="generateSummaryForm" action="<?= GENERATE_SUMMARY ?>" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
                             <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
@@ -148,17 +148,17 @@
                                                         <hr class="dropdown-divider">
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;" class="save-summary-as-file-form" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-summary-title="<?= htmlspecialchars($summary['title']) ?>">
                                                             <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                            <button type="button" class="dropdown-item save-summary-as-file-btn" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
                                                         </form>
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;" class="delete-summary-form" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                             <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                            <button type="button" class="dropdown-item delete-summary-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                         </form>
                                                     </li>
                                                 </ul>
@@ -178,6 +178,7 @@
             </div>
         </main>
     </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
@@ -189,8 +190,68 @@
         }
     </style>
     <script>
+        /**
+         * Delete summary handler
+         * 
+         * Behavior: Shows confirmation modal before deleting summary. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-summary-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-summary-form');
+            var summaryId = $form.data('summary-id');
+            var summaryTitle = $form.closest('.list-group-item').find('strong').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the summary "' + summaryTitle + '"? This action cannot be undone.',
+                title: 'Delete Summary',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+        /**
+         * Save summary as file handler
+         * 
+         * Behavior: Shows confirmation modal before saving summary as file. On confirmation,
+         * submits the form to save the summary as a new file.
+         */
+        $(document).on('click', '.save-summary-as-file-btn', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var $form = $(this).closest('.save-summary-as-file-form');
+            var summaryTitle = $form.data('summary-title');
+
+            showConfirmModal({
+                message: 'Are you sure you want to save the summary "' + summaryTitle + '" as a new file?',
+                title: 'Save Summary as File',
+                confirmText: 'Save',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+
+        /**
+         * Document ready handler - initializes summary page functionality
+         * 
+         * Behavior: Sets up form submission handlers, markdown parsing, and
+         * event listeners for audio generation and export functionality.
+         */
         document.addEventListener('DOMContentLoaded', function() {
-            // Handle generate summary form submission
+            /**
+             * Generate summary form submission handler
+             * 
+             * Behavior: Intercepts form submission, sends AJAX request to generateSummary
+             * endpoint, shows loading state, and reloads page on success or shows error.
+             */
             const generateSummaryForm = document.getElementById('generateSummaryForm');
             if (generateSummaryForm) {
                 generateSummaryForm.addEventListener('submit', async (e) => {
@@ -206,14 +267,30 @@
                     submitButton.textContent = 'Generating...';
 
                     try {
-                        const actionUrl = form.getAttribute('data-action') || form.action;
+                        // Get the action URL - use data-action attribute or form action
+                        let actionUrl = form.getAttribute('data-action') || form.action;
+                        
+                        // Convert routing URL to index.php format for fetch
+                        // GENERATE_SUMMARY outputs: /studyaid/lm/generateSummary
+                        // Need to convert to: /studyaid/index.php?url=lm/generateSummary
+                        if (actionUrl.includes('/lm/')) {
+                            // Extract the route part (lm/generateSummary)
+                            const routeMatch = actionUrl.match(/\/lm\/(.+)$/);
+                            if (routeMatch) {
+                                actionUrl = '<?= BASE_PATH ?>index.php?url=lm/' + routeMatch[1];
+                            }
+                        }
+                        
+                        const formData = new FormData(form);
+                        
                         const res = await fetch(actionUrl, {
                             method: 'POST',
-                            body: new FormData(form)
+                            body: formData
                         });
 
                         if (!res.ok) {
-                            throw new Error('Network response was not ok');
+                            const errorText = await res.text();
+                            throw new Error('Network response was not ok: ' + res.status + ' - ' + errorText.substring(0, 100));
                         }
 
                         const json = await res.json();
@@ -235,11 +312,22 @@
                 });
             }
 
-            // Parse markdown for summary content
+            /**
+             * Parse markdown for summary content
+             * 
+             * Behavior: Converts markdown text in summary content divs to HTML
+             * using the marked.js library.
+             */
             document.querySelectorAll('.summaryContent').forEach(function(div) {
                 div.innerHTML = marked.parse(div.textContent);
             });
 
+            /**
+             * Audio summary button handler
+             * 
+             * Behavior: Generates audio for summary via AJAX, creates Audio element,
+             * and plays it. Shows loading state during generation.
+             */
             // Handle audio summary buttons
             document.querySelectorAll('.audio-summary-btn').forEach(function(btn) {
                 btn.addEventListener('click', async function(e) {
@@ -300,7 +388,13 @@
                 });
             });
 
-            // Handle export summary buttons (mirror note.php behavior)
+            /**
+             * Export summary button handler
+             * 
+             * Behavior: Exports summary as PDF, DOCX, or TXT file. Downloads file
+             * via blob URL. Handles errors and validates response content type.
+             */
+            // Handle export summary buttons
             document.querySelectorAll('.export-summary-btn').forEach(function(btn) {
                 btn.addEventListener('click', async function(e) {
                     e.preventDefault();
@@ -371,6 +465,7 @@
             });
         });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

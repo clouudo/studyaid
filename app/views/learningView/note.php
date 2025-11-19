@@ -298,17 +298,17 @@
                                                         <hr class="dropdown-divider">
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;" class="save-note-as-file-form" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-note-title="<?= htmlspecialchars($note['title']) ?>">
                                                             <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                            <button type="button" class="dropdown-item save-note-as-file-btn" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
                                                         </form>
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;" class="delete-note-form" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                             <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                            <button type="button" class="dropdown-item delete-note-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                         </form>
                                                     </li>
                                                 </ul>
@@ -424,6 +424,7 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
@@ -1155,7 +1156,56 @@
             currentImageUploadNoteId = null;
             currentImageUploadTextarea = null;
         });
+
+        /**
+         * Delete note handler
+         * 
+         * Behavior: Shows confirmation modal before deleting note. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-note-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-note-form');
+            var noteId = $form.data('note-id');
+            var noteTitle = $form.closest('.note-item').find('.note-title-text').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the note "' + noteTitle + '"? This action cannot be undone.',
+                title: 'Delete Note',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+        /**
+         * Save note as file handler
+         * 
+         * Behavior: Shows confirmation modal before saving note as file. On confirmation,
+         * submits the form to save the note as a new file.
+         */
+        $(document).on('click', '.save-note-as-file-btn', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var $form = $(this).closest('.save-note-as-file-form');
+            var noteTitle = $form.data('note-title');
+
+            showConfirmModal({
+                message: 'Are you sure you want to save the note "' + noteTitle + '" as a new file?',
+                title: 'Save Note as File',
+                confirmText: 'Save',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

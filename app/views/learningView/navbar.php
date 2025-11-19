@@ -1,5 +1,11 @@
 <nav class="navbar navbar-expand-sm">
     <ul class="navbar-nav ps-0 mb-2">
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_DISPLAY_DOCUMENT, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
+            <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
+                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+                <button type="submit" class="nav-link <?php echo isActive(URL_DISPLAY_DOCUMENT, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;"><strong>Source</strong></button>
+            </form>
+        </li>
         <li class="nav-item badge rounded-pill <?php echo isActive(URL_SUMMARY, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
             <form method="POST" action="<?= SUMMARY ?>" style="display: inline;">
                 <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
@@ -18,7 +24,7 @@
                 <button type="submit" class="nav-link <?php echo isActive(URL_MINDMAP, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;"><strong>Mindmap</strong></button>
             </form>
         </li>
-    <li class="nav-item badge rounded-pill <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
+        <li class="nav-item badge rounded-pill <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
             <form method="POST" action="<?= CHATBOT ?>" style="display: inline;">
                 <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
                 <button type="submit" class="nav-link <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;"><strong>Chatbot</strong></button>
@@ -40,13 +46,12 @@
 </nav>
 
 <style>
-    .nav-item.active{
+    .nav-item.active {
         background-color: #A855F7 !important;
     }
-    
-    .nav-item.active .nav-link{
+
+    .nav-item.active .nav-link {
         background-color: #A855F7 !important;
         color: white !important;
     }
 </style>
-

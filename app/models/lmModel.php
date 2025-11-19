@@ -6,6 +6,7 @@ use App\Config\Database;
 use Error;
 use Google\Cloud\Storage\StorageClient;
 use Ramsey\Uuid\Uuid;
+use App\Services\OCRService;
 
 class LmModel
 {
@@ -13,6 +14,7 @@ class LmModel
     private $db;
     private $storage;
     private $bucketName;
+    private $ocrService;
 
     public function __construct()
     {
@@ -23,7 +25,7 @@ class LmModel
             'keyFilePath' => $config['key_file_path']
         ]);
         $this->bucketName = $config['bucket_name'];
-        
+        $this->ocrService = new OCRService();
         // Set custom temp directory for php://temp to avoid permission issues
         $this->setCustomTempDir();
     }

@@ -251,10 +251,10 @@
                                                     <hr class="dropdown-divider">
                                                 </li>
                                                 <li>
-                                                    <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;">
+                                                    <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;" class="delete-mindmap-form" data-mindmap-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                         <input type="hidden" name="mindmap_id" value="<?= htmlspecialchars($mindmap['mindmapID']) ?>">
                                                         <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        <button type="button" class="dropdown-item delete-mindmap-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                     </form>
                                                 </li>
                                             </ul>
@@ -367,6 +367,7 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -976,7 +977,32 @@
                 window.markmap.autoLoader.renderAll();
             }
         }
+
+        /**
+         * Delete mindmap handler
+         * 
+         * Behavior: Shows confirmation modal before deleting mindmap. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-mindmap-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-mindmap-form');
+            var mindmapId = $form.data('mindmap-id');
+            var mindmapTitle = $form.closest('.list-group-item').find('strong').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the mindmap "' + mindmapTitle + '"? This action cannot be undone.',
+                title: 'Delete Mindmap',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>
