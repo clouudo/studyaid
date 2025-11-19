@@ -1966,7 +1966,7 @@ class LmModel
     /**
      * Split text into overlapping chunks for RAG processing, breaks at sentence boundaries when possible
      */
-    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000, int $overlap = 200): array{
+    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 2000, int $overlap = 400): array{
         $chunks = [];
         $length = strlen($text);
         $i = 0;

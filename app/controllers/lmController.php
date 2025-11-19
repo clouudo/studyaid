@@ -3149,6 +3149,127 @@ class LmController
     }
 
     /**
+     * Handles chatbot interaction for document hub: processes question across multiple documents using RAG
+     */
+    public function sendDocumentHubChat()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = (int)$_SESSION['user_id'];
+        
+        if (!isset($data['question']) || empty(trim($data['question']))) {
+            $this->sendJsonError('Question is required.');
+        }
+
+        if (!isset($data['fileIds']) || empty($data['fileIds']) || !is_array($data['fileIds'])) {
+            $this->sendJsonError('At least one document must be selected.');
+        }
+
+        $question = trim($data['question']);
+        $selectedFileIds = $data['fileIds'];
+
+        try {
+            // Validate file IDs belong to user
+            $validFileIds = [];
+            foreach($selectedFileIds as $fileId) {
+                $file = $this->lmModel->getFile($userId, (int)$fileId);
+                if($file) {
+                    $validFileIds[] = (int)$fileId;
+                }
+            }
+
+            if (empty($validFileIds)) {
+                $this->sendJsonError('No valid files found.');
+            }
+
+            // Generate embedding for the question
+            $queryEmbedding = $this->gemini->generateEmbedding($question);
+
+            if (empty($queryEmbedding)) {
+                $this->sendJsonError('Could not generate embedding for the question.');
+            }
+
+            // Find relevant chunks using RAG
+            $similarities = [];
+            $similarityThreshold = 0.15; // Lower threshold for more sensitive search
+            
+            foreach ($validFileIds as $fileId) {
+                $chunks = $this->lmModel->getChunksByFile($fileId);
+                
+                if (empty($chunks)) {
+                    // If no chunks exist, fall back to extracted text
+                    $file = $this->lmModel->getFile($userId, $fileId);
+                    if ($file && !empty($file['extracted_text'])) {
+                        $similarities[] = [
+                            'fileId' => $fileId,
+                            'chunkText' => $file['extracted_text'],
+                            'similarity' => 1.0, // Use full text if no chunks
+                        ];
+                    }
+                    continue;
+                }
+
+                foreach ($chunks as $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'], true);
+                    
+                    if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                        continue;
+                    }
+
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $chunkEmbedding);
+                    
+                    if ($similarity >= $similarityThreshold) {
+                        $similarities[] = [
+                            'fileId' => $fileId,
+                            'chunkText' => $chunk['chunkText'] ?? '',
+                            'similarity' => $similarity,
+                        ];
+                    }
+                }
+            }
+
+            // Sort by similarity and get top chunks
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            $topK = min(15, count($similarities));
+            $topChunks = array_slice($similarities, 0, $topK);
+
+            // Combine relevant context
+            $context = '';
+            if (!empty($topChunks)) {
+                foreach ($topChunks as $chunk) {
+                    $context .= $chunk['chunkText'] . "\n\n";
+                }
+            } else {
+                // Fallback: combine all extracted text if no relevant chunks found
+                foreach ($validFileIds as $fileId) {
+                    $file = $this->lmModel->getFile($userId, $fileId);
+                    if ($file && !empty($file['extracted_text'])) {
+                        $context .= "Document: " . ($file['name'] ?? 'Unknown') . "\n";
+                        $context .= $file['extracted_text'] . "\n\n";
+                    }
+                }
+            }
+
+            if (empty($context)) {
+                $this->sendJsonError('No content found in selected documents.');
+            }
+
+            // Generate chatbot response using combined context
+            $response = $this->gemini->generateChatbotResponse($context, $question);
+
+            $this->sendJsonSuccess(['response' => $response]);
+        } catch (\Throwable $e) {
+            error_log('Document Hub Chat Error: ' . $e->getMessage());
+            $this->sendJsonError('An error occurred while processing your question: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Synthesizes a new document from multiple selected documents using RAG: finds relevant chunks via embeddings and generates document
      */
     public function synthesizeDocument(){
@@ -3193,7 +3314,7 @@ class LmController
 
             $similarities = [];
             $totalChunksSearched = 0;
-            $similarityThreshold = 0.25;
+            $similarityThreshold = 0.15; // Lower threshold for more sensitive search
             
             foreach ($validFileIds as $fileId) {
                 $chunks = $this->lmModel->getChunksByFile($fileId);
