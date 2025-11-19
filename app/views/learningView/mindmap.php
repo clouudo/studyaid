@@ -190,6 +190,10 @@
             min-height: 600px;
         }
 
+        .mindmap-split-container.single-view {
+            grid-template-columns: 1fr;
+        }
+
         .mindmap-visual-panel {
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
@@ -273,7 +277,7 @@
                     <div class="card-body">
                         <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="mindmapToolbar" style="display: none;">
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary" id="toggleViewBtn">Split View</button>
+                                <button type="button" class="btn btn-outline-secondary" id="toggleViewBtn">Edit View</button>
                             </div>
                             <div class="ms-auto d-flex gap-2 align-items-center">
                                 <button type="button" class="btn btn-sm" id="saveMindmapBtn" disabled style="background-color: #A855F7; border: none; color: white;">Save Changes</button>
@@ -577,7 +581,7 @@
 
             if (isSplitView) {
                 // Show split view
-                mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                mindmapSplitContainer.classList.remove('single-view');
                 if (markdownEditorPanel) {
                     markdownEditorPanel.style.display = 'flex';
                 }
@@ -585,7 +589,7 @@
                 toggleViewBtn.classList.add('view-toggle-active');
             } else {
                 // Show only visual
-                mindmapSplitContainer.style.gridTemplateColumns = '1fr';
+                mindmapSplitContainer.classList.add('single-view');
                 if (markdownEditorPanel) {
                     markdownEditorPanel.style.display = 'none';
                 }
@@ -702,7 +706,7 @@
                     // Enable split view by default
                     isSplitView = true;
                     if (mindmapSplitContainer) {
-                        mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                        mindmapSplitContainer.classList.remove('single-view');
                     }
                     if (markdownEditorPanel) {
                         markdownEditorPanel.style.display = 'flex';
@@ -779,7 +783,7 @@
                     // Enable split view by default
                     isSplitView = true;
                     if (mindmapSplitContainer) {
-                        mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                        mindmapSplitContainer.classList.remove('single-view');
                     }
                     if (markdownEditorPanel) {
                         markdownEditorPanel.style.display = 'flex';
