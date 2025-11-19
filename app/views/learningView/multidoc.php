@@ -304,6 +304,19 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Knowledge Base Search -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card tool-card h-100" id="knowledgeBaseTool">
+                            <div class="card-body text-center d-flex flex-column justify-content-center">
+                                <div class="tool-icon-wrapper mb-3">
+                                    <i class="bi bi-search tool-icon"></i>
+                                </div>
+                                <h5 class="card-title">Knowledge Base Search</h5>
+                                <p class="card-text text-muted">Search across all your uploaded documents</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Chatbot Panel (will show chatbot interface) -->
@@ -339,6 +352,35 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Knowledge Base Search Panel -->
+                <div class="card mt-4" id="knowledgeBasePanel" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-search me-3" style="font-size: 1.5rem;"></i>
+                            <div class="flex-grow-1">
+                                <h5 class="mb-0">Knowledge Base Search</h5>
+                                <small class="text-muted">Search across all your documents</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="closeKnowledgeBaseBtn">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <form id="knowledgeBaseForm">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="knowledgeBaseQueryInput" placeholder="Enter keywords to search..." required>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search me-2"></i>Search
+                                </button>
+                            </div>
+                        </form>
+                        <div id="knowledgeBaseResults" style="max-height: 600px; overflow-y: auto;">
+                            <!-- Search results will appear here -->
+                        </div>
                     </div>
                 </div>
 
@@ -482,6 +524,7 @@
         </div>
     </div>
 
+    <?php include VIEW_CONFIRM; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
@@ -525,7 +568,7 @@
                 const reportDescriptionElement = document.getElementById('reportDescription');
                 
                 if (reportType === 'briefDocument') {
-                    reportDescriptionElement.value = 'Create a comprehensive briefing document that synthesizes the main themes and ideas from the sources. Start with a concise Executive Summary that presents the most critical takeaways upfront. The body of the document must provide a detailed and thorough examination of the main themes, evidence, and conclusions found in the sources. This analysis should be structured logically with headings and bullet points to ensure clarity. The tone must be objective and incisive.';
+                    reportDescriptionElement.value = 'You are an expert tutor and researcher. Based on the provided material or topic, create a structured study guide with: 1. A short summary of key ideas, 2. Ten short-answer quiz questions (2–3 sentences each) with a matching answer key, 3. Five essay-style discussion questions (no answers required), 4. A glossary of 8–12 essential terms with concise definitions. Ensure clarity, educational value, and proper structure.';
                 } else if (reportType === 'studyGuide') {
                     reportDescriptionElement.value = 'You are a highly capable research assistant and tutor. Create a detailed study guide designed to review understanding of the sources. Create a quiz with ten short-answer questions (2-3 sentences each) and include a separate answer key. Suggest five essay format questions, but do not supply answers. Also conclude with a comprehensive glossary of key terms with definitions.';
                 } else if (reportType === 'keyPoints') {
@@ -649,7 +692,17 @@
                         // Check if adding this file would exceed the limit
                         if (selectedFiles.size >= MAX_SELECTION) {
                             e.target.checked = false;
-                            alert(`You can only select a maximum of ${MAX_SELECTION} documents.`);
+                            // Hide cancel button for informational messages
+                            document.getElementById('confirmCancelBtn').style.display = 'none';
+                            showConfirmModal({
+                                title: 'Selection Limit Reached',
+                                message: `You can only select a maximum of ${MAX_SELECTION} documents.`,
+                                confirmText: 'OK',
+                                cancelText: '',
+                                onConfirm: function() {
+                                    // Modal will close automatically
+                                }
+                            });
                             return;
                         }
                         selectedFiles.add(fileId);
@@ -683,7 +736,17 @@
                         // Check if adding all files in this folder would exceed the limit
                         if (selectedFiles.size + filesInFolder > MAX_SELECTION) {
                             e.target.checked = false;
-                            alert(`Selecting this folder would exceed the maximum limit of ${MAX_SELECTION} documents. Please deselect some documents first.`);
+                            // Hide cancel button for informational messages
+                            document.getElementById('confirmCancelBtn').style.display = 'none';
+                            showConfirmModal({
+                                title: 'Selection Limit Reached',
+                                message: `Selecting this folder would exceed the maximum limit of ${MAX_SELECTION} documents. Please deselect some documents first.`,
+                                confirmText: 'OK',
+                                cancelText: '',
+                                onConfirm: function() {
+                                    // Modal will close automatically
+                                }
+                            });
                             return;
                         }
                         
@@ -820,7 +883,17 @@
                 saveCheckedDocumentsToSession();
                 
                 if (selectedCount < allFiles.length) {
-                    alert(`Only ${selectedCount} document(s) selected (maximum ${MAX_SELECTION}).`);
+                    // Hide cancel button for informational messages
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'Selection Limit',
+                        message: `Only ${selectedCount} document(s) selected (maximum ${MAX_SELECTION}).`,
+                        confirmText: 'OK',
+                        cancelText: '',
+                        onConfirm: function() {
+                            // Modal will close automatically
+                        }
+                    });
                 }
             });
 
@@ -930,16 +1003,46 @@
                             form.submit();
                         } else {
                             console.error('No fileId returned from synthesis');
-                            alert('Document synthesized but could not redirect to view it.');
+                            // Hide cancel button for informational messages
+                            document.getElementById('confirmCancelBtn').style.display = 'none';
+                            showConfirmModal({
+                                title: 'Redirect Error',
+                                message: 'Document synthesized but could not redirect to view it.',
+                                confirmText: 'OK',
+                                cancelText: '',
+                                onConfirm: function() {
+                                    // Modal will close automatically
+                                }
+                            });
                         }
                     } else {
                         console.error('Document synthesis failed:', data.message || 'Failed to synthesize document');
-                        alert('Failed to synthesize document: ' + (data.message || 'Unknown error'));
+                        // Hide cancel button for informational messages
+                        document.getElementById('confirmCancelBtn').style.display = 'none';
+                        showConfirmModal({
+                            title: 'Synthesis Failed',
+                            message: 'Failed to synthesize document: ' + (data.message || 'Unknown error'),
+                            confirmText: 'OK',
+                            cancelText: '',
+                            onConfirm: function() {
+                                // Modal will close automatically
+                            }
+                        });
                     }
                 })
                 .catch(error => {
                     console.error('Error synthesizing document:', error);
-                    alert('An error occurred while synthesizing the document. Please try again.');
+                    // Hide cancel button for informational messages
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'Error',
+                        message: 'An error occurred while synthesizing the document. Please try again.',
+                        confirmText: 'OK',
+                        cancelText: '',
+                        onConfirm: function() {
+                            // Modal will close automatically
+                        }
+                    });
                 });
             });
 
@@ -953,7 +1056,17 @@
                 const fileIds = Array.from(selectedFiles);
                 
                 if (fileIds.length === 0) {
-                    alert('Please select at least one document to use the chatbot.');
+                    // Hide cancel button for informational messages
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'No Documents Selected',
+                        message: 'Please select at least one document to use the chatbot.',
+                        confirmText: 'OK',
+                        cancelText: '',
+                        onConfirm: function() {
+                            // Modal will close automatically
+                        }
+                    });
                     return;
                 }
 
@@ -1017,7 +1130,17 @@
 
                 const fileIds = Array.from(selectedFiles);
                 if (fileIds.length === 0) {
-                    alert('Please select at least one document.');
+                    // Hide cancel button for informational messages
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'No Documents Selected',
+                        message: 'Please select at least one document.',
+                        confirmText: 'OK',
+                        cancelText: '',
+                        onConfirm: function() {
+                            // Modal will close automatically
+                        }
+                    });
                     return;
                 }
 
@@ -1060,6 +1183,131 @@
                         chatContainer.removeChild(loadingDiv);
                     }
                     addChatMessage('Sorry, there was a network error. Please try again.', false);
+                }
+            });
+
+            // Restore cancel button visibility when modal is hidden
+            document.getElementById('confirmModal').addEventListener('hidden.bs.modal', function() {
+                document.getElementById('confirmCancelBtn').style.display = '';
+            });
+
+            // Knowledge Base Search Handler
+            document.getElementById('knowledgeBaseTool').addEventListener('click', function(e) {
+                document.getElementById('knowledgeBasePanel').style.display = 'block';
+                document.getElementById('chatbotPanel').style.display = 'none';
+                document.getElementById('resultsPanel').style.display = 'none';
+            });
+
+            // Close knowledge base panel
+            document.getElementById('closeKnowledgeBaseBtn').addEventListener('click', function() {
+                document.getElementById('knowledgeBasePanel').style.display = 'none';
+            });
+
+            // Knowledge Base Search form submission
+            const knowledgeBaseForm = document.getElementById('knowledgeBaseForm');
+            const knowledgeBaseQueryInput = document.getElementById('knowledgeBaseQueryInput');
+            const knowledgeBaseResults = document.getElementById('knowledgeBaseResults');
+
+            function displaySearchResults(results, totalMatches, returned) {
+                if (results.length === 0) {
+                    knowledgeBaseResults.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No matching results found. Try different keywords.
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `<div class="mb-3"><small class="text-muted">Found ${totalMatches} match(es), showing top ${returned}</small></div>`;
+                
+                results.forEach((result, index) => {
+                    const similarityPercent = (result.similarity * 100).toFixed(1);
+                    const chunkText = result.chunkText || '';
+                    const snippet = chunkText.length > 300 
+                        ? chunkText.substring(0, 300) + '...' 
+                        : chunkText;
+                    
+                    // Parse markdown for the snippet
+                    const formattedSnippet = marked.parse(snippet);
+                    
+                    html += `
+                        <div class="card mb-3" style="border-left: 3px solid var(--sa-primary);">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">
+                                        <i class="bi bi-file-text me-2"></i>${result.fileName || 'Unknown'}
+                                    </h6>
+                                    <span class="badge bg-primary">${similarityPercent}% match</span>
+                                </div>
+                                <div class="card-text text-muted" style="font-size: 0.9rem; line-height: 1.6;">
+                                    ${formattedSnippet}
+                                </div>
+                                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline;">
+                                    <input type="hidden" name="file_id" value="${result.fileID}">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary mt-2">
+                                        <i class="bi bi-arrow-right me-1"></i>Open Document
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                knowledgeBaseResults.innerHTML = html;
+            }
+
+            knowledgeBaseForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const query = knowledgeBaseQueryInput.value.trim();
+                if (!query) return;
+
+                // Show loading state
+                knowledgeBaseResults.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Searching your knowledge base...</p>
+                    </div>
+                `;
+
+                try {
+                    const response = await fetch('<?= SEARCH_KNOWLEDGE_BASE ?>', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            query: query
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        displaySearchResults(
+                            data.results || [],
+                            data.totalMatches || 0,
+                            data.returned || 0
+                        );
+                    } else {
+                        knowledgeBaseResults.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                ${data.message || 'An error occurred while searching.'}
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Knowledge base search error:', error);
+                    knowledgeBaseResults.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Sorry, there was a network error. Please try again.
+                        </div>
+                    `;
                 }
             });
 

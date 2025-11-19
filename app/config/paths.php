@@ -108,6 +108,7 @@ define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
 //Document Hub
 define('DOCUMENT_HUB', BASE_PATH . 'lm/documentHub');
 define('SAVE_CHECKED_DOCUMENTS', BASE_PATH . 'lm/saveCheckedDocuments');
+define('SEARCH_KNOWLEDGE_BASE', BASE_PATH . 'lm/searchKnowledgeBase');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');

@@ -8,6 +8,7 @@ use App\Services\GeminiService;
 use App\Services\OCRService;
 use PDO;
 use App\Services\PiperService;
+use App\Services\ExportService;
 use App\Config\Database;
 
 class LmController
@@ -18,17 +19,22 @@ class LmController
     private $userModel;
     private $PiperService;
     private $ocrService;
+    private $exportService;
 
 
     private const SESSION_CURRENT_FILE_ID = 'current_file_id';
 
     public function __construct()
     {
+        // Increase execution time for long-running operations (e.g. RAG, large file processing)
+        set_time_limit(300);
+
         $this->lmModel = new LmModel();
         $this->gemini = new GeminiService();
         $this->userModel = new UserModel();
         $this->PiperService = new PiperService();
         $this->ocrService = new OCRService();
+        $this->exportService = new ExportService();
     }
 
     // ============================================================================
@@ -1673,7 +1679,7 @@ class LmController
                 exit();
             }
 
-            $this->_generatePdf($summary['title'], $summary['content']);
+            $this->exportService->generatePdf($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . SUMMARY);
@@ -1705,7 +1711,7 @@ class LmController
                 exit();
             }
 
-            $this->_generateDocx($summary['title'], $summary['content']);
+            $this->exportService->generateDocx($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . SUMMARY);
@@ -1737,7 +1743,7 @@ class LmController
                 exit();
             }
 
-            $this->_generateTxt($summary['title'], $summary['content']);
+            $this->exportService->generateTxt($summary['title'], $summary['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . SUMMARY);
@@ -1769,7 +1775,7 @@ class LmController
                 exit();
             }
 
-            $this->_generatePdf($note['title'], $note['content']);
+            $this->exportService->generatePdf($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . NOTE);
@@ -1801,7 +1807,7 @@ class LmController
                 exit();
             }
 
-            $this->_generateDocx($note['title'], $note['content']);
+            $this->exportService->generateDocx($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . NOTE);
@@ -1833,7 +1839,7 @@ class LmController
                 exit();
             }
 
-            $this->_generateTxt($note['title'], $note['content']);
+            $this->exportService->generateTxt($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . NOTE);
@@ -1841,286 +1847,6 @@ class LmController
         }
     }
 
-    /**
-     * Generates PDF file from title and content using DomPDF or fallback methods
-     */
-    private function _generatePdf($title, $content)
-    {
-        if (class_exists('\Dompdf\Dompdf')) {
-            try {
-                $dompdf = new \Dompdf\Dompdf();
-                $options = $dompdf->getOptions();
-                $options->set('defaultFont', 'Arial');
-                $options->set('isHtml5ParserEnabled', true);
-                $options->set('isRemoteEnabled', false);
-
-                $html = $this->_convertContentToHtml($title, $content);
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'portrait');
-                $dompdf->render();
-
-                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
-
-                header('Content-Type: application/pdf');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                header('Cache-Control: private, max-age=0, must-revalidate');
-                header('Pragma: public');
-
-                echo $dompdf->output();
-                exit();
-            } catch (\Exception $e) {
-                $this->_generatePdfWithPhpWord($title, $content);
-            }
-        } else {
-            $this->_generatePdfWithPhpWord($title, $content);
-        }
-    }
-
-    /**
-     * Generates PDF using PHPWord with DomPDF renderer as fallback
-     */
-    private function _generatePdfWithPhpWord($title, $content)
-    {
-        $dompdfPath = __DIR__ . '/../../vendor/dompdf/dompdf';
-        if (file_exists($dompdfPath)) {
-            try {
-                \PhpOffice\PhpWord\Settings::setPdfRendererName(\PhpOffice\PhpWord\Settings::PDF_RENDERER_DOMPDF);
-                \PhpOffice\PhpWord\Settings::setPdfRendererPath($dompdfPath);
-
-                $phpWord = new \PhpOffice\PhpWord\PhpWord();
-                $section = $phpWord->addSection();
-
-                $section->addTitle($title, 1);
-                $section->addTextBreak(1);
-
-                $paragraphs = preg_split('/\n\s*\n/', $content);
-                foreach ($paragraphs as $paragraph) {
-                    $paragraph = trim($paragraph);
-                    if (!empty($paragraph)) {
-                        $section->addText($paragraph);
-                        $section->addTextBreak(1);
-                    }
-                }
-
-                $writer = new \PhpOffice\PhpWord\Writer\PDF($phpWord);
-                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
-
-                header('Content-Type: application/pdf');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                $writer->save('php://output');
-                exit();
-            } catch (\Exception $e) {
-                $this->_generateSimplePdf($title, $content);
-            }
-        } else {
-            $this->_generateSimplePdf($title, $content);
-        }
-    }
-
-    /**
-     * Converts markdown-like content to HTML for PDF generation
-     */
-    private function _convertContentToHtml($title, $content)
-    {
-        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($title) . '</title>';
-        $html .= '<style>
-            body {
-                font-family: Arial, sans-serif;
-                padding: 20px;
-                line-height: 1.6;
-            }
-            h1 {
-                color: #333;
-                border-bottom: 2px solid #A855F7;
-                padding-bottom: 10px;
-                margin-top: 0;
-            }
-            p {
-                margin: 10px 0;
-                text-align: justify;
-            }
-            strong {
-                font-weight: bold;
-            }
-            em {
-                font-style: italic;
-            }
-            ul, ol {
-                margin: 10px 0;
-                padding-left: 30px;
-            }
-            li {
-                margin: 5px 0;
-            }
-        </style></head><body>';
-        $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
-
-        // Convert markdown-like content to HTML paragraphs
-        $lines = explode("\n", $content);
-        $inList = false;
-        $listType = '';
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            if (empty($line)) {
-                if ($inList) {
-                    $html .= '</' . $listType . '>';
-                    $inList = false;
-                }
-                continue;
-            }
-
-            // Check for unordered list
-            if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
-                if (!$inList || $listType !== 'ul') {
-                    if ($inList) $html .= '</' . $listType . '>';
-                    $html .= '<ul>';
-                    $inList = true;
-                    $listType = 'ul';
-                }
-                $item = htmlspecialchars($matches[1]);
-                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
-                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
-                $html .= '<li>' . $item . '</li>';
-                continue;
-            }
-
-            // Check for ordered list
-            if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
-                if (!$inList || $listType !== 'ol') {
-                    if ($inList) $html .= '</' . $listType . '>';
-                    $html .= '<ol>';
-                    $inList = true;
-                    $listType = 'ol';
-                }
-                $item = htmlspecialchars($matches[1]);
-                $item = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $item);
-                $item = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $item);
-                $html .= '<li>' . $item . '</li>';
-                continue;
-            }
-
-            // Regular paragraph
-            if ($inList) {
-                $html .= '</' . $listType . '>';
-                $inList = false;
-            }
-
-            $paragraph = htmlspecialchars($line);
-            $paragraph = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $paragraph);
-            $paragraph = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $paragraph);
-            $html .= '<p>' . $paragraph . '</p>';
-        }
-
-        if ($inList) {
-            $html .= '</' . $listType . '>';
-        }
-
-        $html .= '</body></html>';
-        return $html;
-    }
-
-    /**
-     * Generates simple HTML-based PDF fallback with print dialog instructions
-     */
-    private function _generateSimplePdf($title, $content)
-    {
-        // Convert markdown to HTML with better formatting
-        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . htmlspecialchars($title) . '</title>';
-        $html .= '<style>
-            @media print {
-                body { margin: 0; padding: 15mm; }
-                .info-box { display: none; }
-            }
-            body {
-                font-family: Arial, sans-serif;
-                padding: 20px;
-                line-height: 1.6;
-                max-width: 800px;
-                margin: 0 auto;
-            }
-            .info-box {
-                background-color: #fff3cd;
-                border: 1px solid #ffc107;
-                border-radius: 5px;
-                padding: 15px;
-                margin-bottom: 20px;
-            }
-            h1 {
-                color: #333;
-                border-bottom: 2px solid #A855F7;
-                padding-bottom: 10px;
-                margin-top: 0;
-            }
-            p {
-                margin: 10px 0;
-                text-align: justify;
-            }
-            strong {
-                font-weight: bold;
-            }
-            em {
-                font-style: italic;
-            }
-            ul, ol {
-                margin: 10px 0;
-                padding-left: 30px;
-            }
-            li {
-                margin: 5px 0;
-            }
-        </style></head><body>';
-        $html .= '<div class="info-box"><strong>Note:</strong> Your document is ready. Please use your browser\\ print function (Ctrl+P or Cmd+P) and select "Save as PDF" to download.</div>';
-        $html .= $this->_convertContentToHtml($title, $content);
-        $html .= '</body></html>';
-
-        echo $html;
-        exit();
-    }
-
-    /**
-     * Generates DOCX file from title and content using PHPWord
-     */
-    private function _generateDocx($title, $content)
-    {
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $section = $phpWord->addSection();
-
-        $section->addTitle($title, 1);
-        $section->addTextBreak(1);
-
-        $paragraphs = preg_split('/\n\s*\n/', $content);
-        foreach ($paragraphs as $paragraph) {
-            $paragraph = trim($paragraph);
-            if (!empty($paragraph)) {
-                $section->addText($paragraph);
-                $section->addTextBreak(1);
-            }
-        }
-
-        $writer = new \PhpOffice\PhpWord\Writer\Word2007($phpWord);
-        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';
-
-        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        $writer->save('php://output');
-        exit();
-    }
-
-    /**
-     * Generates TXT file from title and content
-     */
-    private function _generateTxt($title, $content)
-    {
-        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.txt';
-        $textContent = $title . "\n\n" . $content;
-
-        header('Content-Type: text/plain');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        echo $textContent;
-        exit();
-    }
 
     // ============================================================================
     // FLASHCARD PAGE (flashcard.php)
@@ -3453,5 +3179,115 @@ class LmController
         }
 
         return $dotProduct / ($normA * $normB);
+    }
+
+    /**
+     * Knowledge Base Search: Search across all user documents using RAG
+     * Returns top matching chunks with file metadata
+     */
+    public function searchKnowledgeBase()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = (int)$_SESSION['user_id'];
+        
+        if (!isset($data['query']) || empty(trim($data['query']))) {
+            $this->sendJsonError('Search query is required.');
+        }
+
+        $query = trim($data['query']);
+        
+        // Enforce query length limit
+        if (strlen($query) > 500) {
+            $this->sendJsonError('Search query is too long. Maximum 500 characters.');
+        }
+
+        try {
+            // Log search query
+            error_log("[KnowledgeBase Search] User ID: {$userId}, Query: {$query}");
+            
+            // Generate embedding for the search query
+            $queryEmbedding = $this->gemini->generateEmbedding($query);
+
+            if (empty($queryEmbedding)) {
+                error_log("[KnowledgeBase Search] Failed to generate embedding for query: {$query}");
+                $this->sendJsonError('Could not generate embedding for the search query.');
+            }
+
+            // Get all chunks for user's files
+            $allChunks = $this->lmModel->getChunksForUserFiles($userId);
+
+            if (empty($allChunks)) {
+                error_log("[KnowledgeBase Search] No chunks found for user ID: {$userId}");
+                $this->sendJsonSuccess([
+                    'results' => [],
+                    'message' => 'No documents found in your knowledge base.'
+                ]);
+            }
+
+            error_log("[KnowledgeBase Search] Total chunks to search: " . count($allChunks));
+
+            // Calculate similarity for each chunk
+            $similarities = [];
+            $similarityThreshold = 0.15; // Using same threshold as other RAG searches
+            
+            foreach ($allChunks as $chunk) {
+                $chunkEmbedding = json_decode($chunk['embedding'], true);
+                
+                if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                    continue;
+                }
+
+                $similarity = $this->cosineSimilarity($queryEmbedding, $chunkEmbedding);
+                
+                if ($similarity >= $similarityThreshold) {
+                    $fileID = (int)$chunk['fileID'];
+                    $fileName = $chunk['fileName'] ?? 'Unknown';
+                    $chunkText = $chunk['chunkText'] ?? '';
+                    $chunkID = (int)$chunk['documentChunkID'];
+                    $roundedSimilarity = round($similarity, 4);
+                    
+                    // Log each matching result with confidence level and content preview
+                    $contentPreview = strlen($chunkText) > 100 
+                        ? substr($chunkText, 0, 100) . '...' 
+                        : $chunkText;
+                    error_log("[KnowledgeBase Search] Match found - File: {$fileName} (ID: {$fileID}), Chunk ID: {$chunkID}, Confidence: {$roundedSimilarity} (" . ($roundedSimilarity * 100) . "%), Content Preview: " . str_replace(["\n", "\r"], " ", $contentPreview));
+                    
+                    $similarities[] = [
+                        'fileID' => $fileID,
+                        'fileName' => $fileName,
+                        'chunkText' => $chunkText,
+                        'similarity' => $roundedSimilarity,
+                        'documentChunkID' => $chunkID
+                    ];
+                }
+            }
+
+            // Sort by similarity (highest first)
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            // Get top 10 results
+            $topK = min(10, count($similarities));
+            $results = array_slice($similarities, 0, $topK);
+
+            // Log summary
+            error_log("[KnowledgeBase Search] Search completed - Total matches: " . count($similarities) . ", Returning top: " . count($results));
+            if (!empty($results)) {
+                error_log("[KnowledgeBase Search] Top result - File: {$results[0]['fileName']}, Confidence: {$results[0]['similarity']} (" . ($results[0]['similarity'] * 100) . "%)");
+            }
+
+            $this->sendJsonSuccess([
+                'results' => $results,
+                'totalMatches' => count($similarities),
+                'returned' => count($results)
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Knowledge Base Search Error: ' . $e->getMessage());
+            $this->sendJsonError('An error occurred while searching: ' . $e->getMessage());
+        }
     }
 }

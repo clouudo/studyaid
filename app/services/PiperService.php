@@ -78,31 +78,31 @@ class PiperService{
     }
 
     /**
-     * Sanitize text by removing invalid Unicode surrogate characters
-     * Surrogate characters (U+D800 to U+DFFF) are invalid in UTF-8 and cause encoding errors
+     * Sanitize text by removing invalid Unicode surrogate characters and control characters
      * @param string $text The text to sanitize
      * @return string Sanitized text
      */
     private function sanitizeUnicode(string $text): string
     {
-        // Remove invalid surrogate characters (U+D800 to U+DFFF)
-        // These are invalid Unicode code points that can't be encoded in UTF-8
-        $text = preg_replace('/[\x{D800}-\x{DFFF}]/u', '', $text);
+        // Ensure input is valid UTF-8 first
+        // 'UTF-8//IGNORE' drops invalid sequences (like surrogate halves)
+        $text = iconv('UTF-8', 'UTF-8//IGNORE', $text);
         
-        // Ensure valid UTF-8 encoding
-        if (!mb_check_encoding($text, 'UTF-8')) {
-            // If text is not valid UTF-8, try to convert it
-            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        if ($text === false) {
+            // Fallback if iconv fails
+            return '';
         }
+
+        // Remove control characters but keep newlines (\n, \r) and tabs (\t)
+        // We remove:
+        // \x00-\x08 (NULL to Backspace)
+        // \x0B-\x0C (Vertical Tab, Form Feed)
+        // \x0E-\x1F (Shift Out to Unit Separator)
+        // \x7F (Delete)
+        // We verify UTF-8 validity implicitly via iconv above, so /u should be safe if the string is valid utf-8
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', '', $text);
         
-        // Remove control characters and other problematic characters
-        // Keep only printable characters, spaces, tabs, and newlines
-        $text = preg_replace('/[\x{00}-\x{08}\x{0B}\x{0C}\x{0E}-\x{1F}\x{7F}-\x{9F}]/u', '', $text);
-        
-        // Remove any remaining invalid UTF-8 sequences by converting to UTF-8 and back
-        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-        
-        return $text;
+        return $text ?: '';
     }
 
     /**

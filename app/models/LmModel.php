@@ -1964,7 +1964,8 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Split text into overlapping chunks for RAG processing, breaks at sentence boundaries when possible
+     * Split text into overlapping chunks for RAG processing
+     * Prioritizes maximum chunk size threshold first, then finds nearest sentence boundary
      */
     public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 2000, int $overlap = 400): array{
         $chunks = [];
@@ -1972,26 +1973,99 @@ class LmModel
         $i = 0;
         
         while ($i < $length) {
-            $chunk = substr($text, $i, $chunkSize);
+            $chunkStart = $i;
+            // First priority: set maximum end point based on chunk size threshold
+            $maxEnd = min($i + $chunkSize, $length);
             
-            if ($i + $chunkSize < $length) {
-                $lastPeriod = strrpos($chunk, '.');
-                $lastNewline = strrpos($chunk, "\n");
-                $breakPoint = max($lastPeriod, $lastNewline);
+            // Second priority: look backwards from threshold to find nearest sentence boundary
+            $sentenceEnd = false;
+            
+            // Search backwards from maxEnd to find the nearest sentence boundary
+            $lookbackStart = $chunkStart;
+            $searchText = substr($text, $lookbackStart, $maxEnd - $lookbackStart);
+            
+            // Find all sentence boundaries (., !, ?) in the search range
+            $lastPeriod = strrpos($searchText, '.');
+            $lastExclamation = strrpos($searchText, '!');
+            $lastQuestion = strrpos($searchText, '?');
+            
+            // Get the latest (closest to threshold) sentence boundary
+            $candidates = array_filter([$lastPeriod, $lastExclamation, $lastQuestion], function($pos) {
+                return $pos !== false;
+            });
+            
+            if (!empty($candidates)) {
+                $boundaryPos = max($candidates); // Get the latest boundary (closest to threshold)
+                $absoluteBoundaryPos = $chunkStart + $boundaryPos;
+                $nextCharPos = $absoluteBoundaryPos + 1;
                 
-                if ($breakPoint !== false && $breakPoint > $chunkSize * 0.5) {
-                    $chunk = substr($chunk, 0, $breakPoint + 1);
-                    $i += $breakPoint + 1 - $overlap;
+                // Verify it's followed by whitespace or is at end of text
+                if ($nextCharPos >= $length) {
+                    // End of text - valid sentence boundary
+                    $sentenceEnd = $absoluteBoundaryPos + 1;
                 } else {
-                    $i += $chunkSize - $overlap;
+                    $nextChar = $text[$nextCharPos];
+                    // Check if followed by whitespace (space, tab, newline)
+                    if (in_array($nextChar, [' ', "\t", "\n", "\r"])) {
+                        $sentenceEnd = $absoluteBoundaryPos + 1;
+                    }
                 }
-            } else {
-                $i = $length;
             }
             
+            // Determine chunk end position
+            if ($sentenceEnd !== false && $sentenceEnd > $chunkStart) {
+                // Found a valid sentence boundary - use it
+                $chunkEnd = $sentenceEnd;
+            } else {
+                // No sentence boundary found - use threshold or end of text
+                $chunkEnd = $maxEnd;
+            }
+            
+            // Extract chunk
+            $chunk = substr($text, $chunkStart, $chunkEnd - $chunkStart);
             $chunk = trim($chunk);
+            
             if (!empty($chunk)) {
                 $chunks[] = $chunk;
+            }
+            
+            // Move to next position with overlap
+            if ($chunkEnd >= $length) {
+                break; // Reached end of text
+            }
+            
+            // Calculate overlap start - go back by overlap amount, but find nearest sentence boundary
+            $overlapStart = max($chunkStart, $chunkEnd - $overlap);
+            
+            // Find sentence boundary before overlap start to ensure we start at sentence beginning
+            if ($overlapStart > $chunkStart) {
+                $overlapSearch = substr($text, $chunkStart, $overlapStart - $chunkStart);
+                $lastSentenceBoundary = false;
+                
+                $lastPeriod = strrpos($overlapSearch, '.');
+                $lastExclamation = strrpos($overlapSearch, '!');
+                $lastQuestion = strrpos($overlapSearch, '?');
+                
+                $overlapCandidates = array_filter([$lastPeriod, $lastExclamation, $lastQuestion], function($pos) {
+                    return $pos !== false;
+                });
+                
+                if (!empty($overlapCandidates)) {
+                    $boundaryInOverlap = max($overlapCandidates);
+                    $nextCharPos = $chunkStart + $boundaryInOverlap + 1;
+                    
+                    if ($nextCharPos >= $length || in_array($text[$nextCharPos] ?? '', [' ', "\t", "\n", "\r"])) {
+                        $lastSentenceBoundary = $chunkStart + $boundaryInOverlap + 1;
+                    }
+                }
+                
+                if ($lastSentenceBoundary !== false) {
+                    $i = $lastSentenceBoundary;
+                } else {
+                    $i = $overlapStart;
+                }
+            } else {
+                $i = $chunkEnd;
             }
         }
         
@@ -2030,6 +2104,35 @@ class LmModel
         } catch (\PDOException $e) {
             // Table doesn't exist or other database error - return empty array
             error_log('Error getting chunks: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get all document chunks with file metadata for a user's files
+     * Returns chunks with fileID, fileName, chunkText, and embedding
+     */
+    public function getChunksForUserFiles(int $userId): array
+    {
+        try {
+            $conn = $this->db->connect();
+            $query = "SELECT 
+                        dc.documentChunkID,
+                        dc.fileID,
+                        dc.chunkText,
+                        dc.embedding,
+                        f.name as fileName
+                      FROM documentchunks dc
+                      INNER JOIN file f ON dc.fileID = f.fileID
+                      WHERE f.userID = :userID
+                      ORDER BY dc.fileID, dc.documentChunkID";
+            $stmt = $conn->prepare($query);
+            $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            // Table doesn't exist or other database error - return empty array
+            error_log('Error getting chunks for user files: ' . $e->getMessage());
             return [];
         }
     }
