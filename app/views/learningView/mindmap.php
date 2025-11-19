@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mindmap - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css" />
     <style>
         :root {
@@ -103,6 +104,138 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown menu styling */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        /* Split Screen Layout */
+        .mindmap-split-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            min-height: 600px;
+        }
+
+        .mindmap-visual-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+
+        .markdown-editor-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #markdownEditor {
+            flex: 1;
+            resize: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border: none;
+            padding: 1rem;
+            outline: none;
+        }
+
+        .editor-header {
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-footer {
+            padding: 0.5rem 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .view-toggle-active {
+            background-color: #A855F7 !important;
+            color: white !important;
+            border-color: #A855F7 !important;
         }
     </style>
 </head>
@@ -135,10 +268,40 @@
                     </div>
                 </div>
 
-                <!-- Mindmap Display -->
-                <div class="mt-3">
-                    <div id="mindmap-container" style="display: none;">
-                        <!-- Mindmap will be injected here -->
+                <!-- Mindmap Display with Split Screen Editor -->
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="mindmapToolbar" style="display: none;">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="toggleViewBtn">Split View</button>
+                            </div>
+                            <div class="ms-auto d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-sm" id="saveMindmapBtn" disabled style="background-color: #A855F7; border: none; color: white;">Save Changes</button>
+                            </div>
+                        </div>
+                        <div id="mindmap-split-container" class="mindmap-split-container single-view" style="display: none;">
+                            <!-- Visual Mindmap Panel -->
+                            <div class="mindmap-visual-panel">
+                                <div id="mindmap-container" style="height: 100%; min-height: 600px;">
+                                    <!-- Mindmap will be injected here -->
+                                </div>
+                            </div>
+                            <!-- Markdown Editor Panel -->
+                            <div class="markdown-editor-panel" id="markdownEditorPanel" style="display: none;">
+                                <div class="editor-header">
+                                    <h6 class="mb-0">Markdown Editor</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-info" id="markdownInfoBtn" data-bs-toggle="modal" data-bs-target="#markdownInfoModal" title="Markdown Syntax Guide">
+                                        <i class="bi bi-info-circle"></i> Info
+                                    </button>
+                                </div>
+                                <textarea 
+                                    id="markdownEditor" 
+                                    placeholder="# Main Topic&#10;## Branch 1&#10;### Sub-branch 1.1&#10;## Branch 2"></textarea>
+                                <div class="editor-footer">
+                                    <small>Edit the markdown to see real-time updates in the visual. Click "Save Changes" to persist to database.</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -157,8 +320,13 @@
                                             <small class="text-muted">Updated: <?= htmlspecialchars($mindmap['createdAt']) ?></small>
                                         </div>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                Actions
+                                            <button class="action-btn"
+                                                type="button"
+                                                id="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>"
+                                                data-bs-toggle="dropdown"
+                                                data-bs-display="static"
+                                                aria-expanded="false">
+                                                <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $mindmap['mindmapID']; ?>">
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
@@ -168,10 +336,10 @@
                                                     <hr class="dropdown-divider">
                                                 </li>
                                                 <li>
-                                                    <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;">
+                                                    <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;" class="delete-mindmap-form" data-mindmap-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                         <input type="hidden" name="mindmap_id" value="<?= htmlspecialchars($mindmap['mindmapID']) ?>">
                                                         <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                        <button type="button" class="dropdown-item delete-mindmap-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                     </form>
                                                 </li>
                                             </ul>
@@ -188,6 +356,103 @@
         </main>
     </div>
 
+    <!-- Markdown Syntax Info Modal -->
+    <div class="modal fade" id="markdownInfoModal" tabindex="-1" aria-labelledby="markdownInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #A855F7; color: white;">
+                    <h5 class="modal-title" id="markdownInfoModalLabel">
+                        <i class="bi bi-info-circle me-2"></i>Markdown Syntax Guide for Mindmaps
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="lead">Use markdown headings to create your mindmap structure. The number of <code>#</code> symbols determines the level in the hierarchy.</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead style="background-color: #f8f9fa;">
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Level</th>
+                                    <th>Description</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>#</code></td>
+                                    <td><span class="badge bg-primary">Level 1</span></td>
+                                    <td>Main topic (root node)</td>
+                                    <td><code># Main Topic</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>##</code></td>
+                                    <td><span class="badge bg-info">Level 2</span></td>
+                                    <td>Primary branches</td>
+                                    <td><code>## Branch 1</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>###</code></td>
+                                    <td><span class="badge bg-success">Level 3</span></td>
+                                    <td>Sub-branches</td>
+                                    <td><code>### Sub-branch 1.1</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>####</code></td>
+                                    <td><span class="badge bg-warning">Level 4</span></td>
+                                    <td>Deeper sub-branches</td>
+                                    <td><code>#### Detail 1.1.1</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>#####</code></td>
+                                    <td><span class="badge bg-secondary">Level 5</span></td>
+                                    <td>Even deeper levels</td>
+                                    <td><code>##### Sub-detail</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="bi bi-lightbulb me-2"></i>Tips:</h6>
+                        <ul class="mb-0">
+                            <li>Always start with a single <code>#</code> for the main topic</li>
+                            <li>Use <strong>bold</strong> text with <code>**text**</code> for emphasis</li>
+                            <li>Use <em>italic</em> text with <code>*text*</code> for subtle emphasis</li>
+                            <li>Don't skip heading levels (e.g., don't go from <code>##</code> to <code>####</code>)</li>
+                            <li>Each heading becomes a node in the mindmap</li>
+                            <li>Changes update the visual in real-time as you type</li>
+                        </ul>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-code-square me-2"></i>Example Structure</h6>
+                        </div>
+                        <div class="card-body">
+                            <pre class="mb-0" style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.375rem;"><code># Study Guide
+## Chapter 1: Introduction
+### Overview
+### Key Concepts
+#### Concept A
+#### Concept B
+## Chapter 2: Advanced Topics
+### Topic 1
+### Topic 2
+#### Subtopic 2.1
+#### Subtopic 2.2</code></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -217,6 +482,18 @@
         }
 
         let currentViewedMindmapId = null; // Track which mindmap is currently being viewed
+        let currentMarkdown = ''; // Track current markdown content
+        let isSplitView = false; // Track split view state
+        let hasUnsavedChanges = false; // Track if there are unsaved changes
+        let updateTimeout = null; // Debounce timer for real-time updates
+
+        // Get DOM elements
+        const markdownEditor = document.getElementById('markdownEditor');
+        const markdownEditorPanel = document.getElementById('markdownEditorPanel');
+        const mindmapSplitContainer = document.getElementById('mindmap-split-container');
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const saveMindmapBtn = document.getElementById('saveMindmapBtn');
+        const mindmapToolbar = document.getElementById('mindmapToolbar');
 
         // Function to update export button states
         function updateExportButtonStates(viewedMindmapId) {
@@ -245,7 +522,150 @@
             if (selectedMindmap.innerHTML) {
                 selectedMindmap.innerHTML = '<p class="text-center p-3"> Select a mindmap</p>';
             }
+
+            // Initialize markdown editor event listeners
+            if (markdownEditor) {
+                markdownEditor.addEventListener('input', function() {
+                    hasUnsavedChanges = true;
+                    updateSaveButtonState();
+                    
+                    // Real-time visual update with debouncing
+                    clearTimeout(updateTimeout);
+                    updateTimeout = setTimeout(() => {
+                        updateVisualFromMarkdown(true); // true = silent update (no alerts)
+                    }, 500); // 500ms debounce delay
+                });
+            }
+
+            if (toggleViewBtn) {
+                toggleViewBtn.addEventListener('click', toggleSplitView);
+            }
+
+            if (saveMindmapBtn) {
+                saveMindmapBtn.addEventListener('click', saveMindmapToDatabase);
+            }
         });
+
+        // Function to update visual mindmap from markdown editor
+        // silent: if true, don't show alerts for empty markdown
+        function updateVisualFromMarkdown(silent = false) {
+            if (!markdownEditor) {
+                if (!silent) alert('No mindmap loaded.');
+                return;
+            }
+
+            const markdownText = markdownEditor.value.trim();
+            if (!markdownText) {
+                if (!silent) alert('Markdown cannot be empty.');
+                return;
+            }
+
+            try {
+                currentMarkdown = markdownText;
+                renderAutoloadMindmap(markdownText);
+            } catch (error) {
+                console.error('Error updating visual:', error);
+                if (!silent) alert('Error updating mindmap: ' + error.message);
+            }
+        }
+
+        // Function to toggle split view
+        function toggleSplitView() {
+            if (!mindmapSplitContainer) return;
+
+            isSplitView = !isSplitView;
+
+            if (isSplitView) {
+                // Show split view
+                mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                if (markdownEditorPanel) {
+                    markdownEditorPanel.style.display = 'flex';
+                }
+                toggleViewBtn.textContent = 'Visual Only';
+                toggleViewBtn.classList.add('view-toggle-active');
+            } else {
+                // Show only visual
+                mindmapSplitContainer.style.gridTemplateColumns = '1fr';
+                if (markdownEditorPanel) {
+                    markdownEditorPanel.style.display = 'none';
+                }
+                toggleViewBtn.textContent = 'Split View';
+                toggleViewBtn.classList.remove('view-toggle-active');
+            }
+
+            // Re-render the mindmap with a short delay to ensure the container has resized
+            if (currentMarkdown) {
+                setTimeout(() => {
+                    updateVisualFromMarkdown(true); // true = silent update
+                }, 150); // Delay to allow CSS transition/resize
+            }
+        }
+
+        // Function to update save button state
+        function updateSaveButtonState() {
+            if (!saveMindmapBtn) return;
+
+            if (hasUnsavedChanges && currentViewedMindmapId) {
+                saveMindmapBtn.disabled = false;
+            } else {
+                saveMindmapBtn.disabled = true;
+            }
+        }
+
+        // Function to save mindmap to database
+        async function saveMindmapToDatabase() {
+            if (!currentViewedMindmapId) {
+                alert('No mindmap loaded.');
+                return;
+            }
+
+            if (!markdownEditor || !markdownEditor.value.trim()) {
+                alert('Markdown cannot be empty.');
+                return;
+            }
+
+            try {
+                const originalText = saveMindmapBtn.textContent;
+                saveMindmapBtn.disabled = true;
+                saveMindmapBtn.textContent = 'Saving...';
+
+                const markdownToSave = markdownEditor.value.trim();
+                const fileId = '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>';
+
+                const response = await fetch('<?= UPDATE_MINDMAP_STRUCTURE ?>?file_id=' + encodeURIComponent(fileId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        mindmap_id: currentViewedMindmapId,
+                        file_id: fileId,
+                        markdown: markdownToSave
+                    })
+                });
+
+                const json = await response.json();
+
+                if (!json.success) {
+                    throw new Error(json.message || 'Failed to save mindmap');
+                }
+
+                currentMarkdown = markdownToSave;
+                hasUnsavedChanges = false;
+                updateSaveButtonState();
+                
+                // Show success feedback
+                saveMindmapBtn.textContent = 'Saved!';
+                setTimeout(() => {
+                    saveMindmapBtn.textContent = originalText;
+                }, 2000);
+            } catch (error) {
+                console.error('Error saving mindmap:', error);
+                alert('Error saving mindmap: ' + error.message);
+                saveMindmapBtn.disabled = false;
+                updateSaveButtonState();
+            }
+        }
 
         // Handle generating new mindmap
         document.getElementById('mindmapForm').addEventListener('submit', async (e) => {
@@ -271,12 +691,46 @@
                 const json = await res.json();
 
                 if (json.success && json.markdown) {
+                    // Show split container and toolbar
+                    if (mindmapSplitContainer) {
+                        mindmapSplitContainer.style.display = 'grid';
+                    }
+                    if (mindmapToolbar) {
+                        mindmapToolbar.style.display = 'flex';
+                    }
+                    
+                    // Enable split view by default
+                    isSplitView = true;
+                    if (mindmapSplitContainer) {
+                        mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                    }
+                    if (markdownEditorPanel) {
+                        markdownEditorPanel.style.display = 'flex';
+                    }
+                    if (toggleViewBtn) {
+                        toggleViewBtn.textContent = 'Visual Only';
+                        toggleViewBtn.classList.add('view-toggle-active');
+                    }
+
+                    // Populate markdown editor
+                    if (markdownEditor) {
+                        markdownEditor.value = json.markdown;
+                        currentMarkdown = json.markdown;
+                    }
+
+                    // Render visual mindmap
                     container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
                     showSnackbar('Mindmap generated successfully!', 'success');
                     setTimeout(() => {
                         location.reload();
                     }, 1000);
+
+                    // Set current viewed mindmap
+                    currentViewedMindmapId = json.mindmapId;
+                    hasUnsavedChanges = false;
+                    updateSaveButtonState();
+                    updateExportButtonStates(json.mindmapId);
                 } else {
                     showSnackbar(json.message || 'Failed to generate mindmap. Please try again.', 'error');
                     container.innerHTML = '<p class="text-center p-3 text-muted">Failed to generate mindmap</p>';
@@ -314,15 +768,49 @@
                 const json = await res.json();
 
                 if (json.success && json.markdown) {
+                    // Show split container and toolbar
+                    if (mindmapSplitContainer) {
+                        mindmapSplitContainer.style.display = 'grid';
+                    }
+                    if (mindmapToolbar) {
+                        mindmapToolbar.style.display = 'flex';
+                    }
+                    
+                    // Enable split view by default
+                    isSplitView = true;
+                    if (mindmapSplitContainer) {
+                        mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
+                    }
+                    if (markdownEditorPanel) {
+                        markdownEditorPanel.style.display = 'flex';
+                    }
+                    if (toggleViewBtn) {
+                        toggleViewBtn.textContent = 'Visual Only';
+                        toggleViewBtn.classList.add('view-toggle-active');
+                    }
+
+                    // Populate markdown editor
+                    if (markdownEditor) {
+                        markdownEditor.value = json.markdown;
+                        currentMarkdown = json.markdown;
+                    }
+
+                    // Render visual mindmap
+                    const container = document.getElementById('mindmap-container');
                     container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
+
                     // Set current viewed mindmap and update button states
                     currentViewedMindmapId = id;
+                    hasUnsavedChanges = false;
+                    updateSaveButtonState();
                     updateExportButtonStates(id);
                 } else {
                     showSnackbar(json.message || 'Failed to load mindmap. Please try again.', 'error');
                     container.innerHTML = '<p class="text-center p-3 text-muted">Failed to load mindmap</p>';
                     currentViewedMindmapId = null;
+                    hasUnsavedChanges = false;
+                    updateSaveButtonState();
                     updateExportButtonStates(null);
                 }
             } catch (err) {
@@ -330,6 +818,8 @@
                 console.error('Error:', err);
                 container.innerHTML = '<p class="text-center p-3 text-muted">Error loading mindmap</p>';
                 currentViewedMindmapId = null;
+                hasUnsavedChanges = false;
+                updateSaveButtonState();
                 updateExportButtonStates(null);
             }
         });
@@ -614,7 +1104,32 @@
                 window.markmap.autoLoader.renderAll();
             }
         }
+
+        /**
+         * Delete mindmap handler
+         * 
+         * Behavior: Shows confirmation modal before deleting mindmap. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-mindmap-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-mindmap-form');
+            var mindmapId = $form.data('mindmap-id');
+            var mindmapTitle = $form.closest('.list-group-item').find('strong').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the mindmap "' + mindmapTitle + '"? This action cannot be undone.',
+                title: 'Delete Mindmap',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

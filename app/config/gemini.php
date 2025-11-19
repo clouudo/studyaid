@@ -11,8 +11,8 @@ $defaults = [
         'notes' => 'gemini-2.5-flash-lite',
         'mindmap' => 'gemini-2.5-flash-lite',
         'flashcards' => 'gemini-2.5-flash-lite',
-        'report' => 'gemini-2.5-flash',
-        'quiz' => 'gemini-2.5-flash',
+        'synthesize' => 'gemini-2.5-pro',
+        'quiz' => 'gemini-2.5-pro',
         'embedding' => 'text-embedding-004',
     ],
     'base_url' => 'https://generativelanguage.googleapis.com/v1',
@@ -20,7 +20,12 @@ $defaults = [
         'temperature' => 0.2,
         'topP' => 0.95,
         'topK' => 40,
-        'maxOutputTokens' => 2048,
+        'maxOutputTokens' => 8192,
+    ],
+    'rate_limiting' => [
+        'delay_between_calls' => 0.5, // seconds delay between API calls
+        'max_retries' => 3,
+        'retry_delay' => 2, // seconds for exponential backoff
     ],
 ];
 

@@ -6,6 +6,7 @@ use App\Config\Database;
 use Error;
 use Google\Cloud\Storage\StorageClient;
 use Ramsey\Uuid\Uuid;
+use App\Services\OCRService;
 
 class LmModel
 {
@@ -13,6 +14,7 @@ class LmModel
     private $db;
     private $storage;
     private $bucketName;
+    private $ocrService;
 
     public function __construct()
     {
@@ -23,6 +25,27 @@ class LmModel
             'keyFilePath' => $config['key_file_path']
         ]);
         $this->bucketName = $config['bucket_name'];
+        $this->ocrService = new OCRService();
+        // Set custom temp directory for php://temp to avoid permission issues
+        $this->setCustomTempDir();
+    }
+
+    /**
+     * Set custom temp directory for PHP to avoid permission issues with system temp
+     */
+    private function setCustomTempDir(): void
+    {
+        $customTempDir = __DIR__ . '/../../temp';
+        if (!is_dir($customTempDir)) {
+            @mkdir($customTempDir, 0777, true);
+        }
+        if (is_dir($customTempDir) && is_writable($customTempDir)) {
+            putenv('TMPDIR=' . $customTempDir);
+            // Also set it in PHP's ini if possible
+            if (function_exists('ini_set')) {
+                @ini_set('sys_temp_dir', $customTempDir);
+            }
+        }
     }
 
     /**
@@ -132,10 +155,30 @@ class LmModel
 
     /**
      * Get logical folder path for GCS storage
+     * Uses stored folderPath from database if available, otherwise builds and stores it
      */
     public function getLogicalFolderPath($folderId, $userId)
     {
         $conn = $this->db->connect();
+        
+        // First, try to get folderPath from database
+        $query = "SELECT folderPath, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':folderID', $folderId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$folder) {
+            throw new \Exception("Folder hierarchy broken or access denied.");
+        }
+
+        // If folderPath exists and is not null, return it
+        if (!empty($folder['folderPath'])) {
+            return $folder['folderPath'];
+        }
+
+        // Otherwise, build the path by traversing parent folders
         $path = [];
         $currentFolderId = $folderId;
 
@@ -145,16 +188,27 @@ class LmModel
             $stmt->bindParam(':folderID', $currentFolderId);
             $stmt->bindParam(':userID', $userId);
             $stmt->execute();
-            $folder = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $currentFolder = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-            if ($folder) {
-                array_unshift($path, $folder['name']);
-                $currentFolderId = $folder['parentFolderId'];
+            if ($currentFolder) {
+                array_unshift($path, $currentFolder['name']);
+                $currentFolderId = $currentFolder['parentFolderId'];
             } else {
                 throw new \Exception("Folder hierarchy broken or access denied.");
             }
         }
-        return implode('/', $path) . '/';
+        
+        $builtPath = implode('/', $path) . '/';
+        
+        // Store the built path in database for future use
+        $updateQuery = "UPDATE folder SET folderPath = :folderPath WHERE folderID = :folderID AND userID = :userID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':folderPath', $builtPath);
+        $updateStmt->bindParam(':folderID', $folderId);
+        $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+        
+        return $builtPath;
     }
 
     /**
@@ -163,7 +217,7 @@ class LmModel
     public function getFolderInfo($folderId)
     {
         $conn = $this->db->connect();
-        $query = "SELECT folderID, name, parentFolderId FROM folder WHERE folderID = :folderID";
+        $query = "SELECT folderID, name, parentFolderId, folderPath FROM folder WHERE folderID = :folderID";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':folderID', $folderId);
         $stmt->execute();
@@ -200,6 +254,184 @@ class LmModel
     // ============================================================================
     // NEW DOCUMENT PAGE (newDocument.php)
     // ============================================================================
+
+    /**
+     * Upload audio file to Google Cloud Storage and save metadata to audio table for summary
+     */
+    public function uploadAudioFileToGCSForSummary(int $summaryId, int $sourceFileId, string $localAudioPath): string
+    {
+        if(empty($localAudioPath) || !file_exists($localAudioPath)){
+            throw new \Exception("Audio file not found locally.");
+        }
+
+        $audioExtension = pathinfo($localAudioPath, PATHINFO_EXTENSION) ?: 'wav';
+        $uniqueFileName = 'summary_' . $summaryId . '_' . uniqid('', true) . '.' . $audioExtension;
+        
+        // Get file info to determine folder structure
+        $conn = $this->db->connect();
+        $fileStmt = $conn->prepare("SELECT userID, folderID FROM file WHERE fileID = :fileID");
+        $fileStmt->bindParam(':fileID', $sourceFileId, \PDO::PARAM_INT);
+        $fileStmt->execute();
+        $fileInfo = $fileStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$fileInfo) {
+            throw new \Exception("Source file not found.");
+        }
+        
+        $userId = (int)$fileInfo['userID'];
+        $folderId = $fileInfo['folderID'];
+        
+        $logicalFolderPath = '';
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
+        $bucket = $this->storage->bucket($this->bucketName);
+        
+        // Use file stream instead of file_get_contents to avoid temp file permission issues
+        $audioStream = fopen($localAudioPath, 'rb');
+        if (!$audioStream) {
+            throw new \Exception("Failed to open audio file for reading.");
+        }
+        
+        $options = [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
+        ];
+        
+        $bucket->upload($audioStream, $options);
+        // Note: GCS upload() automatically closes the stream, so no need to fclose()
+
+        // Clean up local file
+        @unlink($localAudioPath);
+        
+        // Save to audio table using only summaryID (audio is based on summary content, not file content)
+        $stmt = $conn->prepare("INSERT INTO audio (summaryID, audioPath) VALUES (:summaryID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
+        $stmt->bindParam(':audioPath', $gcsObjectName);
+        $stmt->execute();
+        
+        return $gcsObjectName;
+    }
+
+    /**
+     * Upload audio file to Google Cloud Storage and save metadata to audio table for note
+     */
+    public function uploadAudioFileToGCSForNote(int $noteId, int $sourceFileId, string $localAudioPath): string
+    {
+        if(empty($localAudioPath) || !file_exists($localAudioPath)){
+            throw new \Exception("Audio file not found locally.");
+        }
+
+        $audioExtension = pathinfo($localAudioPath, PATHINFO_EXTENSION) ?: 'wav';
+        $uniqueFileName = 'note_' . $noteId . '_' . uniqid('', true) . '.' . $audioExtension;
+        
+        // Get file info to determine folder structure
+        $conn = $this->db->connect();
+        $fileStmt = $conn->prepare("SELECT userID, folderID FROM file WHERE fileID = :fileID");
+        $fileStmt->bindParam(':fileID', $sourceFileId, \PDO::PARAM_INT);
+        $fileStmt->execute();
+        $fileInfo = $fileStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$fileInfo) {
+            throw new \Exception("Source file not found.");
+        }
+        
+        $userId = (int)$fileInfo['userID'];
+        $folderId = $fileInfo['folderID'];
+        
+        $logicalFolderPath = '';
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
+        $bucket = $this->storage->bucket($this->bucketName);
+        
+        // Use file stream instead of file_get_contents to avoid temp file permission issues
+        $audioStream = fopen($localAudioPath, 'rb');
+        if (!$audioStream) {
+            throw new \Exception("Failed to open audio file for reading.");
+        }
+        
+        $options = [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
+        ];
+        
+        $bucket->upload($audioStream, $options);
+        // Note: GCS upload() automatically closes the stream, so no need to fclose()
+
+        // Clean up local file
+        @unlink($localAudioPath);
+        
+        // Save to audio table using only noteID (audio is based on note content, not file content)
+        $stmt = $conn->prepare("INSERT INTO audio (noteID, audioPath) VALUES (:noteID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':audioPath', $gcsObjectName);
+        $stmt->execute();
+        
+        return $gcsObjectName;
+    }
+
+    /**
+     * Get audio file for a specific summary ID from audio table
+     */
+    public function getAudioFileForSummary(int $summaryId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        
+        // Verify summary belongs to user and get audio record directly using summaryID
+        $query = "SELECT a.* FROM audio a 
+                  INNER JOIN summary s ON a.summaryID = s.summaryID
+                  INNER JOIN file f ON s.fileID = f.fileID 
+                  WHERE a.summaryID = :summaryID AND f.userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Get audio file for a specific note ID from audio table
+     */
+    public function getAudioFileForNote(int $noteId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        
+        // Verify note belongs to user and get audio record directly using noteID
+        $query = "SELECT a.* FROM audio a 
+                  INNER JOIN note n ON a.noteID = n.noteID
+                  INNER JOIN file f ON n.fileID = f.fileID 
+                  WHERE a.noteID = :noteID AND f.userID = :userID";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Get signed URL for audio file from GCS
+     */
+    public function getAudioSignedUrl(string $gcsPath): string
+    {
+        $bucket = $this->storage->bucket($this->bucketName);
+        $object = $bucket->object($gcsPath);
+        
+        if (!$object->exists()) {
+            throw new \Exception("Audio file not found in Google Cloud Storage.");
+        }
+
+        return $object->signedUrl(new \DateTimeImmutable('+1 hour'), ['version' => 'v4']);
+    }
+
+
+
 
     /**
      * Upload file to Google Cloud Storage and save metadata to database
@@ -267,6 +499,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all files for a user, ordered by most recent first
+     */
     public function getFilesForUser($userId)
     {
         $conn = $this->db->connect();
@@ -456,6 +691,44 @@ class LmModel
     }
 
     /**
+     * Helper function to recursively update folderPath for a folder and all its children
+     */
+    private function updateFolderPathRecursive($folderId, $newFolderPath, $userId, $conn)
+    {
+        // Update current folder's path
+        $updateQuery = "UPDATE folder SET folderPath = :folderPath WHERE folderID = :folderID AND userID = :userID";
+        $updateStmt = $conn->prepare($updateQuery);
+        $updateStmt->bindParam(':folderPath', $newFolderPath);
+        $updateStmt->bindParam(':folderID', $folderId);
+        $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+
+        // Get folder name for child paths
+        $nameQuery = "SELECT name FROM folder WHERE folderID = :folderID";
+        $nameStmt = $conn->prepare($nameQuery);
+        $nameStmt->bindParam(':folderID', $folderId);
+        $nameStmt->execute();
+        $folder = $nameStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$folder) {
+            return;
+        }
+
+        // Update all child folders recursively
+        $childrenQuery = "SELECT folderID, name FROM folder WHERE parentFolderId = :folderID AND userID = :userID";
+        $childrenStmt = $conn->prepare($childrenQuery);
+        $childrenStmt->bindParam(':folderID', $folderId);
+        $childrenStmt->bindParam(':userID', $userId);
+        $childrenStmt->execute();
+        $children = $childrenStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($children as $child) {
+            $childPath = $newFolderPath . $child['name'] . '/';
+            $this->updateFolderPathRecursive($child['folderID'], $childPath, $userId, $conn);
+        }
+    }
+
+    /**
      * Rename a folder in GCS and database
      */
     public function renameFolder($folderId, $newName, $userId)
@@ -473,7 +746,7 @@ class LmModel
         }
 
         // Get folder info to build paths
-        $folderInfoQuery = "SELECT name, parentFolderId FROM folder WHERE folderID = :folderID AND userID = :userID";
+        $folderInfoQuery = "SELECT name, parentFolderId, folderPath FROM folder WHERE folderID = :folderID AND userID = :userID";
         $folderInfoStmt = $conn->prepare($folderInfoQuery);
         $folderInfoStmt->bindParam(':folderID', $folderId);
         $folderInfoStmt->bindParam(':userID', $userId);
@@ -484,7 +757,7 @@ class LmModel
             throw new \Exception("Could not retrieve folder information for path construction.");
         }
 
-        // Build parent folder path
+        // Build parent folder path (use stored folderPath if available)
         $parentFolderPath = '';
         if ($folderInfo['parentFolderId'] !== null) {
             $parentFolderPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
@@ -493,7 +766,8 @@ class LmModel
         // Construct old and new prefixes for GCS objects
         $oldLogicalPath = $parentFolderPath . $folderInfo['name'] . '/';
         $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldLogicalPath;
-        $newPrefix = 'user_upload/' . $userId . '/content/' . $parentFolderPath . $newName . '/';
+        $newLogicalPath = $parentFolderPath . $newName . '/';
+        $newPrefix = 'user_upload/' . $userId . '/content/' . $newLogicalPath;
 
         // Rename all objects in GCS
         $bucket = $this->storage->bucket($this->bucketName);
@@ -510,7 +784,12 @@ class LmModel
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newName', $newName);
         $updateStmt->bindParam(':folderID', $folderId);
-        return $updateStmt->execute();
+        $updateStmt->execute();
+
+        // Update folderPath for this folder and all children
+        $this->updateFolderPathRecursive($folderId, $newLogicalPath, $userId, $conn);
+        
+        return true;
     }
 
     /**
@@ -615,18 +894,21 @@ class LmModel
             throw new \Exception("Folder not found or access denied.");
         }
         
+        // Use stored folderPath if available, otherwise build it
         $oldParentPath = '';
         if ($folderInfo['parentFolderId'] !== null) {
             $oldParentPath = $this->getLogicalFolderPath($folderInfo['parentFolderId'], $userId);
         }
-        $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldParentPath . $folderInfo['name'] . '/';
+        $oldLogicalPath = $oldParentPath . $folderInfo['name'] . '/';
+        $oldPrefix = 'user_upload/' . $userId . '/content/' . $oldLogicalPath;
 
         // Get new path information
         $newParentPath = '';
         if ($newParentId !== null) {
             $newParentPath = $this->getLogicalFolderPath($newParentId, $userId);
         }
-        $newPrefix = 'user_upload/' . $userId . '/content/' . $newParentPath . $folderInfo['name'] . '/';
+        $newLogicalPath = $newParentPath . $folderInfo['name'] . '/';
+        $newPrefix = 'user_upload/' . $userId . '/content/' . $newLogicalPath;
 
         // Move all objects in GCS
         $bucket = $this->storage->bucket($this->bucketName);
@@ -637,14 +919,18 @@ class LmModel
             $object->delete();
         }
 
-        // Update database
+        // Update database - set new parent
         $updateQuery = "UPDATE folder SET parentFolderId = :newParentId WHERE folderID = :folderID AND userID = :userID";
         $updateStmt = $conn->prepare($updateQuery);
         $updateStmt->bindParam(':newParentId', $newParentId, $newParentId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
         $updateStmt->bindParam(':folderID', $folderId);
         $updateStmt->bindParam(':userID', $userId);
+        $updateStmt->execute();
+
+        // Update folderPath for this folder and all children
+        $this->updateFolderPathRecursive($folderId, $newLogicalPath, $userId, $conn);
         
-        return $updateStmt->execute();
+        return true;
     }
 
     // ============================================================================
@@ -657,35 +943,35 @@ class LmModel
     public function createFolder($userId, $folderName, $parentFolderId = null)
     {
         $bucket = $this->storage->bucket($this->bucketName);
-
-        if ($parentFolderId == null) {
-            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderName . '/';
-
-            if (!$bucket->object($gcsFolderName)->exists()) {
-                $bucket->upload('', ['name' => $gcsFolderName]);
-            }
-        }
-
+        
+        // Calculate folderPath
+        $folderPath = '';
         if ($parentFolderId != null) {
             $parentFolderInfo = $this->getFolderInfo($parentFolderId);
             if (!$parentFolderInfo) {
                 throw new \Exception("Parent folder not found or access denied.");
             }
+            
+            // Get parent folderPath (will build if missing)
+            $parentPath = $this->getLogicalFolderPath($parentFolderId, $userId);
+            $folderPath = $parentPath . $folderName . '/';
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderPath;
+        } else {
+            $folderPath = $folderName . '/';
+            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $folderPath;
+        }
 
-            $logicalPath = $this->getLogicalFolderPath($parentFolderId, $userId);
-            $gcsFolderName = 'user_upload/' . $userId . '/content/' . $logicalPath . $folderName . '/';
-
-            if (!$bucket->object($gcsFolderName)->exists()) {
-                $bucket->upload('', ['name' => $gcsFolderName]);
-            }
+        if (!$bucket->object($gcsFolderName)->exists()) {
+            $bucket->upload('', ['name' => $gcsFolderName]);
         }
 
         $conn = $this->db->connect();
-        $query = "INSERT INTO folder (userID, parentFolderId, name) VALUES (:userID, :parentFolderId, :name)";
+        $query = "INSERT INTO folder (userID, parentFolderId, name, folderPath) VALUES (:userID, :parentFolderId, :name, :folderPath)";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':userID', $userId);
-        $stmt->bindParam(':parentFolderId', $parentFolderId);
+        $stmt->bindParam(':parentFolderId', $parentFolderId, $parentFolderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
         $stmt->bindParam(':name', $folderName);
+        $stmt->bindParam(':folderPath', $folderPath);
         $stmt->execute();
         return $conn->lastInsertId();
     }
@@ -721,13 +1007,16 @@ class LmModel
     }
 
     /**
-     * Get a specific summary by ID and user ID
+     * Get a specific summary by ID and user ID (verifies ownership through file)
      */
-    public function getSummaryById(int $summaryId)
+    public function getSummaryById(int $summaryId, int $userId)
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM summary WHERE summaryID = :summaryID");
+        $stmt = $conn->prepare("SELECT s.* FROM summary s 
+                                INNER JOIN file f ON s.fileID = f.fileID 
+                                WHERE s.summaryID = :summaryID AND f.userID = :userID");
         $stmt->bindParam(':summaryID', $summaryId);
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
@@ -843,6 +1132,63 @@ class LmModel
         $this->uploadFileToGCS($userId, $folderId, $sourceText, null, null, $title);
     }
 
+    /**
+     * Update note content and title (inline editing)
+     */
+    public function updateNote(int $noteId, int $fileId, int $userId, string $title, string $content): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                SET n.title = :title, n.content = :content
+                                WHERE n.noteID = :noteID AND n.fileID = :fileID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':content', $content);
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Upload note image to GCS and save metadata to database, returns image info with signed URL
+     */
+    public function saveNoteImage(int $noteId, string $fileContent, string $fileExtension, int $userId): array
+    {
+        // Generate unique filename
+        $uniqueFileName = uniqid('note_img_', true) . '.' . $fileExtension;
+        $gcsObjectName = 'user_upload/' . $userId . '/note_images/' . $uniqueFileName;
+
+        // Upload to GCS
+        $bucket = $this->storage->bucket($this->bucketName);
+
+        // Determine content type
+        $contentType = 'image/' . ($fileExtension === 'jpg' ? 'jpeg' : $fileExtension);
+
+        $bucket->upload($fileContent, [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => $contentType]
+        ]);
+
+        // Generate signed URL (valid for 7 days - maximum allowed by GCS)
+        $object = $bucket->object($gcsObjectName);
+        $signedUrl = $object->signedUrl(new \DateTimeImmutable('+7 days'), ['version' => 'v4']);
+
+        // Save image path to database
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO image (noteID, imagePath) VALUES (:noteID, :imagePath)");
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':imagePath', $gcsObjectName);
+        $stmt->execute();
+
+        return [
+            'imageId' => (int)$conn->lastInsertId(),
+            'imageUrl' => $signedUrl,
+            'imagePath' => $gcsObjectName
+        ];
+    }
+
     // ============================================================================
     // MINDMAP PAGE (mindmap.php)
     // ============================================================================
@@ -859,6 +1205,29 @@ class LmModel
         $stmt->bindParam(':data', $data);
         $stmt->execute();
         return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Update mindmap data payload
+     */
+    public function updateMindmap(int $mindmapId, int $fileId, int $userId, array $payload): bool
+    {
+        $conn = $this->db->connect();
+        $dataJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        
+        $stmt = $conn->prepare("UPDATE mindmap m 
+                                INNER JOIN file f ON m.fileID = f.fileID 
+                                SET m.data = :data
+                                WHERE m.mindmapID = :mindmapID 
+                                AND m.fileID = :fileID 
+                                AND f.userID = :userID");
+        $stmt->bindParam(':data', $dataJson);
+        $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -880,19 +1249,23 @@ class LmModel
     {
         $conn = $this->db->connect();
         
-        // If userId is provided, verify ownership through file table
         if ($userId !== null) {
+            // Verify ownership through file table
             $stmt = $conn->prepare("SELECT m.* FROM mindmap m 
                                     INNER JOIN file f ON m.fileID = f.fileID 
-                                    WHERE m.mindmapID = :mindmapID AND m.fileID = :fileID AND f.userID = :userID");
-            $stmt->bindParam(':mindmapID', $mindmapId);
-            $stmt->bindParam(':fileID', $fileId);
-            $stmt->bindParam(':userID', $userId);
+                                    WHERE m.mindmapID = :mindmapID 
+                                    AND m.fileID = :fileID 
+                                    AND f.userID = :userID");
+            $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+            $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         } else {
-            // Fallback to original query if userId not provided (for backward compatibility)
-            $stmt = $conn->prepare("SELECT * FROM mindmap WHERE mindmapID = :mindmapID AND fileID = :fileID");
-            $stmt->bindParam(':mindmapID', $mindmapId);
-            $stmt->bindParam(':fileID', $fileId);
+            // Basic query without ownership check
+            $stmt = $conn->prepare("SELECT * FROM mindmap 
+                                    WHERE mindmapID = :mindmapID 
+                                    AND fileID = :fileID");
+            $stmt->bindParam(':mindmapID', $mindmapId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
         }
         
         $stmt->execute();
@@ -962,6 +1335,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all flashcards with a specific title for a file
+     */
     public function getFlashcardsByTitle(string $title, int $fileId)
     {
         $conn = $this->db->connect();
@@ -972,6 +1348,9 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Delete all flashcards with a specific title for a file
+     */
     public function deleteFlashcardsByTitle(string $title, int $fileId)
     {
         $conn = $this->db->connect();
@@ -1086,6 +1465,7 @@ class LmModel
     }
 
     /**
+<<<<<<< HEAD:app/models/LmModel.php
      * Get a specific quiz by ID
      */
     public function getQuizById(int $quizId)
@@ -1099,6 +1479,8 @@ class LmModel
     }
 
     /**
+=======
+>>>>>>> d44b588c60ebb4463ce99ddfb944a1bd3a29802a:app/models/lmModel.php
      * Get question data for a specific quiz
      */
     public function getQuestionByQuiz(int $quizId)
@@ -1456,15 +1838,44 @@ class LmModel
     // RAG UTILITY
     // ============================================================================
 
-    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000): array{
+    /**
+     * Split text into overlapping chunks for RAG processing, breaks at sentence boundaries when possible
+     */
+    public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000, int $overlap = 200): array{
         $chunks = [];
         $length = strlen($text);
-        for ($i = 0; $i < $length; $i += $chunkSize) {
-            $chunks[] = substr($text, $i, $chunkSize);
+        $i = 0;
+        
+        while ($i < $length) {
+            $chunk = substr($text, $i, $chunkSize);
+            
+            if ($i + $chunkSize < $length) {
+                $lastPeriod = strrpos($chunk, '.');
+                $lastNewline = strrpos($chunk, "\n");
+                $breakPoint = max($lastPeriod, $lastNewline);
+                
+                if ($breakPoint !== false && $breakPoint > $chunkSize * 0.5) {
+                    $chunk = substr($chunk, 0, $breakPoint + 1);
+                    $i += $breakPoint + 1 - $overlap;
+                } else {
+                    $i += $chunkSize - $overlap;
+                }
+            } else {
+                $i = $length;
+            }
+            
+            $chunk = trim($chunk);
+            if (!empty($chunk)) {
+                $chunks[] = $chunk;
+            }
         }
+        
         return $chunks;
     }
 
+    /**
+     * Save text chunks and their embeddings to database for RAG retrieval
+     */
     public function saveChunksToDB(array $chunks, array $embeddings, int $fileID): void{
         $conn = $this->db->connect();
         foreach ($chunks as $index => $chunk) {
@@ -1480,6 +1891,9 @@ class LmModel
         }
     }
 
+    /**
+     * Get all document chunks and embeddings for a specific file
+     */
     public function getChunksByFile(int $fileID): array
     {
         try {

@@ -29,7 +29,8 @@ class GeminiService
             return $response->text();
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating text: ' . $e->getMessage());
-            return '';
+            // Throw exception instead of returning empty string so calling code can handle it
+            throw new \RuntimeException('Gemini API Error: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -65,23 +66,59 @@ class GeminiService
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
 Create a mindmap in Markdown format optimized for Markmap.js visualization.
+
 Rules:
+
 1. Heading Structure
+
    * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
+
    * Each idea should be a **heading**, not a paragraph.
+
 2. Style & Formatting
+
    * Use **bold** for key terms and *italic* for emphasis.
+
    * Keep headings short and meaningful.
+
    * Avoid lists (-, *) — use subheadings instead.
+
 3. Content
+
    * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
+
    * For structured data, use markdown tables under headings.
+
 4. Output
+
    * Output only the Markdown (no explanations or extra text).
+
    * Start directly with #Main Topic.
 PROMPT;
-        $prompt = $schema . "\n" . "\n\n" . 'Content: ' . $sourceText;
-        return $this->generateText($model, $prompt);
+        $prompt = $schema . "\n\n" . 'Content: ' . $sourceText;
+        $markdown = $this->generateText($model, $prompt);
+        
+        return $this->cleanMarkdownOutput($markdown);
+    }
+
+    /**
+     * Clean markdown output by removing code fences and ensuring valid format
+     */
+    private function cleanMarkdownOutput(string $markdown): string
+    {
+        $markdown = trim($markdown);
+        
+        // Remove markdown code fences if present
+        $markdown = preg_replace('/^```(?:markdown)?\s*/m', '', $markdown);
+        $markdown = preg_replace('/```\s*$/m', '', $markdown);
+        $markdown = trim($markdown);
+        
+        // Ensure it starts with a heading
+        if (!preg_match('/^#+\s+/m', $markdown)) {
+            $markdown = "# Mindmap\n\n" . $markdown;
+        }
+        
+        return $markdown;
     }
 
     // ============================================================================
@@ -365,15 +402,18 @@ PROMPT;
     {
         $model = $this->models['chatbot'] ?? $this->defaultModel;
 
-        $prompt = "Generate a helpful and accurate response to the user's question using the provided content. "
-            . "If relevant, use information from the chat history for better context. "
-            . "Only return the response. No formatting.\n\n"
+        $prompt = "You are a helpful assistant answering questions based on the provided document content. "
+            . "Answer the user's question using ONLY the information from the provided content. "
+            . "If the content doesn't contain enough information to answer the question, say so clearly. "
+            . "Do not make up information or use knowledge outside the provided content.\n\n"
             . "Question: {$question}\n\n"
-            . "Content: {$sourceText}\n\n";
+            . "Relevant Content from Document:\n{$sourceText}\n\n";
 
         if ($chatHistory != null) {
-            $prompt .= "Chat History:\n{$chatHistory}\n\n";
+            $prompt .= "Previous Conversation Context:\n{$chatHistory}\n\n";
         }
+
+        $prompt .= "Answer:";
 
         return $this->generateText($model, $prompt);
     }
@@ -410,66 +450,15 @@ PROMPT;
         }
     }
 
-    /**
-     * Build user content from text string
-     * @param string $text
-     * @return string
-     */
-    private function buildUserContent(string $text): string
+    public function synthesizeDocument(string $sourceText, string $instructions): string
     {
-        return $text;
-    }
-
-    /**
-     * Generate content with custom generation config
-     * @param string $model
-     * @param array $contents
-     * @param array|null $generationConfig
-     * @return mixed
-     */
-    private function postGenerate(string $model, array $contents, ?array $generationConfig = null)
-    {
-        try {
-            $generativeModel = $this->client->generativeModel($model);
-            
-            // Merge with default generation config if provided
-            if ($generationConfig !== null) {
-                $mergedConfig = array_merge($this->generationConfig ?? [], $generationConfig);
-                $config = new GenerationConfig(
-                    candidateCount: 1,
-                    stopSequences: [],
-                    maxOutputTokens: $mergedConfig['maxOutputTokens'] ?? null,
-                    temperature: $mergedConfig['temperature'] ?? null,
-                    topP: $mergedConfig['topP'] ?? null,
-                    topK: $mergedConfig['topK'] ?? null,
-                );
-                $generativeModel = $generativeModel->withGenerationConfig($config);
-            }
-            
-            // Generate content - contents array should contain strings
-            $response = $generativeModel->generateContent(...$contents);
-            return $response;
-        } catch (\Exception $e) {
-            error_log('Gemini API - Error generating content: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Extract text from GenerateContentResponse
-     * @param mixed $response
-     * @return string
-     */
-    private function extractText($response): string
-    {
-        try {
-            if (method_exists($response, 'text')) {
-                return $response->text();
-            }
-            return '';
-        } catch (\Exception $e) {
-            error_log('Gemini API - Error extracting text: ' . $e->getMessage());
-            return '';
-        }
+        $model = $this->models['synthesize'] ?? $this->defaultModel;
+        $prompt = $instructions . "\n\n"
+            . "IMPORTANT: Use ONLY the following relevant content retrieved from the selected documents. "
+            . "This content has been selected because it matches your query. "
+            . "Base your synthesized document strictly on this content and do not include information not found in it.\n\n"
+            . "Relevant Content:\n{$sourceText}\n\n"
+            . "Synthesize the document now:";
+        return $this->generateText($model, $prompt);
     }
 }

@@ -5,7 +5,9 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Models\LmModel;
 use App\Services\GeminiService;
+use App\Services\OCRService;
 use PDO;
+use App\Services\PiperService;
 use App\Config\Database;
 
 class LmController
@@ -14,6 +16,9 @@ class LmController
     private $lmModel;
     private $gemini;
     private $userModel;
+    private $PiperService;
+    private $ocrService;
+
 
     private const SESSION_CURRENT_FILE_ID = 'current_file_id';
 
@@ -22,12 +27,17 @@ class LmController
         $this->lmModel = new LmModel();
         $this->gemini = new GeminiService();
         $this->userModel = new UserModel();
+        $this->PiperService = new PiperService();
+        $this->ocrService = new OCRService();
     }
 
     // ============================================================================
     // UTILITY METHODS
     // ============================================================================
 
+    /**
+     * Checks if user is logged in, redirects or returns JSON error if not
+     */
     public function checkSession($isJsonResponse = false)
     {
         if (!isset($_SESSION['user_id'])) {
@@ -42,6 +52,9 @@ class LmController
         }
     }
 
+    /**
+     * Retrieves current logged-in user information
+     */
     public function getUserInfo()
     {
         $userId = (int)$_SESSION['user_id'];
@@ -49,6 +62,9 @@ class LmController
         return $user;
     }
 
+    /**
+     * Resolves file ID from POST request or session, optionally persists to session
+     */
     private function resolveFileId(bool $persist = true): int
     {
         $fileId = 0;
@@ -71,8 +87,165 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display the new document upload form
-     * ACTION: Handle document upload (POST)
+     * Check if file extension is an image type
+     */
+    private function isImageFile(string $extension): bool
+    {
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'];
+        return in_array(strtolower($extension), $imageExtensions);
+    }
+
+    /**
+     * Extract text from file using appropriate method (OCR for images, model method for others)
+     */
+    private function extractTextFromFile(string $tmpName, string $fileExtension, array $file): string
+    {
+        if ($this->isImageFile($fileExtension)) {
+            $fileName = basename($tmpName);
+            error_log("[OCR] Starting OCR processing for image: {$fileName} (Extension: {$fileExtension})");
+            
+            try {
+                $ocrResult = $this->ocrService->recognizeText($tmpName);
+                if ($ocrResult['success'] && !empty($ocrResult['text'])) {
+                    $extractedText = trim($ocrResult['text']);
+                    $engine = $ocrResult['engine'] ?? 'unknown';
+                    $confidence = isset($ocrResult['confidence']) ? round($ocrResult['confidence'] * 100, 2) : 'N/A';
+                    $processingTime = isset($ocrResult['processing_time']) ? round($ocrResult['processing_time'], 2) : 'N/A';
+                    
+                    error_log("[OCR] SUCCESS - Image: {$fileName} | Engine: {$engine} | Text length: " . strlen($extractedText) . " chars | Confidence: {$confidence}% | Processing time: {$processingTime}s");
+                    return $extractedText;
+                } else {
+                    $errorMsg = $ocrResult['error'] ?? 'No text detected in image';
+                    $engine = $ocrResult['engine'] ?? 'unknown';
+                    error_log("[OCR] FAILED - Image: {$fileName} | Engine: {$engine} | Error: {$errorMsg}");
+                    // Return empty string but don't throw exception - file will still be saved
+                    return '';
+                }
+            } catch (\Exception $e) {
+                error_log("[OCR] EXCEPTION - Image: {$fileName} | Exception: " . $e->getMessage());
+                // Return empty string but don't throw exception - file will still be saved
+                return '';
+            }
+        }
+        
+        return $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
+    }
+
+    /**
+     * Normalizes file array from $_FILES structure for single or multiple uploads
+     */
+    private function normalizeFileArray(array $files, int $index): ?array
+    {
+        if (!is_array($files['name'])) {
+            return [
+                'name' => $files['name'],
+                'type' => $files['type'],
+                'tmp_name' => $files['tmp_name'],
+                'error' => $files['error'],
+                'size' => $files['size']
+            ];
+        }
+
+        if ($files['error'][$index] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        return [
+            'name' => $files['name'][$index],
+            'type' => $files['type'][$index],
+            'tmp_name' => $files['tmp_name'][$index],
+            'error' => $files['error'][$index],
+            'size' => $files['size'][$index]
+        ];
+    }
+
+    /**
+     * Processes single file upload: extracts text, uploads to GCS, creates chunks and embeddings
+     */
+    private function processFileUpload(array $file, int $userId, ?int $folderId, ?string $documentName): array
+    {
+        $uploadedFileName = !empty($documentName) ? $documentName : $file['name'];
+        $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $tmpName = $file['tmp_name'];
+        $isImage = $this->isImageFile($fileExtension);
+
+        // Extract text using OCR for images, or standard extraction for other files
+        $extractedText = $this->extractTextFromFile($tmpName, $fileExtension, $file);
+        
+        // For images, log OCR result
+        if ($isImage) {
+            if (empty($extractedText)) {
+                error_log("[OCR] WARNING - No text extracted from image: {$uploadedFileName}. File will still be saved.");
+            } else {
+                error_log("[OCR] COMPLETE - Successfully extracted " . strlen($extractedText) . " characters from image: {$uploadedFileName}");
+            }
+        }
+
+        // Format the extracted text (even if empty, file will still be saved)
+        $formattedText = !empty($extractedText) 
+            ? $this->gemini->formatContent($extractedText) 
+            : '';
+
+        // Read file content for storage
+        $fileContent = file_get_contents($tmpName);
+        if ($fileContent === false) {
+            throw new \Exception("Error reading file: {$uploadedFileName}");
+        }
+
+        // Upload file to GCS and save metadata to database
+        // Note: File is saved even if extracted text is empty (for images without text)
+        $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $uploadedFileName);
+
+        // Only create chunks and embeddings if text was extracted
+        if (!empty($formattedText)) {
+            $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
+            $embeddings = [];
+            foreach ($chunks as $chunk) {
+                $embeddings[] = $this->gemini->generateEmbedding($chunk);
+            }
+            $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
+        } else {
+            error_log("No text content to chunk for file {$uploadedFileName} (ID: {$newFileId}). Chunks and embeddings skipped.");
+        }
+
+        return ['success' => true, 'fileId' => $newFileId, 'hasText' => !empty($formattedText)];
+    }
+
+    /**
+     * Handles upload response: sets session messages and redirects based on success/failure
+     */
+    private function handleUploadResponse(int $uploadedCount, int $failedCount, array $errors, int $userId): void
+    {
+        if ($uploadedCount > 0 && $failedCount === 0) {
+            $_SESSION['message'] = $uploadedCount === 1
+                ? "File uploaded successfully!"
+                : "{$uploadedCount} files uploaded successfully!";
+
+            if ($uploadedCount === 1) {
+                $lastFile = $this->lmModel->getLatestFileForUser($userId);
+                if ($lastFile) {
+                    $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
+                    header('Location: ' . DISPLAY_DOCUMENT);
+                    exit();
+                }
+            }
+        } elseif ($uploadedCount > 0 && $failedCount > 0) {
+            $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
+            if (!empty($errors)) {
+                $_SESSION['error'] = implode('<br>', $errors);
+            }
+        } else {
+            $_SESSION['error'] = !empty($errors)
+                ? implode('<br>', $errors)
+                : "Failed to upload files. Please try again.";
+        }
+
+        header('Location: ' . NEW_DOCUMENT);
+        exit();
+    }
+
+    /**
+     * Handles document upload (POST) or displays upload form (GET)
      */
     public function uploadDocument()
     {
@@ -85,103 +258,37 @@ class LmController
             $files = $_FILES['document'];
             $uploadedCount = 0;
             $failedCount = 0;
+            $documentName = isset($_POST['documentName']) ? trim($_POST['documentName']) : null;
             $errors = [];
 
-            // Handle multiple files
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
-
+            
             for ($i = 0; $i < $fileCount; $i++) {
-                // Check if this is a single file upload
-                if (!is_array($files['name'])) {
-                    $file = [
-                        'name' => $files['name'],
-                        'type' => $files['type'],
-                        'tmp_name' => $files['tmp_name'],
-                        'error' => $files['error'],
-                        'size' => $files['size']
-                    ];
-                    $i = $fileCount;
-                } else {
-                    // Multiple files
-                    if ($files['error'][$i] !== UPLOAD_ERR_OK) {
-                        $errors[] = "Error uploading {$files['name'][$i]}: Upload error code {$files['error'][$i]}";
-                        $failedCount++;
-                        continue;
-                    }
-
-                    $file = [
-                        'name' => $files['name'][$i],
-                        'type' => $files['type'][$i],
-                        'tmp_name' => $files['tmp_name'][$i],
-                        'error' => $files['error'][$i],
-                        'size' => $files['size'][$i]
-                    ];
-                }
-
-                $uploadedFileName = $file['name'];
-                $fileExtension = pathinfo($uploadedFileName, PATHINFO_EXTENSION);
-                $tmpName = $file['tmp_name'];
-
-                // Use the original filename (no custom document name for multiple uploads)
-                $originalFileName = $uploadedFileName;
-
-                $extractedText = $this->lmModel->extractTextFromFile($tmpName, $fileExtension);
-                $formattedText = $this->gemini->formatContent($extractedText);
-                $fileContent = file_get_contents($tmpName);
-
-                if ($fileContent === false) {
-                    $errors[] = "Error reading file: {$uploadedFileName}";
+                $file = $this->normalizeFileArray($files, $i);
+                
+                if ($file === null) {
+                    $fileName = is_array($files['name']) ? $files['name'][$i] : $files['name'];
+                    $errorCode = is_array($files['error']) ? $files['error'][$i] : $files['error'];
+                    $errors[] = "Error uploading {$fileName}: Upload error code {$errorCode}";
                     $failedCount++;
                     continue;
                 }
 
                 try {
-                    $newFileId = $this->lmModel->uploadFileToGCS($userId, $folderId, $formattedText, $fileContent, $file, $originalFileName);
-
-                    // Generate embeddings for each chunk
-                    $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
-                    $embeddings = [];
-                    foreach ($chunks as $chunk) {
-                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
-                    }
-
-                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
+                    $this->processFileUpload($file, $userId, $folderId, $documentName);
                     $uploadedCount++;
                 } catch (\Exception $e) {
-                    $errors[] = "Error uploading {$uploadedFileName}: " . $e->getMessage();
+                    $errors[] = "Error uploading {$file['name']}: " . $e->getMessage();
                     $failedCount++;
                 }
+
+                // Break loop if single file (non-array)
+                if (!is_array($files['name'])) {
+                    break;
+                }
             }
 
-            // Set session messages
-            if ($uploadedCount > 0 && $failedCount === 0) {
-                $_SESSION['message'] = $uploadedCount === 1
-                    ? "File uploaded successfully!"
-                    : "{$uploadedCount} files uploaded successfully!";
-
-                // If only one file was uploaded, redirect to display it
-                if ($uploadedCount === 1) {
-                    // Get the last uploaded file ID
-                    $lastFile = $this->lmModel->getLatestFileForUser($userId);
-                    if ($lastFile) {
-                        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
-                        header('Location: ' . DISPLAY_DOCUMENT);
-                        exit();
-                    }
-                }
-            } elseif ($uploadedCount > 0 && $failedCount > 0) {
-                $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
-                if (!empty($errors)) {
-                    $_SESSION['error'] = implode('<br>', $errors);
-                }
-            } else {
-                $_SESSION['error'] = !empty($errors)
-                    ? implode('<br>', $errors)
-                    : "Failed to upload files. Please try again.";
-            }
-
-            header('Location: ' . NEW_DOCUMENT);
-            exit();
+            $this->handleUploadResponse($uploadedCount, $failedCount, $errors, $userId);
         }
 
         $this->checkSession();
@@ -196,7 +303,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display all documents and folders
+     * Displays all documents and folders with search and folder filtering support
      */
     public function displayLearningMaterials()
     {
@@ -207,12 +314,29 @@ class LmController
         $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : null;
         $currentFolderId = isset($_GET['folder_id']) ? (int)$_GET['folder_id'] : null;
 
+        // Filter out audio files
+        $audioFileTypes = ['wav', 'mp3', 'ogg', 'm4a', 'aac', 'flac', 'wma'];
+        $filterAudioFiles = function($files) use ($audioFileTypes) {
+            return array_filter($files, function($file) use ($audioFileTypes) {
+                $fileType = strtolower($file['fileType'] ?? '');
+                return !in_array($fileType, $audioFileTypes);
+            });
+        };
+
         if (!empty($searchQuery)) {
             $fileList = $this->lmModel->searchFilesAndFolders($userId, $searchQuery);
+            // Filter out audio files from search results
+            if (isset($fileList['files'])) {
+                $fileList['files'] = $filterAudioFiles($fileList['files']);
+            }
             $currentFolderName = 'Search Results for "' . htmlspecialchars($searchQuery) . '"';
             $currentFolderPath = [];
         } else {
             $fileList = $this->lmModel->getFoldersAndFiles($userId, $currentFolderId);
+            // Filter out audio files
+            if (isset($fileList['files'])) {
+                $fileList['files'] = $filterAudioFiles($fileList['files']);
+            }
             $currentFolderName = 'Home';
             $currentFolderPath = [];
 
@@ -232,7 +356,7 @@ class LmController
     }
 
     /**
-     * VIEW: Display a specific document
+     * Displays a specific document with its content and metadata
      */
     public function displayDocument()
     {
@@ -268,7 +392,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete a document
+     * Deletes a document from database and storage
      */
     public function deleteDocument()
     {
@@ -302,7 +426,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display the new folder creation form
+     * Displays the new folder creation form
      */
     public function newFolder()
     {
@@ -316,7 +440,7 @@ class LmController
     }
 
     /**
-     * ACTION: Create a new folder (POST)
+     * Creates a new folder with optional parent folder
      */
     public function createFolder()
     {
@@ -350,7 +474,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete a folder
+     * Deletes a folder and its contents
      */
     public function deleteFolder()
     {
@@ -380,7 +504,7 @@ class LmController
     }
 
     /**
-     * VIEW: Display the new document upload form
+     * Displays the new document upload form
      */
     public function newDocument()
     {
@@ -398,7 +522,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Helper: Build folder path breadcrumb
+     * Builds folder path breadcrumb array from folder ID to root
      */
     private function _buildFolderPath($folderId)
     {
@@ -421,7 +545,7 @@ class LmController
     // ============================================================================
 
     /**
-     * ACTION (JSON API): Rename a folder
+     * Renames a folder via JSON API
      */
     public function renameFolder()
     {
@@ -456,7 +580,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Rename a file/document
+     * Renames a file/document via JSON API
      */
     public function renameFile()
     {
@@ -491,7 +615,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Move a file/document to another folder
+     * Moves a file/document to another folder via JSON API
      */
     public function moveFile()
     {
@@ -521,7 +645,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Move a folder to another folder
+     * Moves a folder to another folder via JSON API
      */
     public function moveFolder()
     {
@@ -555,7 +679,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display summaries for a document
+     * Displays all summaries for a document
      */
     public function summary()
     {
@@ -579,7 +703,7 @@ class LmController
             }
 
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-            $summaryList = $this->lmModel->getSummaryByFile($fileId, $userId);
+            $summaryList = $this->lmModel->getSummaryByFile($fileId);
             $user = $this->getUserInfo();
 
             require_once VIEW_SUMMARY;
@@ -591,7 +715,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete summary from database
+     * Deletes a summary from database
      */
     public function deleteSummary()
     {
@@ -616,7 +740,7 @@ class LmController
     }
 
     /**
-     * ACTION: Save summary as file
+     * Saves a summary as a new document file
      */
     public function saveSummaryAsFile()
     {
@@ -642,12 +766,136 @@ class LmController
         }
     }
 
+    /**
+     * Generates audio for summary using TTS, returns cached audio if available
+     */
+    public function audioSummary(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+
+        if ($summaryId === 0) {
+            $this->sendJsonError('Summary ID not provided.');
+        }
+
+        try {
+            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
+            if (!$summary) {
+                $this->sendJsonError('Summary not found.');
+            }
+
+            // Check if audio already exists for this specific summary - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForSummary($summaryId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($summary['content']);
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this summary)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForSummary($summaryId, $fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
+     * Generates audio for note using TTS, returns cached audio if available
+     */
+    public function audioNote(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+
+        if ($noteId === 0) {
+            $this->sendJsonError('Note ID not provided.');
+        }
+
+        try {
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            if (!$note) {
+                $this->sendJsonError('Note not found.');
+            }
+
+            // Check if audio already exists for this specific note - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForNote($noteId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($note['content']);
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this note)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForNote($noteId, $fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
     // ============================================================================
     // NOTE PAGE (note.php)
     // ============================================================================
 
     /**
-     * VIEW: Display notes for a document
+     * Displays all notes for a document
      */
     public function note()
     {
@@ -683,7 +931,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete note from database
+     * Deletes a note from database
      */
     public function deleteNote()
     {
@@ -708,7 +956,7 @@ class LmController
     }
 
     /**
-     * ACTION: Save note as file
+     * Saves a note as a new document file
      */
     public function saveNoteAsFile()
     {
@@ -734,12 +982,72 @@ class LmController
         }
     }
 
+    /**
+     * Uploads an image for a note and returns image URL via JSON API
+     */
+    public function uploadNoteImage(){
+        header('Content-Type: application/json');
+
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'No image file uploaded or upload error.']);
+            exit();
+        }
+
+        try {
+            $imageFile = $_FILES['image'];
+            $fileExtension = strtolower(pathinfo($imageFile['name'], PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+
+            if (!in_array($fileExtension, $allowedExtensions)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid image format. Allowed: ' . implode(', ', $allowedExtensions)]);
+                exit();
+            }
+
+            // Validate file size (max 10MB)
+            $maxSize = 10 * 1024 * 1024; // 10MB
+            if ($imageFile['size'] > $maxSize) {
+                echo json_encode(['success' => false, 'message' => 'Image size exceeds 10MB limit.']);
+                exit();
+            }
+
+            // Read file content
+            $fileContent = file_get_contents($imageFile['tmp_name']);
+            if ($fileContent === false) {
+                throw new \Exception('Failed to read uploaded file.');
+            }
+
+            // Upload to GCS and save to database via model
+            $result = $this->lmModel->saveNoteImage($noteId, $fileContent, $fileExtension, $userId);
+
+            echo json_encode([
+                'success' => true,
+                'imageUrl' => $result['imageUrl'],
+                'altText' => pathinfo($imageFile['name'], PATHINFO_FILENAME)
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Error uploading note image: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Failed to upload image: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
     // ============================================================================
     // MINDMAP PAGE (mindmap.php)
     // ============================================================================
 
     /**
-     * VIEW: Display mindmaps for a document
+     * Displays all mindmaps for a document
      */
     public function mindmap()
     {
@@ -775,7 +1083,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate a summary using AI
+     * Generates a summary using AI and saves it to database
      */
     public function generateSummary()
     {
@@ -822,7 +1130,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate notes using AI
+     * Generates notes using AI and saves them to database
      */
     public function generateNotes()
     {
@@ -869,7 +1177,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Save a manually created note
+     * Saves a manually created note to database
      */
     public function saveNote()
     {
@@ -906,7 +1214,59 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate a mindmap using AI
+     * Updates an existing note's title and content
+     */
+    public function updateNote()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $fileId = $this->resolveFileId();
+        $title = isset($_POST['noteTitle']) ? trim($_POST['noteTitle']) : '';
+        $content = isset($_POST['noteContent']) ? trim($_POST['noteContent']) : '';
+        $userId = (int)$_SESSION['user_id'];
+
+        if ($noteId === 0 || $fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Note ID or File ID missing.']);
+            exit();
+        }
+
+        if ($title === '' || $content === '') {
+            echo json_encode(['success' => false, 'message' => 'Title and content are required.']);
+            exit();
+        }
+
+        try {
+            $updated = $this->lmModel->updateNote($noteId, $fileId, $userId, $title, $content);
+            if (!$updated) {
+                echo json_encode(['success' => false, 'message' => 'Unable to update note.']);
+                exit();
+            }
+
+            $note = $this->lmModel->getNoteById($noteId, $userId);
+            echo json_encode([
+                'success' => true,
+                'note' => [
+                    'title' => $note['title'] ?? $title,
+                    'content' => $note['content'] ?? $content,
+                    'createdAt' => $note['createdAt'] ?? date('Y-m-d H:i:s')
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+
+    /**
+     * Generates a mindmap using AI and saves it to database
      */
     public function generateMindmap()
     {
@@ -917,38 +1277,40 @@ class LmController
         $fileId = $this->resolveFileId();
 
         if ($fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
-            exit();
+            $this->sendJsonError('File ID not provided.');
         }
 
         try {
             $file = $this->lmModel->getFile($userId, $fileId);
-            if (!$file || !is_array($file)) {
-                echo json_encode(['success' => false, 'message' => 'File not found.']);
-                exit();
+            if (!$file) {
+                $this->sendJsonError('File not found.');
             }
 
             $extractedText = $file['extracted_text'] ?? '';
             if (empty($extractedText)) {
-                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
-                exit();
+                $this->sendJsonError('No extracted text found.');
             }
 
             $mindmapMarkdown = $this->gemini->generateMindmapMarkdown($extractedText);
-            $mindmapJson = json_encode($mindmapMarkdown, JSON_UNESCAPED_UNICODE);
-            $generateSummary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
-            $title = $this->gemini->generateTitle($file['name'] . $generateSummary);
-            $this->lmModel->saveMindmap($fileId, $title, $mindmapJson);
+            if (empty($mindmapMarkdown)) {
+                throw new \RuntimeException('Failed to generate mindmap markdown.');
+            }
+            
+            $title = $this->generateMindmapTitle($file['name'], $extractedText);
+            $mindmapId = $this->saveMindmapData($fileId, $title, $mindmapMarkdown);
 
-            echo json_encode(['success' => true, 'markdown' => $mindmapMarkdown]);
+            $this->sendJsonSuccess([
+                'markdown' => $mindmapMarkdown,
+                'mindmapId' => $mindmapId,
+                'title' => $title
+            ]);
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            $this->sendJsonError($e->getMessage());
         }
-        exit();
     }
 
     /**
-     * ACTION (JSON API): Retrieve a specific mindmap by ID
+     * Retrieves a specific mindmap by ID and returns its data
      */
     public function viewMindmap()
     {
@@ -960,36 +1322,70 @@ class LmController
         $fileId = $this->resolveFileId();
 
         if ($mindmapId === 0) {
-            echo json_encode(['success' => false, 'message' => 'Mindmap ID not provided.']);
-            exit();
+            $this->sendJsonError('Mindmap ID not provided.');
         }
 
         if ($fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
-            exit();
+            $this->sendJsonError('File ID not provided.');
         }
 
         try {
-            $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
-            if (!$mindmap || !is_array($mindmap)) {
-                echo json_encode(['success' => false, 'message' => 'Mindmap not found.']);
-                exit();
-            }
-
-            $markdown = json_decode($mindmap['data'], true);
-            if ($markdown === null) {
-                $markdown = $mindmap['data'];
-            }
-
-            echo json_encode(['success' => true, 'markdown' => $markdown]);
+            $payload = $this->buildMindmapResponse($mindmapId, $fileId, $userId);
+            $this->sendJsonSuccess($payload);
         } catch (\Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            $this->sendJsonError($e->getMessage());
         }
-        exit();
     }
 
     /**
-     * ACTION: Delete mindmap from database
+     * Loads mindmap structure (alias of viewMindmap)
+     */
+    public function loadMindmapStructure()
+    {
+        $this->viewMindmap();
+    }
+
+    /**
+     * Updates mindmap markdown structure in database
+     */
+    public function updateMindmapStructure()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $requestData = $this->getJsonRequestData();
+        $mindmapId = (int)($requestData['mindmap_id'] ?? 0);
+        $fileId = (int)($requestData['file_id'] ?? $this->resolveFileId());
+        $userId = (int)$_SESSION['user_id'];
+        $markdown = trim($requestData['markdown'] ?? '');
+
+        if ($mindmapId === 0 || $fileId === 0) {
+            $this->sendJsonError('Mindmap ID or File ID missing.');
+        }
+
+        if (empty($markdown)) {
+            $this->sendJsonError('Mindmap markdown is required.');
+        }
+
+        try {
+            $existing = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
+            if (!$existing) {
+                $this->sendJsonError('Mindmap not found.');
+            }
+
+            $updated = $this->lmModel->updateMindmap($mindmapId, $fileId, $userId, ['markdown' => $markdown]);
+            if (!$updated) {
+                $this->sendJsonError('Failed to update mindmap.');
+            }
+
+            $this->sendJsonSuccess();
+        } catch (\Throwable $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
+     * Deletes a mindmap from database
      */
     public function deleteMindmap()
     {
@@ -1013,12 +1409,170 @@ class LmController
         }
     }
 
+    /**
+     * Normalizes mindmap payload from database (handles JSON or plain markdown)
+     */
+    private function normalizeMindmapPayload($rawData): array
+    {
+        if (empty($rawData)) {
+            return ['markdown' => '# Mindmap\n'];
+        }
+
+        // Database stores JSON string, so try to decode first
+        if (is_string($rawData)) {
+            $decoded = json_decode($rawData, true);
+            
+            // If JSON decode succeeded and we have markdown key
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded['markdown'])) {
+                return ['markdown' => $decoded['markdown']];
+            }
+            
+            // If JSON decode failed or no markdown key, treat rawData as plain markdown
+            // (for backward compatibility with old data format)
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($decoded['markdown'])) {
+                return ['markdown' => $rawData];
+            }
+        }
+
+        // If rawData is already an array (shouldn't happen, but handle it)
+        if (is_array($rawData) && isset($rawData['markdown'])) {
+            return ['markdown' => $rawData['markdown']];
+        }
+
+        return ['markdown' => '# Mindmap\n'];
+    }
+
+    /**
+     * Builds standardized mindmap response payload with normalized data
+     */
+    private function buildMindmapResponse(int $mindmapId, int $fileId, int $userId): array
+    {
+        $mindmap = $this->lmModel->getMindmapById($mindmapId, $fileId, $userId);
+        if (!$mindmap) {
+            throw new \RuntimeException('Mindmap not found.');
+        }
+
+        $normalized = $this->normalizeMindmapPayload($mindmap['data'] ?? '');
+
+        return [
+            'mindmapId' => $mindmap['mindmapID'] ?? $mindmapId,
+            'title' => $mindmap['title'] ?? '',
+            'markdown' => $normalized['markdown']
+        ];
+    }
+
+    /**
+     * Generates mindmap title using AI from file name and content summary
+     */
+    private function generateMindmapTitle(string $fileName, string $extractedText): string
+    {
+        $summary = $this->gemini->generateSummary($extractedText, "A very short summary of the content");
+        return $this->gemini->generateTitle($fileName . $summary);
+    }
+
+    /**
+     * Saves mindmap data to database and returns mindmap ID
+     */
+    private function saveMindmapData(int $fileId, string $title, string $markdown): int
+    {
+        $payload = ['markdown' => $markdown];
+        $dataJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        return $this->lmModel->saveMindmap($fileId, $title, $dataJson);
+    }
+
+    /**
+     * Gets JSON request data from POST or JSON body input
+     */
+    private function getJsonRequestData(): array
+    {
+        $rawInput = file_get_contents('php://input');
+        $requestData = json_decode($rawInput, true);
+        return is_array($requestData) ? $requestData : $_POST;
+    }
+
+    /**
+     * Sends JSON success response and exits
+     */
+    private function sendJsonSuccess(array $data = []): void
+    {
+        echo json_encode(['success' => true] + $data);
+        exit();
+    }
+
+    /**
+     * Sends JSON error response and exits
+     */
+    private function sendJsonError(string $message): void
+    {
+        echo json_encode(['success' => false, 'message' => $message]);
+        exit();
+    }
+
+    /**
+     * Clean markdown symbols from text for audio generation
+     */
+    private function cleanMarkdownForAudio(string $text): string
+    {
+        // Remove markdown headers (# ## ### etc.)
+        $text = preg_replace('/^#{1,6}\s+/m', '', $text);
+        
+        // Remove bold (**text** or __text__)
+        $text = preg_replace('/\*\*(.+?)\*\*/', '$1', $text);
+        $text = preg_replace('/__(.+?)__/', '$1', $text);
+        
+        // Remove italic (*text* or _text_)
+        $text = preg_replace('/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/', '$1', $text);
+        $text = preg_replace('/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/', '$1', $text);
+        
+        // Remove links [text](url)
+        $text = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $text);
+        
+        // Remove images ![alt](url)
+        $text = preg_replace('/!\[([^\]]*)\]\([^\)]+\)/', '', $text);
+        
+        // Remove code blocks ```
+        $text = preg_replace('/```[\s\S]*?```/', '', $text);
+        
+        // Remove inline code `code`
+        $text = preg_replace('/`([^`]+)`/', '$1', $text);
+        
+        // Remove strikethrough ~~text~~
+        $text = preg_replace('/~~(.+?)~~/', '$1', $text);
+        
+        // Remove list markers (-, *, +, 1., 2., etc.)
+        $text = preg_replace('/^[\s]*[-*+]\s+/m', '', $text);
+        $text = preg_replace('/^[\s]*\d+\.\s+/m', '', $text);
+        
+        // Remove blockquotes >
+        $text = preg_replace('/^>\s+/m', '', $text);
+        
+        // Remove horizontal rules --- or ***
+        $text = preg_replace('/^[-*]{3,}$/m', '', $text);
+        
+        // Remove table separators |---|---|
+        $text = preg_replace('/\|[\s\-:]+\|/', '', $text);
+        
+        // Remove table pipes |
+        $text = preg_replace('/\|/', ' ', $text);
+        
+        // Clean up multiple spaces
+        $text = preg_replace('/\s+/', ' ', $text);
+        
+        // Clean up multiple newlines
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        
+        // Trim whitespace
+        $text = trim($text);
+        
+        return $text;
+    }
+
     // ============================================================================
     // CREATE SUMMARY PAGE (createSummary.php)
     // ============================================================================
 
     /**
-     * VIEW: Display the create summary form
+     * Displays the create summary form
      */
     public function createSummary()
     {
@@ -1036,7 +1590,7 @@ class LmController
     // ============================================================================
 
     /**
-     * ACTION: Export summary as PDF
+     * Exports a summary as PDF file download
      */
     public function exportSummaryAsPdf()
     {
@@ -1068,7 +1622,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export summary as DOCX
+     * Exports a summary as DOCX file download
      */
     public function exportSummaryAsDocx()
     {
@@ -1100,7 +1654,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export summary as TXT
+     * Exports a summary as TXT file download
      */
     public function exportSummaryAsTxt()
     {
@@ -1132,7 +1686,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as PDF
+     * Exports a note as PDF file download
      */
     public function exportNoteAsPdf()
     {
@@ -1164,7 +1718,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as DOCX
+     * Exports a note as DOCX file download
      */
     public function exportNoteAsDocx()
     {
@@ -1196,7 +1750,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as TXT
+     * Exports a note as TXT file download
      */
     public function exportNoteAsTxt()
     {
@@ -1228,11 +1782,10 @@ class LmController
     }
 
     /**
-     * Helper: Generate PDF file
+     * Generates PDF file from title and content using DomPDF or fallback methods
      */
     private function _generatePdf($title, $content)
     {
-        // Try to use dompdf directly if available via Composer
         if (class_exists('\Dompdf\Dompdf')) {
             try {
                 $dompdf = new \Dompdf\Dompdf();
@@ -1256,21 +1809,18 @@ class LmController
                 echo $dompdf->output();
                 exit();
             } catch (\Exception $e) {
-                // Fallback to PHPWord PDF writer
                 $this->_generatePdfWithPhpWord($title, $content);
             }
         } else {
-            // Try PHPWord PDF writer as fallback
             $this->_generatePdfWithPhpWord($title, $content);
         }
     }
 
     /**
-     * Helper: Generate PDF using PHPWord (requires PDF renderer)
+     * Generates PDF using PHPWord with DomPDF renderer as fallback
      */
     private function _generatePdfWithPhpWord($title, $content)
     {
-        // Try to use PHPWord's PDF writer if PDF renderer is available
         $dompdfPath = __DIR__ . '/../../vendor/dompdf/dompdf';
         if (file_exists($dompdfPath)) {
             try {
@@ -1283,7 +1833,6 @@ class LmController
                 $section->addTitle($title, 1);
                 $section->addTextBreak(1);
 
-                // Convert markdown-like content to plain text and add paragraphs
                 $paragraphs = preg_split('/\n\s*\n/', $content);
                 foreach ($paragraphs as $paragraph) {
                     $paragraph = trim($paragraph);
@@ -1301,17 +1850,15 @@ class LmController
                 $writer->save('php://output');
                 exit();
             } catch (\Exception $e) {
-                // Final fallback: HTML that prompts user to save as PDF
                 $this->_generateSimplePdf($title, $content);
             }
         } else {
-            // Final fallback: HTML that prompts user to save as PDF
             $this->_generateSimplePdf($title, $content);
         }
     }
 
     /**
-     * Helper: Convert content to HTML for PDF generation
+     * Converts markdown-like content to HTML for PDF generation
      */
     private function _convertContentToHtml($title, $content)
     {
@@ -1415,8 +1962,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate simple HTML-based PDF (fallback when no PDF library available)
-     * This will show a message and provide download instructions
+     * Generates simple HTML-based PDF fallback with print dialog instructions
      */
     private function _generateSimplePdf($title, $content)
     {
@@ -1477,7 +2023,6 @@ class LmController
 
         $html .= '<h1>' . htmlspecialchars($title) . '</h1>';
 
-        // Convert markdown-like content to HTML paragraphs
         $lines = explode("\n", $content);
         $inList = false;
         $listType = '';
@@ -1493,7 +2038,6 @@ class LmController
                 continue;
             }
 
-            // Check for unordered list
             if (preg_match('/^[-*]\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ul') {
                     if ($inList) $html .= '</' . $listType . '>';
@@ -1508,7 +2052,6 @@ class LmController
                 continue;
             }
 
-            // Check for ordered list
             if (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
                 if (!$inList || $listType !== 'ol') {
                     if ($inList) $html .= '</' . $listType . '>';
@@ -1523,7 +2066,6 @@ class LmController
                 continue;
             }
 
-            // Regular paragraph
             if ($inList) {
                 $html .= '</' . $listType . '>';
                 $inList = false;
@@ -1543,7 +2085,6 @@ class LmController
 
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.pdf';
 
-        // Output HTML that can be printed to PDF using browser's print functionality
         header('Content-Type: text/html; charset=UTF-8');
         header('Content-Disposition: inline; filename="' . $filename . '"');
         echo $html;
@@ -1560,7 +2101,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate DOCX file
+     * Generates DOCX file from title and content using PHPWord
      */
     private function _generateDocx($title, $content)
     {
@@ -1570,14 +2111,9 @@ class LmController
         $section->addTitle($title, 1);
         $section->addTextBreak(1);
 
-        // Convert markdown-like content to plain text and add paragraphs
         $paragraphs = preg_split('/\n\s*\n/', $content);
         foreach ($paragraphs as $paragraph) {
-            $paragraph = trim($paragraph);
-            if (!empty($paragraph)) {
-                $section->addText($paragraph);
-                $section->addTextBreak(1);
-            }
+            $paragraph = trim($paragraph); 
         }
 
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';
@@ -1591,25 +2127,21 @@ class LmController
     }
 
     /**
-     * Helper: Generate TXT file
+     * Generates plain text file from title and content
      */
     private function _generateTxt($title, $content)
     {
-        // Clean filename
         $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.txt';
 
-        // Prepare text content
         $text = $title . "\n";
         $text .= str_repeat('=', strlen($title)) . "\n\n";
         $text .= $content . "\n";
 
-        // Set headers for download
         header('Content-Type: text/plain; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
 
-        // Output text with BOM for UTF-8 compatibility
         echo "\xEF\xBB\xBF" . $text;
         exit();
     }
@@ -1619,7 +2151,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display chatbot interface for a document
+     * Displays chatbot interface for a document with chat history
      */
     public function chatbot()
     {
@@ -1653,7 +2185,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Send a question to the chatbot and get response
+     * Sends question to chatbot, generates AI response using document context and chat history
      */
     public function sendQuestionChat()
     {
@@ -1687,8 +2219,66 @@ class LmController
                 exit();
             }
 
-            // RAG implementation
-            // 1. Generate embedding for the question
+            $sourceText = $file['extracted_text'] ?? '';
+            if (empty($sourceText)) {
+                echo json_encode(['success' => false, 'message' => 'No document content available.']);
+                exit();
+            }
+
+            $chatHistory = $this->lmModel->chatHistory($fileId);
+            $userQuestions = $chatHistory['questions'];
+            $aiResponse = $chatHistory['responseChats'];
+            $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
+
+            $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
+            $response = $this->gemini->generateChatbotResponse($sourceText, $question, $compressedChatHistory);
+            $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
+            $response = $this->lmModel->getResponseChatById($responseChatId);
+
+            echo json_encode(['success' => true, 'response' => $response['response']]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Sends question to document hub chatbot using RAG: finds relevant chunks via embeddings and generates response
+     */
+    public function sendDocumentHubChat()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $data = json_decode(file_get_contents('php://input'), true);
+        $question = isset($data['question']) ? trim($data['question']) : '';
+        $fileIds = isset($data['fileIds']) && is_array($data['fileIds']) ? $data['fileIds'] : [];
+
+        if (empty($fileIds)) {
+            echo json_encode(['success' => false, 'message' => 'No documents selected.']);
+            exit();
+        }
+
+        if (empty($question)) {
+            echo json_encode(['success' => false, 'message' => 'Question cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $validFileIds = [];
+            foreach ($fileIds as $fileId) {
+                $file = $this->lmModel->getFile($userId, $fileId);
+                if ($file) {
+                    $validFileIds[] = $fileId;
+                }
+            }
+
+            if (empty($validFileIds)) {
+                echo json_encode(['success' => false, 'message' => 'No valid documents found.']);
+                exit();
+            }
+
             $questionEmbedding = $this->gemini->generateEmbedding($question);
 
             if (empty($questionEmbedding)) {
@@ -1696,6 +2286,34 @@ class LmController
                 exit();
             }
 
+            $similarities = [];
+            $similarityThreshold = 0.3;
+            
+            foreach ($validFileIds as $fileId) {
+                $chunks = $this->lmModel->getChunksByFile($fileId);
+                
+                foreach ($chunks as $index => $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'], true);
+                    
+                    if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                        continue;
+                    }
+
+                    if (count($chunkEmbedding) !== count($questionEmbedding)) {
+                        continue;
+                    }
+
+                    $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
+                    
+                    if ($similarity >= $similarityThreshold) {
+                        $similarities[] = [
+                            'fileId' => $fileId,
+                            'chunk' => $chunk['chunkText'] ?? '',
+                            'similarity' => $similarity,
+                        ];
+                    }
+                }
+            }
             // 2. Get all chunks for the file
             $chunks = $this->lmModel->getChunksByFile($fileId);
 
@@ -1735,21 +2353,26 @@ class LmController
             // If no chunks found, use the full extracted text as context
             if (empty($context)) {
                 $context = $file['extracted_text'] ?? '';
+            $topChunks = array_slice($similarities, 0, 5);
+
+            if (empty($topChunks)) {
+                echo json_encode(['success' => false, 'message' => 'No relevant content found for your question across the selected documents. Please try rephrasing or selecting different documents.']);
+                exit();
             }
 
-            // 6. Get chat history
-            $chatHistory = $this->lmModel->chatHistory($fileId);
-            $userQuestions = $chatHistory['questions'];
-            $aiResponse = $chatHistory['responseChats'];
-            $compressedChatHistory = $this->gemini->compressChatHistory($userQuestions, $aiResponse);
+            $context = '';
+            foreach ($topChunks as $chunk) {
+                $context .= $chunk['chunk'] . "\n\n";
+            }
 
-            // 7. Generate response using the context
-            $questionChatId = $this->lmModel->saveQuestionChat($chatbot['chatbotID'], $question);
-            $response = $this->gemini->generateChatbotResponse($context, $question, $compressedChatHistory);
-            $responseChatId = $this->lmModel->saveResponseChat($questionChatId, $response);
-            $response = $this->lmModel->getResponseChatById($responseChatId);
+            $response = $this->gemini->generateChatbotResponse($context, $question, null);
 
-            echo json_encode(['success' => true, 'response' => $response['response']]);
+            if (empty($response)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to generate response.']);
+                exit();
+            }
+
+            echo json_encode(['success' => true, 'response' => $response]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -1757,7 +2380,7 @@ class LmController
     }
 
     /**
-     * Helper: Save or retrieve chatbot for a file
+     * Saves or retrieves chatbot instance for a file, creates new one if doesn't exist
      */
     private function saveChatbot($fileId, $userId)
     {
@@ -1773,6 +2396,9 @@ class LmController
         return $chatbotId;
     }
 
+    /**
+     * Calculates cosine similarity between two embedding vectors
+     */
     private function cosineSimilarity(array $a, array $b): float
     {
         $dotProduct = 0.0;
@@ -1802,7 +2428,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display quizzes for a document
+     * Displays all quizzes for a document
      */
     public function quiz()
     {
@@ -1838,7 +2464,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Save quiz score
+     * Saves quiz score to database
      */
     public function saveScore()
     {
@@ -1888,7 +2514,27 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Retrieve a specific quiz by ID
+     * ACTION (JSON API): Get quiz statistics
+     */
+    public function getQuizStatistics()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_GET['file_id']) ? (int)$_GET['file_id'] : null;
+
+        try {
+            $stats = $this->lmModel->getQuizStatistics($userId, $fileId);
+            echo json_encode(['success' => true, 'data' => $stats]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Retrieves a specific quiz by ID and returns questions
      */
     public function viewQuiz()
     {
@@ -1941,6 +2587,10 @@ class LmController
     }
 
     public function viewQuizAttempt()
+    /**
+     * Generates quiz using AI with configurable question amount, difficulty, and type (MCQ/short answer)
+     */
+    public function generateQuiz()
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
@@ -2013,6 +2663,24 @@ class LmController
         $totalQuestions = max(1, min(25, $totalQuestions));
         
         // Validate file ID
+        $questionAmount = '';
+        $questionDifficulty = '';
+        $instructions = '';
+        $questionType = 'mcq';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionAmount'])) {
+            $questionAmount = trim($_POST['questionAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionDifficulty'])) {
+            $questionDifficulty = trim($_POST['questionDifficulty']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
+            $questionType = trim($_POST['questionType']);
+        }
+
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
@@ -2033,6 +2701,72 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
+            
+            $geminiConfig = require __DIR__ . '/../config/gemini.php';
+            $maxRetries = $geminiConfig['rate_limiting']['max_retries'] ?? 3;
+            $retryDelay = $geminiConfig['rate_limiting']['retry_delay'] ?? 2;
+            $delayBetweenCalls = $geminiConfig['rate_limiting']['delay_between_calls'] ?? 0.5;
+            
+            for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                try {
+                    if ($questionType == 'mcq') {
+                        $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
+                    } elseif ($questionType == 'shortQuestion') {
+                        $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
+                    } else {
+                        echo json_encode(['success' => false, 'message' => 'Invalid question type.']);
+                        exit();
+                    }
+                    break;
+                } catch (\RuntimeException $e) {
+                    $errorMessage = $e->getMessage();
+                    if ((strpos($errorMessage, 'overloaded') !== false || strpos($errorMessage, 'rate limit') !== false) && $attempt < $maxRetries) {
+                        sleep($retryDelay * $attempt);
+                        continue;
+                    }
+                    if (strpos($errorMessage, 'overloaded') !== false) {
+                        $errorMessage = 'The AI service is currently busy. Please wait a moment and try again.';
+                    }
+                    echo json_encode(['success' => false, 'message' => $errorMessage]);
+                    exit();
+                }
+            }
+
+            if (empty($quizData)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to generate quiz data. The AI service returned an empty response.']);
+                exit();
+            }
+
+            $decodedQuiz = json_decode($quizData, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode(['success' => false, 'message' => 'Invalid JSON response from AI: ' . json_last_error_msg()]);
+                exit();
+            }
+
+            if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz']) || empty($decodedQuiz['quiz'])) {
+                echo json_encode(['success' => false, 'message' => 'Quiz data structure is invalid.']);
+                exit();
+            }
+
+            $totalQuestions = count($decodedQuiz['quiz']);
+
+            try {
+                usleep((int)($delayBetweenCalls * 1000000));
+                $title = $this->gemini->generateTitle($file['name'] . ' Quiz');
+            } catch (\RuntimeException $e) {
+                $title = $file['name'] . ' - Quiz';
+            }
+            
+            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
+            if (!$quizId || $quizId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Failed to save quiz to database.']);
+                exit();
+            }
+
+            $encodedQuiz = json_encode($decodedQuiz['quiz']);
+            $questionId = null;
+            if ($questionType == 'mcq') {
+                $questionId = $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
 
             // Handle different quiz types
@@ -2055,67 +2789,8 @@ class LmController
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
                 
             } elseif ($questionType == 'shortQuestion') {
-                // Generate Short Question quiz
-                $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
-                $decodedQuiz = json_decode($quizData, true);
-                
-                if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
-                    echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
-                    exit();
-                }
-
-                $totalQuestions = count($decodedQuiz['quiz']);
-                $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
-                $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
-                $encodedQuiz = json_encode($decodedQuiz['quiz']);
                 $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
-
-                echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
-                
-            } else {
-                // Generate Mixed quiz (default)
-                $distributionRaw = $_POST['questionDistribution'] ?? '{}';
-                $distribution = json_decode($distributionRaw, true);
-                if (!is_array($distribution)) {
-                    $distribution = [];
-                }
-                
-                $allowedTypes = [
-                    'multiple_choice',
-                    'checkbox',
-                    'true_false',
-                    'short_answer',
-                    'long_answer'
-                ];
-                
-                $normalizedDistribution = [];
-                $totalRequested = 0;
-                foreach ($allowedTypes as $type) {
-                    $value = isset($distribution[$type]) ? (int)$distribution[$type] : 0;
-                    if ($value < 0) {
-                        $value = 0;
-                    }
-                    $normalizedDistribution[$type] = $value;
-                    $totalRequested += $value;
-                }
-                
-                if ($totalRequested === 0) {
-                    $normalizedDistribution['multiple_choice'] = $totalQuestions;
-                    $totalRequested = $totalQuestions;
-                }
-                
-                if ($totalRequested !== $totalQuestions) {
-                    echo json_encode(['success' => false, 'message' => 'Total question distribution must equal selected question quantity.']);
-                    exit();
-                }
-
-                $quizJson = $this->gemini->generateMixedQuiz($sourceText, $normalizedDistribution, $totalQuestions, $questionDifficulty, $context);
-                $decodedQuiz = json_decode($quizJson, true);
-                
-                if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
-                    echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
-                    exit();
-                }
+            }
 
                 $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
                 $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
@@ -2135,6 +2810,17 @@ class LmController
                     'quizId' => $quizId,
                     'examMode' => $examMode
                 ]);
+            if ($questionId === null || !$questionId || $questionId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Failed to save questions to database.']);
+                exit();
+            }
+
+            if ($questionType == 'mcq') {
+                echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+            } elseif ($questionType == 'shortQuestion') {
+                echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+            } else {
+                echo json_encode(['success' => true, 'quiz' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
             }
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
@@ -2142,6 +2828,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Saves user quiz answers to database
+     */
     public function submitQuiz()
     {
         header('Content-Type: application/json');
@@ -2324,8 +3013,35 @@ class LmController
         return $cards;
     }
 
+    private function decodeFlashcardCards(array $flashcard): array
+    {
+        $termsRaw = $flashcard['term'] ?? '[]';
+        $definitionsRaw = $flashcard['definition'] ?? '[]';
+
+        $decodedTerms = json_decode($termsRaw, true);
+        if (!is_array($decodedTerms)) {
+            $decodedTerms = array_filter(array_map('trim', explode("\n", (string)$termsRaw)), static fn($item) => $item !== '');
+        }
+
+        $decodedDefinitions = json_decode($definitionsRaw, true);
+        if (!is_array($decodedDefinitions)) {
+            $decodedDefinitions = array_map('trim', explode("\n", (string)$definitionsRaw));
+        }
+
+        $cards = [];
+        $count = max(count($decodedTerms), count($decodedDefinitions));
+        for ($i = 0; $i < $count; $i++) {
+            $cards[] = [
+                'term' => $decodedTerms[$i] ?? '',
+                'definition' => $decodedDefinitions[$i] ?? ''
+            ];
+        }
+
+        return $cards;
+    }
+
     /**
-     * VIEW: Display flashcards for a document
+     * Displays all flashcard sets for a document
      */
     public function flashcard()
     {
@@ -2361,7 +3077,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate flashcards using AI
+     * Generates flashcards using AI with configurable amount and type, saves to database
      */
     public function generateFlashcards()
     {
@@ -2469,6 +3185,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Retrieves flashcard set by title and file ID
+     */
     public function viewFlashcardSet()
     {
         header('Content-Type: application/json');
@@ -2491,6 +3210,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Deletes a flashcard set by title and file ID
+     */
     public function deleteFlashcardSet()
     {
         $this->checkSession();
@@ -2515,123 +3237,39 @@ class LmController
         exit();
     }
 
-    /**
-     * ACTION (JSON API): Generate flashcards (alternative implementation)
-     */
-    public function generateFlashcardsAlternative()
-    {
-        header('Content-Type: application/json');
-        $this->checkSession(true);
-
-        $userId = (int)$_SESSION['user_id'];
-        $fileId = $this->resolveFileId();
-        $flashcardAmount = isset($_POST['flashcardAmount']) ? (int)$_POST['flashcardAmount'] : 15;
-        $flashcardAmount = max(1, min(25, $flashcardAmount));
-        $flashcardType = isset($_POST['flashcardType']) ? trim($_POST['flashcardType']) : 'medium';
-        $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
-
-        if ($fileId === 0) {
-            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
-            exit();
-        }
-
-        try {
-            $file = $this->lmModel->getFile($userId, $fileId);
-            if (!$file || !is_array($file)) {
-                echo json_encode(['success' => false, 'message' => 'File not found.']);
-                exit();
-            }
-
-            $sourceText = $file['extracted_text'] ?? '';
-            if (empty($sourceText)) {
-                echo json_encode(['success' => false, 'message' => 'No extracted text found.']);
-                exit();
-            }
-
-            $context = !empty($instructions) ? $instructions : '';
-            $flashcards = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
-            $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
-            $decodedFlashcards = json_decode($flashcards, true);
-            $term = '';
-            $definition = '';
-
-            foreach ($decodedFlashcards['flashcards'] as $flashcard) {
-                $term .= $flashcard['term'] . "\n";
-                $definition .= $flashcard['definition'] . "\n";
-            }
-
-            $terms = json_encode($term);
-            $definitions = json_encode($definition);
-            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
-            $flashcardId = $this->lmModel->saveFlashcards($fileId, $title, $terms, $definitions);
-
-            echo json_encode(['success' => true, 'term' => $terms, 'definition' => $definitions]);
-        } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-        }
-        exit();
-    }
-
-    /**
-     * ACTION (JSON API): Retrieve a specific flashcard by ID
-     */
-    public function viewFlashcard()
-    {
-        header('Content-Type: application/json');
-        $this->checkSession(true);
-
-        $userId = (int)$_SESSION['user_id'];
-        $fileId = $this->resolveFileId();
-        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
-
-        if ($flashcardId === 0) {
-            echo json_encode(['success' => false, 'message' => 'Flashcard ID not provided.']);
-            exit();
-        }
-
-        try {
-            $flashcard = $this->lmModel->getFlashcardsById($flashcardId);
-            if (!$flashcard) {
-                echo json_encode(['success' => false, 'message' => 'Flashcard not found.']);
-                exit();
-            }
-
-            $cards = $this->decodeFlashcardCards($flashcard);
-
-            echo json_encode([
-                'success' => true,
-                'flashcard' => [
-                    'flashcardID' => $flashcardId,
-                    'title' => $flashcard['title'] ?? '',
-                    'cards' => $cards,
-                    'createdAt' => $flashcard['createdAt'] ?? ''
-                ]
-            ]);
-        } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
-        }
-        exit();
-    }
-
     // ============================================================================
-    // MULTI DOCUMENT PAGE (multidoc.php)
+    // DOCUMENT HUB PAGE (multidoc.php)
     // ============================================================================
 
-    public function multidoc()
+    /**
+     * Displays document hub interface for multi-document operations
+     */
+    public function documentHub()
     {
         $this->checkSession();
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $fileList = $this->lmModel->getFilesForUser($userId);
+        $allFiles = $this->lmModel->getFilesForUser($userId);
+        
+        // Filter out audio files from document selection
+        $audioFileTypes = ['wav', 'mp3', 'ogg', 'm4a', 'aac', 'flac', 'wma'];
+        $fileList = array_filter($allFiles, function($file) use ($audioFileTypes) {
+            $fileType = strtolower($file['fileType'] ?? '');
+            return !in_array($fileType, $audioFileTypes);
+        });
+        
         $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
 
         $user = $this->getUserInfo();
 
-        require_once VIEW_MULTI_DOCUMENT;
+        require_once VIEW_DOCUMENT_HUB;
     }
 
-    public function generateMultiReport(){
+    /**
+     * Synthesizes a new document from multiple selected documents using RAG: finds relevant chunks via embeddings and generates document
+     */
+    public function synthesizeDocument(){
         header('Content-Type: application/json');
 
         $data = json_decode(file_get_contents('php://input'), true);
@@ -2640,14 +3278,387 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $fileList = $this->lmModel->getFilesForUser($userId);
-        $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-        $selectedFileId = $data['fileIds'];
-        $flieList = [];
-        foreach($selectedFileId as $fileId){
-            $file = $this->lmModel->getFile($userId, $fileId);
-            if($file){
-                $fileList[] = $file;
+        $flashcardAmount = '';
+        $flashcardType = '';
+        $instructions = '';
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardAmount'])) {
+            $flashcardAmount = trim($_POST['flashcardAmount']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flashcardType'])) {
+            $flashcardType = trim($_POST['flashcardType']);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
+            $instructions = trim($_POST['instructions']);
+        }
+
+        if (empty($validFileIds)) {
+            echo json_encode(['success' => false, 'message' => 'No valid files found.']);
+            exit();
+        }
+
+        try {
+            $queryEmbedding = $this->gemini->generateEmbedding($description);
+
+            if (empty($queryEmbedding)) {
+                echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the description.']);
+                exit();
+            }
+
+            $similarities = [];
+            $totalChunksSearched = 0;
+            $similarityThreshold = 0.25;
+            
+            foreach ($validFileIds as $fileId) {
+                $chunks = $this->lmModel->getChunksByFile($fileId);
+                
+                if (empty($chunks)) {
+                    continue;
+                }
+
+                foreach ($chunks as $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'], true);
+                    
+                    if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                        continue;
+                    }
+
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $chunkEmbedding);
+                    $totalChunksSearched++;
+                    
+                    if ($similarity >= $similarityThreshold) {
+                        $similarities[] = [
+                            'fileId' => $fileId,
+                            'chunkText' => $chunk['chunkText'] ?? '',
+                            'similarity' => $similarity,
+                        ];
+                    }
+                }
+            }
+
+            usort($similarities, function ($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            $topK = min(15, count($similarities));
+            $topChunks = array_slice($similarities, 0, $topK);
+
+            if (empty($topChunks)) {
+                echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents that matches your query. Please try a different query or select different documents.']);
+                exit();
+            }
+
+            $context = '';
+            foreach ($topChunks as $index => $chunk) {
+                $context .= $chunk['chunkText'] . "\n\n";
+            }
+
+            echo json_encode(['success' => true, 'flashcard' => $flashcard]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+            $document = $this->gemini->synthesizeDocument($context, $description);
+
+            if (empty($document)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to synthesize document.']);
+                exit();
+            }
+
+            $formattedDocument = $this->gemini->formatContent($document);
+
+            $documentTypeNames = [
+                'studyGuide' => 'Study Guide',
+                'briefDocument' => 'Brief Document',
+                'keyPoints' => 'Key Points'
+            ];
+            $documentTypeName = $documentTypeNames[$documentType] ?? 'Document';
+            $timestamp = date('Y-m-d_H-i-s');
+            $fileName = $documentTypeName . '_' . $timestamp . '.txt';
+
+            $fileContent = $formattedDocument;
+            $savedFileId = $this->lmModel->uploadFileToGCS(
+                $userId,
+                null,
+                $formattedDocument,
+                $fileContent,
+                null,
+                $fileName
+            );
+
+            if ($savedFileId) {
+                try {
+                    $chunks = $this->lmModel->splitTextIntoChunks($formattedDocument, $savedFileId);
+                    $embeddings = [];
+                    foreach ($chunks as $chunk) {
+                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
+                    }
+                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $savedFileId);
+                } catch (\Exception $e) {
+                    // Failed to generate chunks for saved document
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'content' => $document,
+                'fileId' => $savedFileId,
+                'fileName' => $fileName,
+                'chunksUsed' => count($topChunks),
+                'totalChunksSearched' => $totalChunksSearched
+            ]);
+
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'An error occurred while synthesizing the document.']);
+        }
+        exit();
+    }
+
+
+    /**
+     * ACTION: Create flashcards manually
+     */
+    public function createFlashcard()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : $this->resolveFileId();
+        $title = trim($_POST['title'] ?? '');
+        $termsInput = $_POST['terms'] ?? [];
+        $definitionsInput = $_POST['definitions'] ?? [];
+
+        if (empty($validFileIds)) {
+            echo json_encode(['success' => false, 'message' => 'No valid files found.']);
+            exit();
+        }
+
+        if ($title === '') {
+            echo json_encode(['success' => false, 'message' => 'Title is required.']);
+            exit();
+        }
+
+        if (!is_array($termsInput) || !is_array($definitionsInput)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid flashcard data submitted.']);
+            exit();
+        }
+
+        $file = $this->lmModel->getFile($userId, $fileId);
+        if (!$file) {
+            echo json_encode(['success' => false, 'message' => 'File not found or access denied.']);
+            exit();
+        }
+
+        $cleanTerms = [];
+        $cleanDefinitions = [];
+
+        foreach ($termsInput as $index => $termValue) {
+            $termValue = trim((string)$termValue);
+            $definitionValue = trim((string)($definitionsInput[$index] ?? ''));
+
+            if ($termValue === '' && $definitionValue === '') {
+                continue;
+            }
+
+            if ($termValue === '' || $definitionValue === '') {
+                echo json_encode(['success' => false, 'message' => 'Each flashcard needs both a term and a definition.']);
+                exit();
+            }
+
+            $cleanTerms[] = $termValue;
+            $cleanDefinitions[] = $definitionValue;
+        }
+
+        if (empty($cleanTerms)) {
+            echo json_encode(['success' => false, 'message' => 'Add at least one flashcard before saving.']);
+            exit();
+        }
+
+        $termString = json_encode(array_values($cleanTerms));
+        $definitionString = json_encode(array_values($cleanDefinitions));
+
+        try {
+            $this->lmModel->saveFlashcards($fileId, $title, $termString, $definitionString);
+            echo json_encode(['success' => true, 'message' => 'Flashcards saved successfully.']);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * ACTION: Update flashcards
+     */
+    public function updateFlashcard()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
+        $title = trim($_POST['title'] ?? '');
+        $termsInput = $_POST['terms'] ?? [];
+        $definitionsInput = $_POST['definitions'] ?? [];
+
+        if ($flashcardId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Flashcard ID not provided.']);
+            exit();
+        }
+
+        if ($title === '') {
+            echo json_encode(['success' => false, 'message' => 'Title is required.']);
+            exit();
+        }
+
+        if (!is_array($termsInput) || !is_array($definitionsInput)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid flashcard data submitted.']);
+            exit();
+        }
+
+        $flashcard = $this->lmModel->getFlashcardWithOwner($flashcardId, $userId);
+        if (!$flashcard) {
+            echo json_encode(['success' => false, 'message' => 'Flashcard not found or access denied.']);
+            exit();
+        }
+
+        $cleanTerms = [];
+        $cleanDefinitions = [];
+
+        foreach ($termsInput as $index => $termValue) {
+            $termValue = trim((string)$termValue);
+            $definitionValue = trim((string)($definitionsInput[$index] ?? ''));
+
+            if ($termValue === '' && $definitionValue === '') {
+                continue;
+            }
+
+            if ($termValue === '' || $definitionValue === '') {
+                echo json_encode(['success' => false, 'message' => 'Each flashcard needs both a term and a definition.']);
+                exit();
+            }
+
+            $cleanTerms[] = $termValue;
+            $cleanDefinitions[] = $definitionValue;
+        }
+
+        if (empty($cleanTerms)) {
+            echo json_encode(['success' => false, 'message' => 'Add at least one flashcard before saving.']);
+            exit();
+        }
+
+        $termString = json_encode(array_values($cleanTerms));
+        $definitionString = json_encode(array_values($cleanDefinitions));
+
+        try {
+            $this->lmModel->updateFlashcard($flashcardId, $title, $termString, $definitionString, $userId);
+            echo json_encode(['success' => true, 'message' => 'Flashcard updated successfully.']);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * ACTION: Delete a saved flashcard set
+     */
+    public function deleteFlashcard()
+    {
+        $this->checkSession();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        $flashcardId = isset($_POST['flashcard_id']) ? (int)$_POST['flashcard_id'] : 0;
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($flashcardId === 0 || $fileId === 0) {
+            $_SESSION['error'] = "Flashcard information not provided.";
+            header('Location: ' . FLASHCARD);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+
+        try {
+            $database = new Database();
+            $conn = $database->connect();
+
+            $stmt = $conn->prepare("
+                DELETE fc FROM flashcard fc
+                INNER JOIN file f ON fc.fileID = f.fileID
+                WHERE fc.flashcardID = :flashcardId
+                  AND fc.fileID = :fileId
+                  AND f.userID = :userId
+            ");
+            $stmt->bindParam(':flashcardId', $flashcardId, \PDO::PARAM_INT);
+            $stmt->bindParam(':fileId', $fileId, \PDO::PARAM_INT);
+            $stmt->bindParam(':userId', $userId, \PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                $_SESSION['message'] = "Flashcard deleted successfully.";
+            } else {
+                $_SESSION['error'] = "Unable to delete flashcard. Please try again.";
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+        }
+
+        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $fileId;
+        header('Location: ' . FLASHCARD);
+        exit();
+    }
+
+    /**
+     * Delete a quiz
+     */
+    public function deleteQuiz()
+    {
+        $this->checkSession(true);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+            exit();
+        }
+
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($quizId === 0 || $fileId === 0) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Quiz information not provided.']);
+            exit();
+        }
+
+        $userId = (int)$_SESSION['user_id'];
+
+        try {
+            $deleted = $this->lmModel->deleteQuiz($quizId, $userId);
+            
+            if ($deleted) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => 'Quiz deleted successfully.']);
+                exit();
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Unable to delete quiz. Quiz not found or you do not have permission.']);
+                exit();
             }
         }
 

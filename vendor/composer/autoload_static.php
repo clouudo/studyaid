@@ -59,6 +59,7 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
             'Google\\Protobuf\\' => 16,
             'Google\\LongRunning\\' => 19,
             'Google\\Iam\\' => 11,
+            'Google\\Cloud\\Vision\\' => 20,
             'Google\\Cloud\\Storage\\' => 21,
             'Google\\Cloud\\Core\\' => 18,
             'Google\\Cloud\\' => 13,
@@ -73,6 +74,7 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
             'GPBMetadata\\Google\\Longrunning\\' => 31,
             'GPBMetadata\\Google\\Logging\\' => 27,
             'GPBMetadata\\Google\\Iam\\' => 23,
+            'GPBMetadata\\Google\\Cloud\\Vision\\' => 32,
             'GPBMetadata\\Google\\Cloud\\' => 25,
             'GPBMetadata\\Google\\Api\\' => 23,
             'GPBMetadata\\ApiCore\\' => 20,
@@ -198,6 +200,10 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
         array (
             0 => __DIR__ . '/..' . '/google/common-protos/src/Iam',
         ),
+        'Google\\Cloud\\Vision\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/google/cloud-vision/src',
+        ),
         'Google\\Cloud\\Storage\\' => 
         array (
             0 => __DIR__ . '/..' . '/google/cloud-storage/src',
@@ -253,6 +259,10 @@ class ComposerStaticInite8fd7b74b501204264484cf0fc8c142a
         'GPBMetadata\\Google\\Iam\\' => 
         array (
             0 => __DIR__ . '/..' . '/google/common-protos/metadata/Iam',
+        ),
+        'GPBMetadata\\Google\\Cloud\\Vision\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/google/cloud-vision/metadata',
         ),
         'GPBMetadata\\Google\\Cloud\\' => 
         array (

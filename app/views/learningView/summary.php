@@ -7,6 +7,7 @@
     <title>Extracted Text - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
@@ -106,6 +107,81 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown menu styling */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
         }
     </style>
 </head>
@@ -128,7 +204,7 @@
                 <?php require_once VIEW_NAVBAR; ?>
                 <div class="card">
                     <div class="card-body">
-                        <form id="generateSummaryForm" action="#" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
+                        <form id="generateSummaryForm" action="<?= GENERATE_SUMMARY ?>" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
                             <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
@@ -149,14 +225,22 @@
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
                                                 <strong><?= htmlspecialchars($summary['title']) ?></strong><br>
-                                                <small class="text-muted">Updated: <?= htmlspecialchars($summary['createdAt']) ?></small>
+                                                <small class="text-muted">Created: <?= htmlspecialchars($summary['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    Actions
+                                                <button class="action-btn"
+                                                    type="button"
+                                                    id="dropdownSummaryActions<?php echo $summary['summaryID']; ?>"
+                                                    data-bs-toggle="dropdown"
+                                                    data-bs-display="static"
+                                                    aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownSummaryActions<?php echo $summary['summaryID']; ?>">
                                                     <li><a class="dropdown-item view-summary-btn" href="#" data-bs-toggle="collapse" data-bs-target="#summaryContent-<?php echo $summary['summaryID']; ?>">View</a></li>
+                                                    <li><a class="dropdown-item audio-summary-btn" href="#" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>">
+                                                        <i class="bi bi-volume-up me-2"></i>Listen to Audio
+                                                    </a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
@@ -164,17 +248,17 @@
                                                         <hr class="dropdown-divider">
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= SAVE_SUMMARY_AS_FILE ?>" style="display: inline;" class="save-summary-as-file-form" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-summary-title="<?= htmlspecialchars($summary['title']) ?>">
                                                             <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                            <button type="button" class="dropdown-item save-summary-as-file-btn" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
                                                         </form>
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= DELETE_SUMMARY ?>" style="display: inline;" class="delete-summary-form" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                             <input type="hidden" name="summary_id" value="<?= htmlspecialchars($summary['summaryID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                            <button type="button" class="dropdown-item delete-summary-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                         </form>
                                                     </li>
                                                 </ul>
@@ -194,6 +278,7 @@
             </div>
         </main>
     </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
@@ -227,8 +312,68 @@
             }, 3000);
         }
 
+        /**
+         * Delete summary handler
+         * 
+         * Behavior: Shows confirmation modal before deleting summary. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-summary-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-summary-form');
+            var summaryId = $form.data('summary-id');
+            var summaryTitle = $form.closest('.list-group-item').find('strong').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the summary "' + summaryTitle + '"? This action cannot be undone.',
+                title: 'Delete Summary',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+        /**
+         * Save summary as file handler
+         * 
+         * Behavior: Shows confirmation modal before saving summary as file. On confirmation,
+         * submits the form to save the summary as a new file.
+         */
+        $(document).on('click', '.save-summary-as-file-btn', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var $form = $(this).closest('.save-summary-as-file-form');
+            var summaryTitle = $form.data('summary-title');
+
+            showConfirmModal({
+                message: 'Are you sure you want to save the summary "' + summaryTitle + '" as a new file?',
+                title: 'Save Summary as File',
+                confirmText: 'Save',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+
+        /**
+         * Document ready handler - initializes summary page functionality
+         * 
+         * Behavior: Sets up form submission handlers, markdown parsing, and
+         * event listeners for audio generation and export functionality.
+         */
         document.addEventListener('DOMContentLoaded', function() {
-            // Handle generate summary form submission
+            /**
+             * Generate summary form submission handler
+             * 
+             * Behavior: Intercepts form submission, sends AJAX request to generateSummary
+             * endpoint, shows loading state, and reloads page on success or shows error.
+             */
             const generateSummaryForm = document.getElementById('generateSummaryForm');
             if (generateSummaryForm) {
                 generateSummaryForm.addEventListener('submit', async (e) => {
@@ -244,14 +389,30 @@
                     submitButton.textContent = 'Generating...';
 
                     try {
-                        const actionUrl = form.getAttribute('data-action') || form.action;
+                        // Get the action URL - use data-action attribute or form action
+                        let actionUrl = form.getAttribute('data-action') || form.action;
+                        
+                        // Convert routing URL to index.php format for fetch
+                        // GENERATE_SUMMARY outputs: /studyaid/lm/generateSummary
+                        // Need to convert to: /studyaid/index.php?url=lm/generateSummary
+                        if (actionUrl.includes('/lm/')) {
+                            // Extract the route part (lm/generateSummary)
+                            const routeMatch = actionUrl.match(/\/lm\/(.+)$/);
+                            if (routeMatch) {
+                                actionUrl = '<?= BASE_PATH ?>index.php?url=lm/' + routeMatch[1];
+                            }
+                        }
+                        
+                        const formData = new FormData(form);
+                        
                         const res = await fetch(actionUrl, {
                             method: 'POST',
-                            body: new FormData(form)
+                            body: formData
                         });
 
                         if (!res.ok) {
-                            throw new Error('Network response was not ok');
+                            const errorText = await res.text();
+                            throw new Error('Network response was not ok: ' + res.status + ' - ' + errorText.substring(0, 100));
                         }
 
                         const json = await res.json();
@@ -275,12 +436,89 @@
                 });
             }
 
-            // Parse markdown for summary content
+            /**
+             * Parse markdown for summary content
+             * 
+             * Behavior: Converts markdown text in summary content divs to HTML
+             * using the marked.js library.
+             */
             document.querySelectorAll('.summaryContent').forEach(function(div) {
                 div.innerHTML = marked.parse(div.textContent);
             });
 
-            // Handle export summary buttons (mirror note.php behavior)
+            /**
+             * Audio summary button handler
+             * 
+             * Behavior: Generates audio for summary via AJAX, creates Audio element,
+             * and plays it. Shows loading state during generation.
+             */
+            // Handle audio summary buttons
+            document.querySelectorAll('.audio-summary-btn').forEach(function(btn) {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const summaryId = this.dataset.summaryId;
+                    const originalText = this.innerHTML;
+                    
+                    // Show loading state
+                    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
+                    this.style.pointerEvents = 'none';
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('summary_id', summaryId);
+                        formData.append('file_id', '<?= htmlspecialchars($file['fileID']) ?>');
+
+                        const response = await fetch('<?= AUDIO_SUMMARY ?>', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const json = await response.json();
+
+                        if (!json.success) {
+                            throw new Error(json.message || 'Failed to generate audio');
+                        }
+
+                        // Create audio element and play
+                        const audio = new Audio(json.audioUrl);
+                        audio.play().catch(err => {
+                            console.error('Error playing audio:', err);
+                            alert('Error playing audio. Please check your browser settings.');
+                        });
+
+                        // Update button state
+                        this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                        
+                        // Reset button when audio ends
+                        audio.addEventListener('ended', () => {
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
+                        });
+
+                        audio.addEventListener('error', () => {
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
+                            alert('Error loading audio file.');
+                        });
+
+                    } catch (error) {
+                        console.error('Audio error:', error);
+                        alert('Error generating audio: ' + error.message);
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
+                    }
+                });
+            });
+
+            /**
+             * Export summary button handler
+             * 
+             * Behavior: Exports summary as PDF, DOCX, or TXT file. Downloads file
+             * via blob URL. Handles errors and validates response content type.
+             */
+            // Handle export summary buttons
             document.querySelectorAll('.export-summary-btn').forEach(function(btn) {
                 btn.addEventListener('click', async function(e) {
                     e.preventDefault();
@@ -352,6 +590,7 @@
             });
         });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

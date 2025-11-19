@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Extracted Text - StudyAid</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <link rel="stylesheet" href="<?= CSS_PATH ?>style.css">
@@ -92,6 +93,192 @@
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
+
+        /* Split Screen Layout for Note Editor */
+        .note-split-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            min-height: 500px;
+        }
+
+        .note-split-container.single-view {
+            grid-template-columns: 1fr;
+        }
+
+        .note-editor-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .note-preview-panel {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        #noteSplitEditor {
+            flex: 1;
+            resize: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border: none;
+            padding: 1rem;
+            outline: none;
+        }
+
+        .note-editor-header {
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-editor-footer {
+            padding: 0.5rem 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .view-toggle-active {
+            background-color: #A855F7 !important;
+            color: white !important;
+            border-color: #A855F7 !important;
+        }
+
+        .note-preview-panel h1, .note-preview-panel h2, .note-preview-panel h3,
+        .note-preview-panel h4, .note-preview-panel h5, .note-preview-panel h6 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .note-preview-panel p {
+            margin-bottom: 0.75rem;
+        }
+
+        .note-preview-panel ul, .note-preview-panel ol {
+            margin-bottom: 0.75rem;
+            padding-left: 2rem;
+        }
+
+        .note-preview-panel code {
+            background-color: #f8f9fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown menu styling */
+        main .dropdown-menu,
+        .upload-container .dropdown-menu {
+            position: absolute !important;
+            inset: auto auto auto auto !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            margin: 0 !important;
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            background-color: #ffffff !important;
+            min-width: 180px !important;
+            width: 180px !important;
+            max-width: 180px !important;
+            padding: 8px 0 !important;
+            overflow: hidden !important;
+            transform: none !important;
+            z-index: 2147483647 !important;
+        }
+
+        .dropdown-menu li {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropdown-menu li + li {
+            border-top: 1px solid #f0e6ff;
+        }
+
+        .list-group-item .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .dropdown {
+            position: relative;
+            z-index: 2147483646;
+        }
+
+        .dropdown.show {
+            z-index: 2147483646 !important;
+        }
+
+        main .dropdown.show .dropdown-menu,
+        .upload-container .dropdown.show .dropdown-menu {
+            z-index: 2147483647 !important;
+            display: block !important;
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            transform: none !important;
+            width: 180px !important;
+            min-width: 180px !important;
+            max-width: 180px !important;
+        }
+
+        .note-preview-panel pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Limit image sizes in note previews */
+        .note-preview-panel img,
+        .note-preview img {
+            display: block;
+            max-width: 100%;
+            max-height: 400px;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0.375rem;
+            margin: 1rem auto;
+        }
+
+        /* Smaller image preview in upload modal */
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
         }
     </style>
 </head>
@@ -144,6 +331,7 @@
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-h1"></i></button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i></button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image"><i class="bi bi-image"></i></button>
                                 </div>
                             </div>
                             <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px; overflow:hidden; resize:none;"></textarea>
@@ -161,18 +349,34 @@
                         <div class="list-group list-group-flush" id="noteList">
                             <?php if ($noteList): ?>
                                 <?php foreach ($noteList as $note): ?>
-                                    <div class="list-group-item">
+                                    <?php
+                                        $encodedTitle = htmlspecialchars($note['title'], ENT_QUOTES, 'UTF-8');
+                                        $encodedContent = htmlspecialchars(json_encode($note['content'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+                                    ?>
+                                    <div class="list-group-item note-item"
+                                        data-note-id="<?= htmlspecialchars($note['noteID']) ?>"
+                                        data-note-title="<?= $encodedTitle ?>"
+                                        data-note-content='<?= $encodedContent ?>'>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
-                                                <strong><?= htmlspecialchars($note['title']) ?></strong><br>
-                                                <small class="text-muted">Updated: <?= htmlspecialchars($note['createdAt']) ?></small>
+                                                <strong class="note-title-text"><?= htmlspecialchars($note['title']) ?></strong><br>
+                                                <small class="text-muted note-updated-at">Created: <?= htmlspecialchars($note['createdAt'] ?? '') ?></small>
                                             </div>
                                             <div class="dropdown">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownFileActions<?php echo $note['noteID']; ?>" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    Actions
+                                                <button class="action-btn"
+                                                    type="button"
+                                                    id="dropdownFileActions<?php echo $note['noteID']; ?>"
+                                                    data-bs-toggle="dropdown"
+                                                    data-bs-display="static"
+                                                    aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $note['noteID']; ?>">
                                                     <li><a class="dropdown-item view-note-btn" href="#" data-bs-toggle="collapse" data-bs-target="#noteContent-<?php echo $note['noteID']; ?>">View</a></li>
+                                                    <li><button type="button" class="dropdown-item edit-note-btn" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">Edit inline</button></li>
+                                                    <li><a class="dropdown-item audio-note-btn" href="#" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
+                                                        <i class="bi bi-volume-up me-2"></i>Listen to Audio
+                                                    </a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="pdf" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="docx" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="txt" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
@@ -180,24 +384,77 @@
                                                         <hr class="dropdown-divider">
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= SAVE_NOTE_AS_FILE ?>" style="display: inline;" class="save-note-as-file-form" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-note-title="<?= htmlspecialchars($note['title']) ?>">
                                                             <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
+                                                            <button type="button" class="dropdown-item save-note-as-file-btn" style="border: none; background: none; width: 100%; text-align: left;">Save as File</button>
                                                         </form>
                                                     </li>
                                                     <li>
-                                                        <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;">
+                                                        <form method="POST" action="<?= DELETE_NOTE ?>" style="display: inline;" class="delete-note-form" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">
                                                             <input type="hidden" name="note_id" value="<?= htmlspecialchars($note['noteID']) ?>">
                                                             <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                            <button type="button" class="dropdown-item delete-note-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                         </form>
                                                     </li>
                                                 </ul>
                                             </div>
                                         </div>
                                         <div class="collapse mt-2" id="noteContent-<?php echo $note['noteID']; ?>">
-                                            <div class="noteText border-top pt-2"><?php echo htmlspecialchars($note['content']); ?></div>
+                                            <div class="note-preview border-top pt-2" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
+                                                <?php echo nl2br(htmlspecialchars($note['content'])); ?>
+                                            </div>
+                                            <div class="note-inline-editor d-none pt-3" data-note-id="<?= htmlspecialchars($note['noteID']) ?>">
+                                                <!-- Split Screen Editor -->
+                                                <div class="card">
+                                                    <div class="card-body">
+                                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <button type="button" class="btn btn-outline-secondary" id="toggleNoteViewBtn-<?= htmlspecialchars($note['noteID']) ?>">Split View</button>
+                                                            </div>
+                                                            <div class="ms-auto d-flex gap-2 align-items-center">
+                                                                <button type="button" class="btn btn-sm cancel-note-edit" style="background-color: #6c757d; border: none; color: white;">Cancel</button>
+                                                                <button type="button" class="btn btn-sm save-note-edit" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" style="background-color: #A855F7; border: none; color: white;">Save Changes</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label form-label-sm">Title</label>
+                                                            <input type="text" class="form-control form-control-sm note-edit-title" value="<?= htmlspecialchars($note['title']) ?>">
+                                                        </div>
+                                                        <div id="note-split-container-<?= htmlspecialchars($note['noteID']) ?>" class="note-split-container">
+                                                            <!-- Editor Panel -->
+                                                            <div class="note-editor-panel">
+                                                                <div class="note-editor-header">
+                                                                    <h6 class="mb-0">Markdown Editor</h6>
+                                                                </div>
+                                                                <div class="btn-toolbar mb-2 px-2 pt-2" role="toolbar" id="toolbar-<?= htmlspecialchars($note['noteID']) ?>">
+                                                                    <div class="btn-group">
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-undo" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-redo" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Redo"><i class="bi bi-arrow-clockwise"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-bold" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Bold"><i class="bi bi-type-bold"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-italic" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Italic"><i class="bi bi-type-italic"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-heading" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Heading"><i class="bi bi-type-h1"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ul" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Unordered List"><i class="bi bi-list-ul"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ol" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Ordered List"><i class="bi bi-list-ol"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Image"><i class="bi bi-image"></i></button>
+                                                                    </div>
+                                                                </div>
+                                                                <textarea 
+                                                                    id="noteSplitEditor-<?= htmlspecialchars($note['noteID']) ?>" 
+                                                                    class="note-edit-content"
+                                                                    placeholder="Enter your note content in markdown..."></textarea>
+                                                                <div class="note-editor-footer">
+                                                                    <small>Edit markdown to see real-time preview. Changes are saved when you click "Save Changes".</small>
+                                                                </div>
+                                                            </div>
+                                                            <!-- Preview Panel -->
+                                                            <div class="note-preview-panel" id="notePreviewPanel-<?= htmlspecialchars($note['noteID']) ?>">
+                                                                <div class="text-muted">Preview will appear here...</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -211,6 +468,49 @@
     </div>
     </main>
     </div>
+
+    <!-- Image Upload Modal -->
+    <div class="modal fade" id="imageUploadModal" tabindex="-1" aria-labelledby="imageUploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #A855F7; color: white;">
+                    <h5 class="modal-title" id="imageUploadModalLabel">
+                        <i class="bi bi-image me-2"></i>Upload Image
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="imageUploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="imageFileInput" class="form-label">Select Image</label>
+                            <input type="file" class="form-control" id="imageFileInput" name="image" accept="image/*" required>
+                            <small class="form-text text-muted">Supported formats: JPG, PNG, GIF, WEBP, BMP (Max 10MB)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imageAltText" class="form-label">Alt Text (optional)</label>
+                            <input type="text" class="form-control" id="imageAltText" placeholder="Describe the image">
+                            <small class="form-text text-muted">This will be used as the image alt text in markdown</small>
+                        </div>
+                        <div id="imagePreviewContainer" class="mb-3" style="display: none;">
+                            <label class="form-label">Preview</label>
+                            <div class="border rounded p-2 text-center">
+                                <img id="imagePreview" src="" alt="Preview">
+                            </div>
+                        </div>
+                        <div id="imageUploadError" class="alert alert-danger" style="display: none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="uploadImageBtn" style="background-color: #A855F7; border: none;">
+                        <i class="bi bi-upload me-2"></i>Upload & Insert
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
@@ -222,6 +522,7 @@
         }
     </style>
     <script>
+<<<<<<< HEAD
         // Snackbar function
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');
@@ -243,6 +544,9 @@
                 snackbar.classList.remove('show');
             }, 3000);
         }
+=======
+        const CURRENT_FILE_ID = '<?= htmlspecialchars($file['fileID']) ?>';
+>>>>>>> d44b588c60ebb4463ce99ddfb944a1bd3a29802a
 
         document.getElementById('noteEditor').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -313,21 +617,16 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const noteContent = document.getElementById('noteContent');
-            if (noteContent) {
-                // Initial resize
-                autoResizeTextarea(noteContent);
-
-                // Resize on input
-                noteContent.addEventListener('input', function() {
+            const manualNoteContent = document.getElementById('noteContent');
+            if (manualNoteContent) {
+                autoResizeTextarea(manualNoteContent);
+                manualNoteContent.addEventListener('input', function() {
                     autoResizeTextarea(this);
                 });
             }
 
-            document.querySelectorAll('.noteText')
-                .forEach(function(div) {
-                    div.innerHTML = marked.parse(div.textContent);
-                });
+            hydrateNotePreviews();
+            bindInlineEditorInputs();
 
             // Handle export note buttons
             document.querySelectorAll('.export-note-btn').forEach(function(btn) {
@@ -420,8 +719,612 @@
                     }
                 });
             });
-        })
+        });
+
+        function bindInlineEditorInputs() {
+            document.querySelectorAll('.note-edit-content').forEach(function(textarea) {
+                autoResizeTextarea(textarea);
+                textarea.addEventListener('input', function() {
+                    autoResizeTextarea(this);
+                });
+            });
+        }
+
+        function hydrateNotePreviews() {
+            document.querySelectorAll('.note-item').forEach(function(item) {
+                const preview = item.querySelector('.note-preview');
+                if (!preview) return;
+                const rawContent = getNoteDatasetContent(item);
+                preview.innerHTML = marked.parse(rawContent || '');
+            });
+        }
+
+        function getNoteDatasetContent(item) {
+            if (!item || !item.dataset.noteContent) {
+                return '';
+            }
+            try {
+                return JSON.parse(item.dataset.noteContent);
+            } catch (error) {
+                return item.dataset.noteContent;
+            }
+        }
+
+        function openNoteEditor(noteId) {
+            const item = document.querySelector(`.note-item[data-note-id="${noteId}"]`);
+            if (!item) return;
+
+            const collapseTarget = document.getElementById(`noteContent-${noteId}`);
+            if (collapseTarget && !collapseTarget.classList.contains('show') && window.bootstrap) {
+                new bootstrap.Collapse(collapseTarget, {
+                    toggle: false
+                }).show();
+            }
+
+            const editor = item.querySelector('.note-inline-editor');
+            const preview = item.querySelector('.note-preview');
+            if (!editor) return;
+
+            editor.classList.remove('d-none');
+            if (preview) {
+                preview.classList.add('d-none');
+            }
+            item.classList.add('editing');
+
+            const titleInput = editor.querySelector('.note-edit-title');
+            const contentInput = editor.querySelector(`#noteSplitEditor-${noteId}`);
+            const previewPanel = document.getElementById(`notePreviewPanel-${noteId}`);
+            const toggleBtn = document.getElementById(`toggleNoteViewBtn-${noteId}`);
+            const splitContainer = document.getElementById(`note-split-container-${noteId}`);
+
+            if (titleInput) {
+                titleInput.value = item.dataset.noteTitle || '';
+            }
+            if (contentInput) {
+                const content = getNoteDatasetContent(item);
+                contentInput.value = content;
+                autoResizeTextarea(contentInput);
+                
+                // Initial preview render
+                if (previewPanel && typeof marked !== 'undefined') {
+                    previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
+                }
+
+                // Real-time preview update with debouncing
+                let previewTimeout = null;
+                contentInput.addEventListener('input', function() {
+                    clearTimeout(previewTimeout);
+                    previewTimeout = setTimeout(() => {
+                        if (previewPanel && typeof marked !== 'undefined') {
+                            const markdownText = contentInput.value || '';
+                            previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(markdownText));
+                        }
+                    }, 300); // 300ms debounce
+                });
+            }
+
+            // Toggle split view (only add listener once)
+            if (toggleBtn && splitContainer && previewPanel && !toggleBtn.dataset.listenerAdded) {
+                toggleBtn.dataset.listenerAdded = 'true';
+                let isSplitView = true;
+                toggleBtn.addEventListener('click', function() {
+                    isSplitView = !isSplitView;
+                    if (isSplitView) {
+                        splitContainer.classList.remove('single-view');
+                        previewPanel.style.display = 'block';
+                        toggleBtn.textContent = 'Editor Only';
+                        toggleBtn.classList.add('view-toggle-active');
+                    } else {
+                        splitContainer.classList.add('single-view');
+                        previewPanel.style.display = 'none';
+                        toggleBtn.textContent = 'Split View';
+                        toggleBtn.classList.remove('view-toggle-active');
+                    }
+                });
+                // Initialize as split view
+                splitContainer.classList.remove('single-view');
+                previewPanel.style.display = 'block';
+                toggleBtn.textContent = 'Editor Only';
+                toggleBtn.classList.add('view-toggle-active');
+            }
+
+            if (contentInput) {
+                contentInput.focus();
+            }
+
+            // Initialize toolbar functionality
+            initializeNoteToolbar(noteId, contentInput);
+            
+            // Ensure image button has note-id attribute
+            const imageBtn = editor.querySelector(`#toolbar-image[data-note-id="${noteId}"], .toolbar-image[data-note-id="${noteId}"]`);
+            if (imageBtn && !imageBtn.dataset.noteId) {
+                imageBtn.dataset.noteId = noteId;
+            }
+        }
+
+        // Function to initialize toolbar for note editor
+        function initializeNoteToolbar(noteId, textarea) {
+            if (!textarea) return;
+
+            // Undo/Redo functionality (using browser's built-in undo/redo)
+            const undoBtn = document.querySelector(`.toolbar-undo[data-note-id="${noteId}"]`);
+            const redoBtn = document.querySelector(`.toolbar-redo[data-note-id="${noteId}"]`);
+
+            if (undoBtn) {
+                undoBtn.addEventListener('click', function() {
+                    document.execCommand('undo', false, null);
+                    textarea.focus();
+                });
+            }
+
+            if (redoBtn) {
+                redoBtn.addEventListener('click', function() {
+                    document.execCommand('redo', false, null);
+                    textarea.focus();
+                });
+            }
+
+            // Bold functionality
+            const boldBtn = document.querySelector(`.toolbar-bold[data-note-id="${noteId}"]`);
+            if (boldBtn) {
+                boldBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '**', '**', 'bold text');
+                });
+            }
+
+            // Italic functionality
+            const italicBtn = document.querySelector(`.toolbar-italic[data-note-id="${noteId}"]`);
+            if (italicBtn) {
+                italicBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '*', '*', 'italic text');
+                });
+            }
+
+            // Heading functionality
+            const headingBtn = document.querySelector(`.toolbar-heading[data-note-id="${noteId}"]`);
+            if (headingBtn) {
+                headingBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '## ', '', 'Heading');
+                });
+            }
+
+            // Unordered list functionality
+            const ulBtn = document.querySelector(`.toolbar-ul[data-note-id="${noteId}"]`);
+            if (ulBtn) {
+                ulBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '- ', '', 'List item');
+                });
+            }
+
+            // Ordered list functionality
+            const olBtn = document.querySelector(`.toolbar-ol[data-note-id="${noteId}"]`);
+            if (olBtn) {
+                olBtn.addEventListener('click', function() {
+                    insertMarkdown(textarea, '1. ', '', 'List item');
+                });
+            }
+        }
+
+        // Function to insert markdown at cursor position
+        function insertMarkdown(textarea, prefix, suffix, placeholder) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            const textToInsert = selectedText || placeholder;
+            
+            const newText = textarea.value.substring(0, start) + 
+                          prefix + textToInsert + suffix + 
+                          textarea.value.substring(end);
+            
+            textarea.value = newText;
+            
+            // Set cursor position after inserted text
+            const newCursorPos = start + prefix.length + textToInsert.length + suffix.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            textarea.focus();
+            
+            // Trigger input event to update preview
+            textarea.dispatchEvent(new Event('input'));
+        }
+
+        function closeNoteEditor(item) {
+            if (!item) return;
+            const editor = item.querySelector('.note-inline-editor');
+            const preview = item.querySelector('.note-preview');
+            if (editor) {
+                editor.classList.add('d-none');
+            }
+            if (preview) {
+                preview.classList.remove('d-none');
+            }
+            item.classList.remove('editing');
+        }
+
+        async function handleSaveNote(button) {
+            const item = button.closest('.note-item');
+            if (!item) return;
+
+            const noteId = button.dataset.noteId;
+            const editor = item.querySelector('.note-inline-editor');
+            const titleInput = editor.querySelector('.note-edit-title');
+            // Try to get the split editor first, fallback to regular editor
+            const contentInput = editor.querySelector(`#noteSplitEditor-${noteId}`) || editor.querySelector('.note-edit-content');
+
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+
+            if (!title || !content) {
+                alert('Title and content are required.');
+                return;
+            }
+
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Saving...';
+
+            const formData = new FormData();
+            formData.append('note_id', button.dataset.noteId);
+            formData.append('file_id', CURRENT_FILE_ID);
+            formData.append('noteTitle', title);
+            formData.append('noteContent', content);
+
+            try {
+                const response = await fetch('<?= UPDATE_NOTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+                const json = await response.json();
+                if (!json.success) {
+                    throw new Error(json.message || 'Failed to update note');
+                }
+
+                const updatedNote = json.note || {};
+                const preview = item.querySelector('.note-preview');
+                if (preview && typeof marked !== 'undefined') {
+                    preview.innerHTML = DOMPurify.sanitize(marked.parse(updatedNote.content || content));
+                }
+
+                const titleText = item.querySelector('.note-title-text');
+                if (titleText) {
+                    titleText.textContent = updatedNote.title || title;
+                }
+
+                const updatedLabel = item.querySelector('.note-updated-at');
+                if (updatedLabel && updatedNote.createdAt) {
+                    updatedLabel.textContent = 'Created: ' + updatedNote.createdAt;
+                }
+
+                item.dataset.noteTitle = updatedNote.title || title;
+                item.dataset.noteContent = JSON.stringify(updatedNote.content || content);
+
+                button.textContent = originalText;
+                button.disabled = false;
+                closeNoteEditor(item);
+            } catch (error) {
+                alert('Error updating note: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const editBtn = e.target.closest('.edit-note-btn');
+            if (editBtn) {
+                e.preventDefault();
+                openNoteEditor(editBtn.dataset.noteId);
+                return;
+            }
+
+            const cancelBtn = e.target.closest('.cancel-note-edit');
+            if (cancelBtn) {
+                const item = cancelBtn.closest('.note-item');
+                closeNoteEditor(item);
+                return;
+            }
+
+            const saveBtn = e.target.closest('.save-note-edit');
+            if (saveBtn) {
+                handleSaveNote(saveBtn);
+            }
+        });
+
+        // Handle audio note buttons
+        document.querySelectorAll('.audio-note-btn').forEach(function(btn) {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const noteId = this.dataset.noteId;
+                const originalText = this.innerHTML;
+                
+                // Show loading state
+                this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
+                this.style.pointerEvents = 'none';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('note_id', noteId);
+                    formData.append('file_id', CURRENT_FILE_ID);
+
+                    const response = await fetch('<?= AUDIO_NOTE ?>', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const json = await response.json();
+
+                    if (!json.success) {
+                        throw new Error(json.message || 'Failed to generate audio');
+                    }
+
+                    // Create audio element and play
+                    const audio = new Audio(json.audioUrl);
+                    audio.play().catch(err => {
+                        console.error('Error playing audio:', err);
+                        alert('Error playing audio. Please check your browser settings.');
+                    });
+
+                    // Update button state
+                    this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                    
+                    // Reset button when audio ends
+                    audio.addEventListener('ended', () => {
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
+                    });
+
+                    audio.addEventListener('error', () => {
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
+                        alert('Error loading audio file.');
+                    });
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                    this.innerHTML = originalText;
+                    this.style.pointerEvents = 'auto';
+                }
+            });
+        });
+
+        // Image upload modal state
+        let currentImageUploadNoteId = null;
+        let currentImageUploadTextarea = null;
+        let imageUploadModal = null;
+
+        // Initialize image upload modal after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalElement = document.getElementById('imageUploadModal');
+            if (modalElement) {
+                imageUploadModal = new bootstrap.Modal(modalElement);
+            }
+        });
+
+        const imageFileInput = document.getElementById('imageFileInput');
+        const imageAltTextInput = document.getElementById('imageAltText');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imageUploadError = document.getElementById('imageUploadError');
+        const uploadImageBtn = document.getElementById('uploadImageBtn');
+
+        // Handle image file selection preview
+        imageFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+                if (!validTypes.includes(file.type)) {
+                    showImageError('Invalid file type. Please select an image file.');
+                    return;
+                }
+
+                // Validate file size (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    showImageError('File size exceeds 10MB limit.');
+                    return;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.style.display = 'block';
+                    imageUploadError.style.display = 'none';
+                    
+                    // Auto-fill alt text if empty
+                    if (!imageAltTextInput.value.trim()) {
+                        imageAltTextInput.value = file.name.replace(/\.[^/.]+$/, '');
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreviewContainer.style.display = 'none';
+            }
+        });
+
+        function showImageError(message) {
+            imageUploadError.textContent = message;
+            imageUploadError.style.display = 'block';
+            imagePreviewContainer.style.display = 'none';
+        }
+
+        // Handle image button clicks
+        document.addEventListener('click', function(e) {
+            const imageBtn = e.target.closest('#toolbar-image, .toolbar-image');
+            if (imageBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Determine which note/editor we're working with
+                const noteId = imageBtn.dataset.noteId;
+                let textarea = null;
+                
+                if (noteId) {
+                    // Inline editor for existing note
+                    textarea = document.getElementById(`noteSplitEditor-${noteId}`);
+                } else {
+                    // Manual note creation editor
+                    textarea = document.getElementById('noteContent');
+                }
+                
+                if (!textarea) {
+                    alert('Please open a note editor first.');
+                    return;
+                }
+                
+                currentImageUploadNoteId = noteId;
+                currentImageUploadTextarea = textarea;
+                
+                // Reset form
+                document.getElementById('imageUploadForm').reset();
+                imagePreviewContainer.style.display = 'none';
+                imageUploadError.style.display = 'none';
+                
+                // Open modal (ensure it's initialized)
+                if (!imageUploadModal) {
+                    const modalElement = document.getElementById('imageUploadModal');
+                    if (modalElement) {
+                        imageUploadModal = new bootstrap.Modal(modalElement);
+                    }
+                }
+                if (imageUploadModal) {
+                    imageUploadModal.show();
+                }
+            }
+        });
+
+        // Handle upload button click
+        uploadImageBtn.addEventListener('click', async function() {
+            const file = imageFileInput.files[0];
+            if (!file) {
+                showImageError('Please select an image file.');
+                return;
+            }
+
+            if (!currentImageUploadTextarea) {
+                showImageError('No editor found. Please try again.');
+                return;
+            }
+
+            // Disable button and show loading
+            uploadImageBtn.disabled = true;
+            const originalText = uploadImageBtn.innerHTML;
+            uploadImageBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('file_id', CURRENT_FILE_ID);
+                if (currentImageUploadNoteId) {
+                    formData.append('note_id', currentImageUploadNoteId);
+                }
+
+                const response = await fetch('<?= UPLOAD_NOTE_IMAGE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const json = await response.json();
+
+                if (!json.success) {
+                    throw new Error(json.message || 'Failed to upload image');
+                }
+
+                // Insert markdown image syntax at cursor position
+                const altText = imageAltTextInput.value.trim() || json.altText || 'Image';
+                const imageMarkdown = `![${altText}](${json.imageUrl})`;
+                
+                // Insert at cursor position
+                const start = currentImageUploadTextarea.selectionStart;
+                const end = currentImageUploadTextarea.selectionEnd;
+                const textBefore = currentImageUploadTextarea.value.substring(0, start);
+                const textAfter = currentImageUploadTextarea.value.substring(end);
+                const newText = textBefore + imageMarkdown + textAfter;
+                
+                currentImageUploadTextarea.value = newText;
+                const newCursorPos = start + imageMarkdown.length;
+                currentImageUploadTextarea.setSelectionRange(newCursorPos, newCursorPos);
+                currentImageUploadTextarea.focus();
+                
+                // Trigger input event to update preview
+                currentImageUploadTextarea.dispatchEvent(new Event('input'));
+
+                // Close modal and reset
+                imageUploadModal.hide();
+                document.getElementById('imageUploadForm').reset();
+                imagePreviewContainer.style.display = 'none';
+                imageUploadError.style.display = 'none';
+                currentImageUploadNoteId = null;
+                currentImageUploadTextarea = null;
+
+            } catch (error) {
+                console.error('Image upload error:', error);
+                showImageError('Error uploading image: ' + error.message);
+            } finally {
+                uploadImageBtn.disabled = false;
+                uploadImageBtn.innerHTML = originalText;
+            }
+        });
+
+        // Reset modal state when closed
+        document.getElementById('imageUploadModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('imageUploadForm').reset();
+            imagePreviewContainer.style.display = 'none';
+            imageUploadError.style.display = 'none';
+            currentImageUploadNoteId = null;
+            currentImageUploadTextarea = null;
+        });
+
+        /**
+         * Delete note handler
+         * 
+         * Behavior: Shows confirmation modal before deleting note. On confirmation,
+         * submits delete form.
+         */
+        $(document).on('click', '.delete-note-btn', function(e){
+            e.preventDefault();
+            var $form = $(this).closest('.delete-note-form');
+            var noteId = $form.data('note-id');
+            var noteTitle = $form.closest('.note-item').find('.note-title-text').text();
+
+            showConfirmModal({
+                message: 'Are you sure you want to delete the note "' + noteTitle + '"? This action cannot be undone.',
+                title: 'Delete Note',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                danger: true,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
+
+        /**
+         * Save note as file handler
+         * 
+         * Behavior: Shows confirmation modal before saving note as file. On confirmation,
+         * submits the form to save the note as a new file.
+         */
+        $(document).on('click', '.save-note-as-file-btn', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            var $form = $(this).closest('.save-note-as-file-form');
+            var noteTitle = $form.data('note-title');
+
+            showConfirmModal({
+                message: 'Are you sure you want to save the note "' + noteTitle + '" as a new file?',
+                title: 'Save Note as File',
+                confirmText: 'Save',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: function() {
+                    $form.submit();
+                }
+            });
+        });
     </script>
+    <?php include VIEW_CONFIRM; ?>
 </body>
 
 </html>

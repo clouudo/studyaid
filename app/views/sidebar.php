@@ -66,6 +66,11 @@ function isActive($link_url, $current_url)
         <?php endforeach; ?>
       </div>
     </li>
+    <li class="sidebarlist <?php echo isActive(URL_DOCUMENT_HUB, $current_url); ?>">
+      <a href="<?= DOCUMENT_HUB ?>" class="nav-link text-dark <?php echo isActive(URL_DOCUMENT_HUB, $current_url); ?>">
+        Document Hub
+      </a>
+    </li>
   </ul>
   <hr>
   <div class="sidebar-footer">

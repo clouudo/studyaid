@@ -62,21 +62,27 @@ define('SAVE_SUMMARY_AS_FILE', BASE_PATH . 'lm/saveSummaryAsFile');
 define('EXPORT_SUMMARY_PDF', BASE_PATH . 'lm/exportSummaryAsPdf');
 define('EXPORT_SUMMARY_DOCX', BASE_PATH . 'lm/exportSummaryAsDocx');
 define('EXPORT_SUMMARY_TXT', BASE_PATH . 'lm/exportSummaryAsTxt');
+define('AUDIO_SUMMARY', BASE_PATH . 'lm/audioSummary');
 
 // Note routes
 define('NOTE', BASE_PATH . 'lm/note');
 define('GENERATE_NOTES', BASE_PATH . 'lm/generateNotes');
 define('SAVE_NOTE', BASE_PATH . 'lm/saveNote');
+define('UPDATE_NOTE', BASE_PATH . 'lm/updateNote');
 define('DELETE_NOTE', BASE_PATH . 'lm/deleteNote');
 define('SAVE_NOTE_AS_FILE', BASE_PATH . 'lm/saveNoteAsFile');
 define('EXPORT_NOTE_PDF', BASE_PATH . 'lm/exportNoteAsPdf');
 define('EXPORT_NOTE_DOCX', BASE_PATH . 'lm/exportNoteAsDocx');
 define('EXPORT_NOTE_TXT', BASE_PATH . 'lm/exportNoteAsTxt');
+define('AUDIO_NOTE', BASE_PATH . 'lm/audioNote');
+define('UPLOAD_NOTE_IMAGE', BASE_PATH . 'lm/uploadNoteImage');
 
 // Mindmap routes
 define('MINDMAP', BASE_PATH . 'lm/mindmap');
 define('GENERATE_MINDMAP', BASE_PATH . 'lm/generateMindmap');
 define('VIEW_MINDMAP_ROUTE', BASE_PATH . 'lm/viewMindmap');
+define('LOAD_MINDMAP_STRUCTURE', BASE_PATH . 'lm/loadMindmapStructure');
+define('UPDATE_MINDMAP_STRUCTURE', BASE_PATH . 'lm/updateMindmapStructure');
 define('DELETE_MINDMAP', BASE_PATH . 'lm/deleteMindmap');
 
 //Flashcard routes
@@ -98,6 +104,9 @@ define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
 define('DELETE_QUIZ', BASE_PATH . 'lm/deleteQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
 define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
+
+//Document Hub
+define('DOCUMENT_HUB', BASE_PATH . 'lm/documentHub');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');
@@ -130,7 +139,8 @@ define('VIEW_CHATBOT', LEARNING_VIEWS_PATH . 'chatbot.php');
 define('VIEW_QUIZ', LEARNING_VIEWS_PATH . 'quiz.php');
 define('VIEW_FLASHCARD', LEARNING_VIEWS_PATH . 'flashcard.php');
 define('VIEW_NAVBAR', LEARNING_VIEWS_PATH . 'navbar.php');
-define('VIEW_MULTI_DOCUMENT', LEARNING_VIEWS_PATH . 'multidoc.php');
+define('VIEW_CONFIRM', LEARNING_VIEWS_PATH . 'confirm.php');
+define('VIEW_DOCUMENT_HUB', LEARNING_VIEWS_PATH . 'multidoc.php');
 // ============================================================================
 // URL PATTERNS FOR isActive() FUNCTION
 // ============================================================================
@@ -145,3 +155,5 @@ define('URL_MINDMAP', 'index.php?url=lm/mindmap');
 define('URL_CHATBOT', 'index.php?url=lm/chatbot');
 define('URL_FLASHCARD', 'index.php?url=lm/flashcard');
 define('URL_QUIZ', 'index.php?url=lm/quiz');
+define('URL_DOCUMENT_HUB', 'index.php?url=lm/documentHub');
+define('URL_DISPLAY_DOCUMENT', 'index.php?url=lm/displayDocument');

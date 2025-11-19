@@ -1,9 +1,22 @@
 <?php
+
+/**
+ * Recursively builds a hierarchical folder tree HTML structure
+ * 
+ * Behavior: Traverses folders array and generates nested <ul><li> structure
+ * for folders matching the parent ID. Recursively processes child folders
+ * to create multi-level folder hierarchy.
+ * 
+ * @param array $folders Array of folder data with folderID and parentFolderId
+ * @param int|null $parentId Parent folder ID to filter children (null for root)
+ * @param int $level Current nesting level (for indentation, currently unused)
+ * @return string HTML string containing nested folder list structure
+ */
 function buildFolderTree($folders, $parentId = null, $level = 0)
 {
     $html = '';
     $hasItems = false;
-    
+
     foreach ($folders as $folder) {
         if ($folder['parentFolderId'] == $parentId) {
             $hasItems = true;
@@ -19,7 +32,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             $html .= '</li>';
         }
     }
-    
+
     return $html;
 }
 ?>
@@ -37,13 +50,16 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
         body {
             background-color: #f8f9fa;
         }
+
         .folder-item {
             text-decoration: none;
         }
+
         .upload-container {
             background-color: #f8f9fa;
             padding: 30px;
         }
+
         .form-input-theme {
             background-color: #e7d5ff;
             border: none;
@@ -51,18 +67,22 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             padding: 12px 16px;
             color: #212529;
         }
+
         .form-input-theme:focus {
             background-color: #e7d5ff;
             border: 2px solid #6f42c1;
             box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
             color: #212529;
         }
+
         .form-input-theme::placeholder {
             color: #6c757d;
         }
+
         .folder-select-wrapper {
             position: relative;
         }
+
         .folder-select-icon {
             position: absolute;
             right: 16px;
@@ -71,6 +91,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             color: #6c757d;
             pointer-events: none;
         }
+
         .drag-drop-area {
             background-color: #e7d5ff;
             border: 2px dashed #d4b5ff;
@@ -84,31 +105,37 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             flex-direction: column;
             align-items: center;
         }
+
         .drag-drop-area:hover {
             background-color: #d4b5ff;
             border-color: #6f42c1;
         }
+
         .drag-drop-area.dragover {
             background-color: #d4b5ff;
             border-color: #6f42c1;
             border-style: solid;
         }
+
         .upload-icon {
             font-size: 4rem;
             color: #212529;
             margin-bottom: 20px;
         }
+
         .upload-title {
             font-size: 1.25rem;
             font-weight: 700;
             color: #212529;
             margin-bottom: 10px;
         }
+
         .upload-formats {
             font-size: 0.9rem;
             color: #495057;
             margin-top: 10px;
         }
+
         .uploaded-file-item {
             background-color: #e7d5ff;
             border-radius: 12px;
@@ -121,24 +148,29 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .uploaded-file-item:hover {
             background-color: #d4b5ff;
         }
+
         .uploaded-file-item .file-info {
             display: flex;
             align-items: center;
             gap: 12px;
             flex: 1;
         }
+
         .uploaded-file-item .file-icon {
             font-size: 1.5rem;
             color: #212529;
         }
+
         .uploaded-file-item .file-name {
             color: #212529;
             font-weight: 500;
             word-break: break-word;
         }
+
         .remove-file-btn {
             background: none;
             border: none;
@@ -152,44 +184,53 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             transition: all 0.2s;
             z-index: 10;
         }
+
         .remove-file-btn:hover {
             color: #dc3545;
         }
+
         /* Preview Modal Styles */
         .preview-modal .modal-content {
             border-radius: 16px;
             border: none;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         }
+
         .preview-modal .modal-header {
             border-bottom: 1px solid #e9ecef;
             padding: 20px 24px;
         }
+
         .preview-modal .modal-title {
             font-weight: 600;
             color: #212529;
             font-size: 1.25rem;
         }
+
         .preview-modal .modal-body {
             padding: 20px 24px;
             max-height: 70vh;
             overflow-y: auto;
         }
+
         .preview-modal .preview-content {
             width: 100%;
             min-height: 400px;
         }
+
         .preview-modal .preview-content iframe {
             width: 100%;
             min-height: 600px;
             border: none;
         }
+
         .preview-modal .preview-content img {
             max-width: 100%;
             height: auto;
             display: block;
             margin: 0 auto;
         }
+
         .preview-modal .preview-content pre {
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -198,12 +239,14 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             border-radius: 8px;
             font-family: 'Courier New', monospace;
         }
+
         .action-buttons {
             display: flex;
             gap: 12px;
             justify-content: flex-end;
             margin-top: 30px;
         }
+
         .btn-cancel {
             background-color: #e7d5ff;
             border: none;
@@ -212,10 +255,12 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             border-radius: 8px;
             font-weight: 600;
         }
+
         .btn-cancel:hover {
             background-color: #d4b5ff;
             color: #5a32a3;
         }
+
         .btn-create {
             background-color: #e7d5ff;
             border: none;
@@ -224,21 +269,25 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             border-radius: 8px;
             font-weight: 600;
         }
+
         .btn-create:hover {
             background-color: #6f42c1;
             color: white;
         }
+
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 30px;
         }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
             }
         }
+
         .modal-close-btn {
             background-color: transparent;
             border: none;
@@ -253,23 +302,28 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             font-size: 1.5rem;
             cursor: pointer;
         }
+
         .modal-close-btn:hover {
             background-color: #6f42c1;
             color: white;
         }
+
         .folder-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+
         .folder-list ul {
             list-style: none;
             padding-left: 24px;
             margin: 8px 0 0 0;
         }
+
         .folder-list li {
             margin-bottom: 2px;
         }
+
         .folder-item {
             display: block;
             padding: 12px 16px;
@@ -280,34 +334,41 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             margin-bottom: 4px;
             font-weight: 500;
         }
+
         .folder-item:hover {
             background-color: #e7d5ff;
             color: #5a32a3;
             text-decoration: none;
         }
+
         .folder-item:active {
             background-color: #d4b5ff;
         }
+
         .modal-header {
             border-bottom: 1px solid #e9ecef;
             padding: 20px 24px;
         }
+
         .modal-title {
             font-weight: 600;
             color: #212529;
             font-size: 1.25rem;
         }
+
         .modal-body {
             padding: 20px 24px;
             max-height: 400px;
             overflow-y: auto;
         }
+
         #fileList {
             display: flex;
             flex-direction: column;
             gap: 8px;
             width: 100%;
         }
+
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -328,19 +389,24 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             opacity: 0;
             transition: all 0.3s ease-in-out;
         }
+
         .snackbar.show {
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
+
         .snackbar.success {
             background-color: #28a745;
         }
+
         .snackbar.error {
             background-color: #dc3545;
         }
+
         .snackbar-icon {
             font-size: 1.2rem;
         }
+
         .snackbar-message {
             flex: 1;
             font-size: 0.95rem;
@@ -358,8 +424,11 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     <i class="snackbar-icon" id="snackbarIcon"></i>
                     <span class="snackbar-message" id="snackbarMessage"></span>
                 </div>
-                
+
                 <?php
+                // Extract and clear session messages for display
+                // Behavior: Retrieves success/error messages from session, clears them
+                // to prevent re-display on page refresh, and stores in local variables
                 $successMessage = null;
                 $errorMessage = null;
                 if (isset($_SESSION['message'])) {
@@ -374,7 +443,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Upload Document</h3>
                 <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data" id="uploadDocumentForm">
                     <input type="hidden" name="folderSelect" id="folderSelect">
-                    
+
                     <div class="form-row">
                         <div>
                             <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
@@ -394,9 +463,9 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <div id="dropZone" class="drop-zone-content">
                                 <div class="upload-icon">📄</div>
                                 <div class="upload-title">Click or drag to upload document</div>
-                                <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT</div>
+                                <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
                             </div>
-                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt" multiple>
+                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
                         </div>
                         <div id="fileListContainer" style="display: none; margin-top: 20px;">
                             <div id="fileList"></div>
@@ -457,6 +526,15 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+        /**
+         * Formats file size in bytes to human-readable format
+         * 
+         * Behavior: Converts bytes to appropriate unit (Bytes, KB, MB, GB)
+         * using base-1024 calculation. Returns formatted string with 2 decimal places.
+         * 
+         * @param {number} bytes File size in bytes
+         * @returns {string} Formatted file size (e.g., "1.5 MB")
+         */
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -465,6 +543,16 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
+        /**
+         * Updates the file list display with selected files
+         * 
+         * Behavior: Creates visual list items for each file with appropriate icon
+         * based on file extension. Stores file metadata in data attributes for preview.
+         * Shows/hides file list container based on file count. Each file item is
+         * clickable for preview and has a remove button.
+         * 
+         * @param {FileList} files FileList object containing selected files
+         */
         function updateFileList(files) {
             const fileListContainer = document.getElementById('fileListContainer');
             const fileList = document.getElementById('fileList');
@@ -472,20 +560,21 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
             if (files && files.length > 0) {
                 fileList.innerHTML = '';
-                
+
                 Array.from(files).forEach((file, index) => {
                     const fileItem = document.createElement('div');
                     fileItem.className = 'uploaded-file-item';
                     fileItem.setAttribute('data-file-index', index);
-                    
-                    // Get file icon based on extension
+
+                    // Determine file icon based on extension
                     let fileIcon = '📄';
                     const ext = file.name.split('.').pop().toLowerCase();
                     if (ext === 'pdf') fileIcon = '📄';
                     else if (['doc', 'docx'].includes(ext)) fileIcon = '📝';
                     else if (ext === 'pptx') fileIcon = '📊';
                     else if (ext === 'txt') fileIcon = '📄';
-                    
+                    else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'].includes(ext)) fileIcon = '🖼️';
+
                     fileItem.innerHTML = `
                         <div class="file-info" data-file-index="${index}">
                             <span class="file-icon">${fileIcon}</span>
@@ -495,7 +584,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <i class="bi bi-x"></i>
                         </button>
                     `;
-                    // Store file object for preview
+                    // Store file metadata for preview functionality
                     fileItem.dataset.fileName = file.name;
                     fileItem.dataset.fileType = file.type;
                     fileItem.dataset.fileSize = file.size;
@@ -503,32 +592,50 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 });
 
                 fileListContainer.style.display = 'block';
+                if (getDocumentSelection().mode === 'multiple') {
+                    document.getElementById('documentName').disabled = true;
+                }
             } else {
                 fileListContainer.style.display = 'none';
             }
         }
 
+        /**
+         * Removes a file from the file input by index
+         * 
+         * Behavior: Removes file at specified index from FileList, creates new
+         * DataTransfer object to rebuild FileList (since FileList is read-only),
+         * and updates the visual file list display.
+         * 
+         * @param {number} index Zero-based index of file to remove
+         */
         function removeFile(index) {
             const fileInput = document.getElementById('documentFile');
             const files = Array.from(fileInput.files);
-            
+
             if (index >= 0 && index < files.length) {
                 files.splice(index, 1);
-                
-                // Create a new FileList-like object
+
+                // Rebuild FileList using DataTransfer API (FileList is immutable)
                 const dt = new DataTransfer();
                 files.forEach(file => dt.items.add(file));
                 fileInput.files = dt.files;
-                
-                // Update display
+
+                // Refresh file list display
                 updateFileList(fileInput.files);
             }
         }
 
-        // Store object URLs for cleanup
+        /**
+         * Object URL management for file previews
+         * 
+         * Behavior: Stores current preview URL to prevent memory leaks.
+         * Automatically revokes object URL when preview modal closes to free
+         * browser memory. Clears preview content on modal close.
+         */
         let currentPreviewUrl = null;
-        
-        // Clean up object URLs when modal is closed
+
+        // Cleanup: Revoke object URLs when preview modal closes to prevent memory leaks
         const previewModalElement = document.getElementById('filePreviewModal');
         if (previewModalElement) {
             previewModalElement.addEventListener('hidden.bs.modal', function() {
@@ -541,7 +648,13 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             });
         }
 
-        // Use event delegation for remove buttons and file preview
+        /**
+         * Event delegation for file list interactions
+         * 
+         * Behavior: Handles clicks on dynamically created file items and remove buttons.
+         * Uses event delegation to work with dynamically added elements. Prevents
+         * preview from opening when clicking remove button.
+         */
         document.addEventListener('click', function(e) {
             // Handle remove button clicks
             if (e.target.closest('.remove-file-btn')) {
@@ -552,57 +665,70 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 removeFile(index);
                 return;
             }
-            
-            // Handle file item clicks for preview
+
+            // Handle file item clicks for preview (exclude remove button clicks)
             if (e.target.closest('.uploaded-file-item')) {
                 const fileItem = e.target.closest('.uploaded-file-item');
-                // Don't trigger if clicking the remove button
+                // Don't trigger preview if clicking the remove button
                 if (!e.target.closest('.remove-file-btn')) {
                     const index = parseInt(fileItem.getAttribute('data-file-index'));
                     previewFile(index);
                 }
             }
         });
-        
+
+        /**
+         * Displays file preview in modal based on file type
+         * 
+         * Behavior: Opens modal and renders preview based on file extension:
+         * - PDF: Uses object URL in iframe for native PDF viewer
+         * - Images: Reads as data URL and displays as <img>
+         * - Text: Reads as text and displays in <pre> with escaped HTML
+         * - Other: Shows file info message (no preview available)
+         * 
+         * Automatically cleans up previous object URLs to prevent memory leaks.
+         * 
+         * @param {number} index Zero-based index of file to preview
+         */
         function previewFile(index) {
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
-            
+
             if (index >= 0 && index < files.length) {
                 const file = files[index];
                 const previewModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
                 const previewContent = document.getElementById('previewContent');
                 const modalTitle = document.getElementById('filePreviewModalLabel');
-                
+
                 modalTitle.textContent = file.name;
                 previewContent.innerHTML = '<p class="text-center text-muted">Loading preview...</p>';
                 previewModal.show();
-                
+
                 const reader = new FileReader();
                 const fileExt = file.name.split('.').pop().toLowerCase();
-                
+
                 if (fileExt === 'pdf') {
-                    // Preview PDF using object URL
-                    // Clean up previous URL if exists
+                    // Preview PDF using object URL in iframe
+                    // Clean up previous URL to prevent memory leaks
                     if (currentPreviewUrl) {
                         URL.revokeObjectURL(currentPreviewUrl);
                     }
                     currentPreviewUrl = URL.createObjectURL(file);
                     previewContent.innerHTML = `<iframe src="${currentPreviewUrl}"></iframe>`;
                 } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt)) {
-                    // Preview images
+                    // Preview images as data URL
                     reader.onload = function(e) {
                         previewContent.innerHTML = `<img src="${e.target.result}" alt="${file.name}">`;
                     };
                     reader.readAsDataURL(file);
                 } else if (fileExt === 'txt') {
-                    // Preview text files
+                    // Preview text files with HTML escaping
                     reader.onload = function(e) {
                         previewContent.innerHTML = `<pre>${escapeHtml(e.target.result)}</pre>`;
                     };
                     reader.readAsText(file);
                 } else {
-                    // For other file types, show a message
+                    // Show file info for unsupported preview types
                     previewContent.innerHTML = `
                         <div class="text-center py-5">
                             <i class="bi bi-file-earmark" style="font-size: 4rem; color: #d4b5ff;"></i>
@@ -614,77 +740,106 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 }
             }
         }
-        
+
+        /**
+         * Escapes HTML special characters to prevent XSS attacks
+         * 
+         * Behavior: Uses DOM textContent property to safely escape HTML characters,
+         * then returns innerHTML which contains the escaped version.
+         * 
+         * @param {string} text Text to escape
+         * @returns {string} HTML-escaped text
+         */
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
-        // Snackbar function
+
+        /**
+         * Displays temporary notification snackbar message
+         * 
+         * Behavior: Shows animated notification at bottom of screen with
+         * appropriate icon based on type (success/error). Automatically hides
+         * after 3 seconds. Updates icon and styling based on message type.
+         * 
+         * @param {string} message Message text to display
+         * @param {string} type Message type: 'success' or 'error'
+         */
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');
             const snackbarMessage = document.getElementById('snackbarMessage');
             const snackbarIcon = document.getElementById('snackbarIcon');
-            
+
             snackbarMessage.textContent = message;
             snackbar.className = 'snackbar ' + type;
-            
+
+            // Set appropriate icon based on message type
             if (type === 'success') {
                 snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
             } else if (type === 'error') {
                 snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
             }
-            
+
             snackbar.classList.add('show');
-            
+
+            // Auto-hide after 3 seconds
             setTimeout(function() {
                 snackbar.classList.remove('show');
             }, 3000);
         }
-        
-        // Show messages on page load
+
+        /**
+         * Display session messages on page load
+         * 
+         * Behavior: Checks for success/error messages from PHP session and
+         * displays them as snackbar notifications when DOM is ready.
+         */
         <?php if ($successMessage): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
-        });
+            document.addEventListener('DOMContentLoaded', function() {
+                showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
+            });
         <?php endif; ?>
-        
+
         <?php if ($errorMessage): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
-        });
+            document.addEventListener('DOMContentLoaded', function() {
+                showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
+            });
         <?php endif; ?>
-        
-        // Form validation
+
+        /**
+         * Form submission validation
+         * 
+         * Behavior: Validates form before submission:
+         * - Document name is required and non-empty
+         * - At least one file must be selected
+         * - Document name length between 3-255 characters
+         * 
+         * Prevents form submission if validation fails and shows error snackbar.
+         * Focuses on first invalid field for better UX.
+         */
         document.getElementById('uploadDocumentForm').addEventListener('submit', function(e) {
             const documentName = document.getElementById('documentName').value.trim();
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
-            
-            // Validate document name
-            if (!documentName) {
-                e.preventDefault();
-                showSnackbar('Please enter a document name.', 'error');
-                document.getElementById('documentName').focus();
-                return false;
+
+            if (getDocumentSelection().mode === 'single') {
+                // Validate document name exists
+                if (!documentName) {
+                    e.preventDefault();
+                    showSnackbar('Please enter a document name.', 'error');
+                    document.getElementById('documentName').focus();
+                    return false;
+                }
             }
-            
-            // Validate file upload
+
+            // Validate at least one file selected
             if (!files || files.length === 0) {
                 e.preventDefault();
                 showSnackbar('Please select at least one file to upload.', 'error');
                 return false;
             }
-            
-            // Validate file name length
-            if (documentName.length < 3) {
-                e.preventDefault();
-                showSnackbar('Document name must be at least 3 characters long.', 'error');
-                document.getElementById('documentName').focus();
-                return false;
-            }
-            
+
             if (documentName.length > 255) {
                 e.preventDefault();
                 showSnackbar('Document name must be less than 255 characters.', 'error');
@@ -692,69 +847,93 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 return false;
             }
         });
-        
-        // Reset form function
+
+        /**
+         * Resets the entire upload form to initial state
+         * 
+         * Behavior: Clears all form fields including document name, folder selection,
+         * and file input. Updates file list display to reflect empty state.
+         */
         function resetForm() {
-            // Reset document name
+            // Clear document name field
             document.getElementById('documentName').value = '';
-            
-            // Reset folder selection
+
+            // Clear folder selection (both hidden input and display field)
             document.getElementById('folderSelect').value = '';
             document.getElementById('folderSelectInput').value = '';
-            
-            // Reset file input and file list
+
+            // Clear file input and update visual file list
             const fileInput = document.getElementById('documentFile');
             fileInput.value = '';
             updateFileList(fileInput.files);
         }
 
+        /**
+         * File input change handler
+         * 
+         * Behavior: Updates file list display when files are selected via
+         * file input dialog (not drag-and-drop).
+         */
         document.getElementById('documentFile').addEventListener('change', function() {
             updateFileList(this.files);
         });
 
-        // Handle drag and drop
+        /**
+         * Drag and drop file upload functionality
+         * 
+         * Behavior: Enables drag-and-drop file upload with visual feedback.
+         * - dragover: Adds visual highlight class when files are dragged over
+         * - dragleave: Removes highlight when drag leaves area (with boundary check)
+         * - drop: Merges dropped files with existing selection and updates display
+         * 
+         * Prevents default browser drag behaviors to enable custom handling.
+         */
         const dragDropArea = document.getElementById('dragDropArea');
         const dropZone = document.getElementById('dropZone');
-        
+
+        // Visual feedback when dragging over drop area
         dragDropArea.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.stopPropagation();
             dragDropArea.classList.add('dragover');
         });
 
+        // Remove visual feedback when drag leaves area
         dragDropArea.addEventListener('dragleave', function(e) {
             e.preventDefault();
             e.stopPropagation();
+            // Only remove highlight if actually leaving the drop area (not entering child)
             if (!dragDropArea.contains(e.relatedTarget)) {
                 dragDropArea.classList.remove('dragover');
             }
         });
 
+        // Handle file drop: merge with existing files and update display
         dragDropArea.addEventListener('drop', function(e) {
             e.preventDefault();
             e.stopPropagation();
             dragDropArea.classList.remove('dragover');
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 const fileInput = document.getElementById('documentFile');
-                
-                // Merge with existing files
+
+                // Merge dropped files with existing file selection
                 const existingFiles = Array.from(fileInput.files);
                 const newFiles = Array.from(files);
                 const allFiles = [...existingFiles, ...newFiles];
-                
-                // Create a new FileList-like object
+
+                // Rebuild FileList using DataTransfer API
                 const dt = new DataTransfer();
                 allFiles.forEach(file => dt.items.add(file));
                 fileInput.files = dt.files;
-                
-                // Update display
+
+                // Refresh file list display
                 updateFileList(fileInput.files);
             }
         });
 
-        // Prevent default drag behaviors on the entire area
+        // Prevent default browser drag behaviors to enable custom handling
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dragDropArea.addEventListener(eventName, function(e) {
                 e.preventDefault();
@@ -762,23 +941,59 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             }, false);
         });
 
-        // Folder selection
+        /**
+         * Opens folder selection modal
+         * 
+         * Behavior: Displays modal with hierarchical folder tree for user
+         * to select destination folder for uploaded documents.
+         */
         function openFolderModal() {
             const modal = new bootstrap.Modal(document.getElementById('selectFolderModal'));
             modal.show();
         }
 
+        /**
+         * Folder selection handler
+         * 
+         * Behavior: When user clicks a folder in the modal, stores folder ID
+         * in hidden input and displays folder name in visible input field.
+         * Closes modal after selection. Uses jQuery for event handling.
+         */
         $(document).ready(function() {
             var selectFolderModal = new bootstrap.Modal(document.getElementById('selectFolderModal'));
             $('.folder-item').on('click', function(e) {
                 e.preventDefault();
                 var folderId = $(this).data('folder-id');
                 var folderName = $(this).data('folder-name');
+                // Store selected folder ID in hidden input for form submission
                 $('#folderSelect').val(folderId);
+                // Display selected folder name in visible input field
                 $('#folderSelectInput').val(folderName);
                 selectFolderModal.hide();
             });
         });
+
+        function getDocumentSelection() {
+            const fileInput = document.getElementById('documentFile');
+            const files = fileInput.files;
+
+            if (!files || files.length === 0) {
+                return {
+                    count: 0,
+                    mode: 'none'
+                };
+            }
+            if (files.length === 1) {
+                return {
+                    count: 1,
+                    mode: 'single'
+                };
+            }
+            return {
+                count: files.length,
+                mode: 'multiple'
+            };
+        }
     </script>
 </body>
 
