@@ -534,6 +534,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all files for a user, ordered by most recent first
+     */
     public function getFilesForUser($userId)
     {
         $conn = $this->db->connect();
@@ -1183,6 +1186,9 @@ class LmModel
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Upload note image to GCS and save metadata to database, returns image info with signed URL
+     */
     public function saveNoteImage(int $noteId, string $fileContent, string $fileExtension, int $userId): array
     {
         // Generate unique filename
@@ -1355,6 +1361,9 @@ class LmModel
         return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all flashcards with a specific title for a file
+     */
     public function getFlashcardsByTitle(string $title, int $fileId)
     {
         $conn = $this->db->connect();
@@ -1365,6 +1374,9 @@ class LmModel
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Delete all flashcards with a specific title for a file
+     */
     public function deleteFlashcardsByTitle(string $title, int $fileId)
     {
         $conn = $this->db->connect();
@@ -1602,6 +1614,9 @@ class LmModel
     // RAG UTILITY
     // ============================================================================
 
+    /**
+     * Split text into overlapping chunks for RAG processing, breaks at sentence boundaries when possible
+     */
     public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 1000, int $overlap = 200): array{
         $chunks = [];
         $length = strlen($text);
@@ -1634,6 +1649,9 @@ class LmModel
         return $chunks;
     }
 
+    /**
+     * Save text chunks and their embeddings to database for RAG retrieval
+     */
     public function saveChunksToDB(array $chunks, array $embeddings, int $fileID): void{
         $conn = $this->db->connect();
         foreach ($chunks as $index => $chunk) {
@@ -1649,6 +1667,9 @@ class LmModel
         }
     }
 
+    /**
+     * Get all document chunks and embeddings for a specific file
+     */
     public function getChunksByFile(int $fileID): array
     {
         $conn = $this->db->connect();

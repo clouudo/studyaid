@@ -34,6 +34,9 @@ class LmController
     // UTILITY METHODS
     // ============================================================================
 
+    /**
+     * Checks if user is logged in, redirects or returns JSON error if not
+     */
     public function checkSession($isJsonResponse = false)
     {
         if (!isset($_SESSION['user_id'])) {
@@ -48,6 +51,9 @@ class LmController
         }
     }
 
+    /**
+     * Retrieves current logged-in user information
+     */
     public function getUserInfo()
     {
         $userId = (int)$_SESSION['user_id'];
@@ -55,6 +61,9 @@ class LmController
         return $user;
     }
 
+    /**
+     * Resolves file ID from POST request or session, optionally persists to session
+     */
     private function resolveFileId(bool $persist = true): int
     {
         $fileId = 0;
@@ -122,7 +131,7 @@ class LmController
     }
 
     /**
-     * Normalize file array from $_FILES structure
+     * Normalizes file array from $_FILES structure for single or multiple uploads
      */
     private function normalizeFileArray(array $files, int $index): ?array
     {
@@ -150,7 +159,7 @@ class LmController
     }
 
     /**
-     * Process a single file upload
+     * Processes single file upload: extracts text, uploads to GCS, creates chunks and embeddings
      */
     private function processFileUpload(array $file, int $userId, ?int $folderId): array
     {
@@ -202,7 +211,7 @@ class LmController
     }
 
     /**
-     * Handle upload response and redirect
+     * Handles upload response: sets session messages and redirects based on success/failure
      */
     private function handleUploadResponse(int $uploadedCount, int $failedCount, array $errors, int $userId): void
     {
@@ -235,8 +244,7 @@ class LmController
     }
 
     /**
-     * VIEW: Display the new document upload form
-     * ACTION: Handle document upload (POST)
+     * Handles document upload (POST) or displays upload form (GET)
      */
     public function uploadDocument()
     {
@@ -293,7 +301,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display all documents and folders
+     * Displays all documents and folders with search and folder filtering support
      */
     public function displayLearningMaterials()
     {
@@ -346,7 +354,7 @@ class LmController
     }
 
     /**
-     * VIEW: Display a specific document
+     * Displays a specific document with its content and metadata
      */
     public function displayDocument()
     {
@@ -382,7 +390,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete a document
+     * Deletes a document from database and storage
      */
     public function deleteDocument()
     {
@@ -416,7 +424,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display the new folder creation form
+     * Displays the new folder creation form
      */
     public function newFolder()
     {
@@ -430,7 +438,7 @@ class LmController
     }
 
     /**
-     * ACTION: Create a new folder (POST)
+     * Creates a new folder with optional parent folder
      */
     public function createFolder()
     {
@@ -464,7 +472,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete a folder
+     * Deletes a folder and its contents
      */
     public function deleteFolder()
     {
@@ -494,7 +502,7 @@ class LmController
     }
 
     /**
-     * VIEW: Display the new document upload form
+     * Displays the new document upload form
      */
     public function newDocument()
     {
@@ -512,7 +520,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Helper: Build folder path breadcrumb
+     * Builds folder path breadcrumb array from folder ID to root
      */
     private function _buildFolderPath($folderId)
     {
@@ -535,7 +543,7 @@ class LmController
     // ============================================================================
 
     /**
-     * ACTION (JSON API): Rename a folder
+     * Renames a folder via JSON API
      */
     public function renameFolder()
     {
@@ -570,7 +578,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Rename a file/document
+     * Renames a file/document via JSON API
      */
     public function renameFile()
     {
@@ -605,7 +613,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Move a file/document to another folder
+     * Moves a file/document to another folder via JSON API
      */
     public function moveFile()
     {
@@ -635,7 +643,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Move a folder to another folder
+     * Moves a folder to another folder via JSON API
      */
     public function moveFolder()
     {
@@ -669,7 +677,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display summaries for a document
+     * Displays all summaries for a document
      */
     public function summary()
     {
@@ -705,7 +713,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete summary from database
+     * Deletes a summary from database
      */
     public function deleteSummary()
     {
@@ -730,7 +738,7 @@ class LmController
     }
 
     /**
-     * ACTION: Save summary as file
+     * Saves a summary as a new document file
      */
     public function saveSummaryAsFile()
     {
@@ -756,6 +764,9 @@ class LmController
         }
     }
 
+    /**
+     * Generates audio for summary using TTS, returns cached audio if available
+     */
     public function audioSummary(){
         header('Content-Type: application/json');
         $this->checkSession(true);
@@ -815,6 +826,9 @@ class LmController
         }
     }
 
+    /**
+     * Generates audio for note using TTS, returns cached audio if available
+     */
     public function audioNote(){
         header('Content-Type: application/json');
         $this->checkSession(true);
@@ -879,7 +893,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display notes for a document
+     * Displays all notes for a document
      */
     public function note()
     {
@@ -915,7 +929,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete note from database
+     * Deletes a note from database
      */
     public function deleteNote()
     {
@@ -940,7 +954,7 @@ class LmController
     }
 
     /**
-     * ACTION: Save note as file
+     * Saves a note as a new document file
      */
     public function saveNoteAsFile()
     {
@@ -966,6 +980,9 @@ class LmController
         }
     }
 
+    /**
+     * Uploads an image for a note and returns image URL via JSON API
+     */
     public function uploadNoteImage(){
         header('Content-Type: application/json');
 
@@ -1028,7 +1045,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display mindmaps for a document
+     * Displays all mindmaps for a document
      */
     public function mindmap()
     {
@@ -1064,7 +1081,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate a summary using AI
+     * Generates a summary using AI and saves it to database
      */
     public function generateSummary()
     {
@@ -1111,7 +1128,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate notes using AI
+     * Generates notes using AI and saves them to database
      */
     public function generateNotes()
     {
@@ -1158,7 +1175,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Save a manually created note
+     * Saves a manually created note to database
      */
     public function saveNote()
     {
@@ -1195,7 +1212,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Update an existing note inline
+     * Updates an existing note's title and content
      */
     public function updateNote()
     {
@@ -1247,7 +1264,7 @@ class LmController
 
 
     /**
-     * ACTION (JSON API): Generate a mindmap using AI
+     * Generates a mindmap using AI and saves it to database
      */
     public function generateMindmap()
     {
@@ -1291,7 +1308,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Retrieve a specific mindmap by ID
+     * Retrieves a specific mindmap by ID and returns its data
      */
     public function viewMindmap()
     {
@@ -1319,7 +1336,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Load the structured mindmap payload (alias of viewMindmap)
+     * Loads mindmap structure (alias of viewMindmap)
      */
     public function loadMindmapStructure()
     {
@@ -1327,7 +1344,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Persist updated mindmap structure
+     * Updates mindmap markdown structure in database
      */
     public function updateMindmapStructure()
     {
@@ -1366,7 +1383,7 @@ class LmController
     }
 
     /**
-     * ACTION: Delete mindmap from database
+     * Deletes a mindmap from database
      */
     public function deleteMindmap()
     {
@@ -1391,7 +1408,7 @@ class LmController
     }
 
     /**
-     * Extract markdown from stored mindmap payload
+     * Normalizes mindmap payload from database (handles JSON or plain markdown)
      */
     private function normalizeMindmapPayload($rawData): array
     {
@@ -1424,7 +1441,7 @@ class LmController
     }
 
     /**
-     * Build standardized mindmap response payload
+     * Builds standardized mindmap response payload with normalized data
      */
     private function buildMindmapResponse(int $mindmapId, int $fileId, int $userId): array
     {
@@ -1443,7 +1460,7 @@ class LmController
     }
 
     /**
-     * Generate mindmap title from file name and content
+     * Generates mindmap title using AI from file name and content summary
      */
     private function generateMindmapTitle(string $fileName, string $extractedText): string
     {
@@ -1452,7 +1469,7 @@ class LmController
     }
 
     /**
-     * Save mindmap data to database
+     * Saves mindmap data to database and returns mindmap ID
      */
     private function saveMindmapData(int $fileId, string $title, string $markdown): int
     {
@@ -1462,7 +1479,7 @@ class LmController
     }
 
     /**
-     * Get JSON request data from POST or JSON body
+     * Gets JSON request data from POST or JSON body input
      */
     private function getJsonRequestData(): array
     {
@@ -1472,7 +1489,7 @@ class LmController
     }
 
     /**
-     * Send JSON success response
+     * Sends JSON success response and exits
      */
     private function sendJsonSuccess(array $data = []): void
     {
@@ -1481,7 +1498,7 @@ class LmController
     }
 
     /**
-     * Send JSON error response
+     * Sends JSON error response and exits
      */
     private function sendJsonError(string $message): void
     {
@@ -1553,7 +1570,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display the create summary form
+     * Displays the create summary form
      */
     public function createSummary()
     {
@@ -1571,7 +1588,7 @@ class LmController
     // ============================================================================
 
     /**
-     * ACTION: Export summary as PDF
+     * Exports a summary as PDF file download
      */
     public function exportSummaryAsPdf()
     {
@@ -1603,7 +1620,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export summary as DOCX
+     * Exports a summary as DOCX file download
      */
     public function exportSummaryAsDocx()
     {
@@ -1635,7 +1652,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export summary as TXT
+     * Exports a summary as TXT file download
      */
     public function exportSummaryAsTxt()
     {
@@ -1667,7 +1684,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as PDF
+     * Exports a note as PDF file download
      */
     public function exportNoteAsPdf()
     {
@@ -1699,7 +1716,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as DOCX
+     * Exports a note as DOCX file download
      */
     public function exportNoteAsDocx()
     {
@@ -1731,7 +1748,7 @@ class LmController
     }
 
     /**
-     * ACTION: Export note as TXT
+     * Exports a note as TXT file download
      */
     public function exportNoteAsTxt()
     {
@@ -1763,7 +1780,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate PDF file
+     * Generates PDF file from title and content using DomPDF or fallback methods
      */
     private function _generatePdf($title, $content)
     {
@@ -1798,7 +1815,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate PDF using PHPWord (requires PDF renderer)
+     * Generates PDF using PHPWord with DomPDF renderer as fallback
      */
     private function _generatePdfWithPhpWord($title, $content)
     {
@@ -1839,7 +1856,7 @@ class LmController
     }
 
     /**
-     * Helper: Convert content to HTML for PDF generation
+     * Converts markdown-like content to HTML for PDF generation
      */
     private function _convertContentToHtml($title, $content)
     {
@@ -1943,8 +1960,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate simple HTML-based PDF (fallback when no PDF library available)
-     * This will show a message and provide download instructions
+     * Generates simple HTML-based PDF fallback with print dialog instructions
      */
     private function _generateSimplePdf($title, $content)
     {
@@ -2083,7 +2099,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate DOCX file
+     * Generates DOCX file from title and content using PHPWord
      */
     private function _generateDocx($title, $content)
     {
@@ -2109,7 +2125,7 @@ class LmController
     }
 
     /**
-     * Helper: Generate TXT file
+     * Generates plain text file from title and content
      */
     private function _generateTxt($title, $content)
     {
@@ -2133,7 +2149,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display chatbot interface for a document
+     * Displays chatbot interface for a document with chat history
      */
     public function chatbot()
     {
@@ -2166,7 +2182,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Send a question to the chatbot and get response
+     * Sends question to chatbot, generates AI response using document context and chat history
      */
     public function sendQuestionChat()
     {
@@ -2224,7 +2240,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Send a question to document hub chatbot with RAG
+     * Sends question to document hub chatbot using RAG: finds relevant chunks via embeddings and generates response
      */
     public function sendDocumentHubChat()
     {
@@ -2327,7 +2343,7 @@ class LmController
     }
 
     /**
-     * Helper: Save or retrieve chatbot for a file
+     * Saves or retrieves chatbot instance for a file, creates new one if doesn't exist
      */
     private function saveChatbot($fileId, $userId)
     {
@@ -2343,6 +2359,9 @@ class LmController
         return $chatbotId;
     }
 
+    /**
+     * Calculates cosine similarity between two embedding vectors
+     */
     private function cosineSimilarity(array $a, array $b): float
     {
         $dotProduct = 0.0;
@@ -2372,7 +2391,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display quizzes for a document
+     * Displays all quizzes for a document
      */
     public function quiz()
     {
@@ -2408,7 +2427,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Save quiz score
+     * Saves quiz score to database
      */
     public function saveScore()
     {
@@ -2438,7 +2457,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Retrieve a specific quiz by ID
+     * Retrieves a specific quiz by ID and returns questions
      */
     public function viewQuiz()
     {
@@ -2479,7 +2498,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate a quiz using AI
+     * Generates quiz using AI with configurable question amount, difficulty, and type (MCQ/short answer)
      */
     public function generateQuiz()
     {
@@ -2613,6 +2632,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Saves user quiz answers to database
+     */
     public function submitQuiz()
     {
         header('Content-Type: application/json');
@@ -2663,7 +2685,7 @@ class LmController
     // ============================================================================
 
     /**
-     * VIEW: Display flashcards for a document
+     * Displays all flashcard sets for a document
      */
     public function flashcard()
     {
@@ -2699,7 +2721,7 @@ class LmController
     }
 
     /**
-     * ACTION (JSON API): Generate flashcards using AI
+     * Generates flashcards using AI with configurable amount and type, saves to database
      */
     public function generateFlashcards()
     {
@@ -2757,6 +2779,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Retrieves flashcard set by title and file ID
+     */
     public function viewFlashcardSet()
     {
         header('Content-Type: application/json');
@@ -2779,6 +2804,9 @@ class LmController
         exit();
     }
 
+    /**
+     * Deletes a flashcard set by title and file ID
+     */
     public function deleteFlashcardSet()
     {
         $this->checkSession();
@@ -2807,6 +2835,9 @@ class LmController
     // DOCUMENT HUB PAGE (multidoc.php)
     // ============================================================================
 
+    /**
+     * Displays document hub interface for multi-document operations
+     */
     public function documentHub()
     {
         $this->checkSession();
@@ -2829,6 +2860,9 @@ class LmController
         require_once VIEW_DOCUMENT_HUB;
     }
 
+    /**
+     * Synthesizes a new document from multiple selected documents using RAG: finds relevant chunks via embeddings and generates document
+     */
     public function synthesizeDocument(){
         header('Content-Type: application/json');
 
