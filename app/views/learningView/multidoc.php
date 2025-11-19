@@ -1209,6 +1209,8 @@
             const knowledgeBaseResults = document.getElementById('knowledgeBaseResults');
 
             function displaySearchResults(results, totalMatches, returned) {
+                const query = knowledgeBaseQueryInput.value.trim();
+                
                 if (results.length === 0) {
                     knowledgeBaseResults.innerHTML = `
                         <div class="alert alert-info">
@@ -1221,13 +1223,27 @@
 
                 let html = `<div class="mb-3"><small class="text-muted">Found ${totalMatches} match(es), showing top ${returned}</small></div>`;
                 
+                // Escape special characters for regex
+                const escapeRegExp = (string) => {
+                    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                };
+
+                const keywords = query.split(/\s+/).filter(k => k.length > 0).map(escapeRegExp);
+                
                 results.forEach((result, index) => {
                     const similarityPercent = (result.similarity * 100).toFixed(1);
                     const chunkText = result.chunkText || '';
-                    const snippet = chunkText.length > 300 
-                        ? chunkText.substring(0, 300) + '...' 
+                    let snippet = chunkText.length > 100 
+                        ? chunkText.substring(0, 1000) + '...' 
                         : chunkText;
                     
+                    // Highlight keywords in the snippet (markdown source) using <mark> tags
+                    // We do this before markdown parsing so it persists
+                    if (keywords.length > 0) {
+                        const pattern = new RegExp(`(${keywords.join('|')})`, 'gi');
+                        snippet = snippet.replace(pattern, '<mark style="background-color: #fff3cd; padding: 0 2px; border-radius: 2px;">$1</mark>');
+                    }
+
                     // Parse markdown for the snippet
                     const formattedSnippet = marked.parse(snippet);
                     

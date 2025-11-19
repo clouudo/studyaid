@@ -292,9 +292,7 @@ Expected Answer: {$expectedAnswer}
 Student Answer: {$userAnswer}
 PROMPT;
 
-        $contents = [$this->buildUserContent($prompt)];
-        $result = $this->postGenerate($model, $contents);
-        $output = $this->extractText($result);
+        $output = $this->generateText($model, $prompt);
         $clean = $this->cleanJsonOutput($output);
         $decoded = json_decode($clean, true);
         if (!is_array($decoded)) {
