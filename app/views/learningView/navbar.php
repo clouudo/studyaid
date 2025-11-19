@@ -19,11 +19,11 @@
             </form>
         </li>
     <li class="nav-item badge rounded-pill <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
-            <form method="POST" action="<?= CHATBOT ?>" style="display: inline;">
-                <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
-                <button type="submit" class="nav-link <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;"><strong>Chatbot</strong></button>
-            </form>
-        </li>
+        <form method="POST" action="<?= CHATBOT ?>" style="display: inline;">
+            <input type="hidden" name="file_id" value="<?php echo $fileId ?>">
+            <button type="submit" class="nav-link <?php echo isActive(URL_CHATBOT, $current_url); ?>" style="color: black; border: none; background: none; padding: 0;"><strong>Chatbot</strong></button>
+        </form>
+    </li>
         <li class="nav-item badge rounded-pill <?php echo isActive(URL_FLASHCARD, $current_url); ?>" style="background-color:rgb(217, 213, 221); margin-right: 10px; padding: 10px 20px; font-size: 1rem;">
             <form method="POST" action="<?= FLASHCARD ?>" style="display: inline;">
                 <input type="hidden" name="file_id" value="<?php echo $fileId ?>">

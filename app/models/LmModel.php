@@ -919,14 +919,23 @@ class LmModel
      */
     public function saveFlashcards(int $fileId, string $title, string $term, string $definition): int
     {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO flashcard (fileID, title, term, definition) VALUES (:fileID, :title, :term, :definition)");    
-        $stmt->bindParam(':fileID', $fileId);
-        $stmt->bindParam(':title', $title);
-        $stmt->bindParam(':term', $term);
-        $stmt->bindParam(':definition', $definition);
-        $stmt->execute();
-        return (int)$conn->lastInsertId();
+        try {
+            $conn = $this->db->connect();
+            $stmt = $conn->prepare("INSERT INTO flashcard (fileID, title, term, definition) VALUES (:fileID, :title, :term, :definition)");    
+            $stmt->bindParam(':fileID', $fileId);
+            $stmt->bindParam(':title', $title);
+            $stmt->bindParam(':term', $term);
+            $stmt->bindParam(':definition', $definition);
+            $stmt->execute();
+            $lastId = (int)$conn->lastInsertId();
+            if ($lastId === 0) {
+                error_log('Warning: saveFlashcards returned 0 lastInsertId');
+            }
+            return $lastId;
+        } catch (\PDOException $e) {
+            error_log('Error saving flashcard: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
@@ -1473,11 +1482,17 @@ class LmModel
 
     public function getChunksByFile(int $fileID): array
     {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM documentchunks WHERE fileID = :fileID");
-        $stmt->bindParam(':fileID', $fileID);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        try {
+            $conn = $this->db->connect();
+            $stmt = $conn->prepare("SELECT * FROM documentchunks WHERE fileID = :fileID");
+            $stmt->bindParam(':fileID', $fileID);
+            $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            // Table doesn't exist or other database error - return empty array
+            error_log('Error getting chunks: ' . $e->getMessage());
+            return [];
+        }
     }
 }
 

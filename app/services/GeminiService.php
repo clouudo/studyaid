@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Gemini;
+use Gemini\Data\GenerationConfig;
 use Gemini\Enums\ModelType;
 
 class GeminiService
@@ -406,6 +407,69 @@ PROMPT;
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating embedding: ' . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Build user content from text string
+     * @param string $text
+     * @return string
+     */
+    private function buildUserContent(string $text): string
+    {
+        return $text;
+    }
+
+    /**
+     * Generate content with custom generation config
+     * @param string $model
+     * @param array $contents
+     * @param array|null $generationConfig
+     * @return mixed
+     */
+    private function postGenerate(string $model, array $contents, ?array $generationConfig = null)
+    {
+        try {
+            $generativeModel = $this->client->generativeModel($model);
+            
+            // Merge with default generation config if provided
+            if ($generationConfig !== null) {
+                $mergedConfig = array_merge($this->generationConfig ?? [], $generationConfig);
+                $config = new GenerationConfig(
+                    candidateCount: 1,
+                    stopSequences: [],
+                    maxOutputTokens: $mergedConfig['maxOutputTokens'] ?? null,
+                    temperature: $mergedConfig['temperature'] ?? null,
+                    topP: $mergedConfig['topP'] ?? null,
+                    topK: $mergedConfig['topK'] ?? null,
+                );
+                $generativeModel = $generativeModel->withGenerationConfig($config);
+            }
+            
+            // Generate content - contents array should contain strings
+            $response = $generativeModel->generateContent(...$contents);
+            return $response;
+        } catch (\Exception $e) {
+            error_log('Gemini API - Error generating content: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract text from GenerateContentResponse
+     * @param mixed $response
+     * @return string
+     */
+    private function extractText($response): string
+    {
+        try {
+            if (method_exists($response, 'text')) {
+                return $response->text();
+            }
+            return '';
+        } catch (\Exception $e) {
+            error_log('Gemini API - Error extracting text: ' . $e->getMessage());
+            return '';
         }
     }
 }

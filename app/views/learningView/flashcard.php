@@ -474,11 +474,12 @@ if (isset($flashcards) && is_array($flashcards)) {
                                     $updatedTimestamp = strtotime($flashcard['createdAt'] ?? '') ?: 0;
                                     ?>
                                     <div class="list-group-item d-flex justify-content-between align-items-center flashcard-item"
+                                        data-id="<?= htmlspecialchars($flashcard['flashcardID']) ?>"
                                         data-title="<?= htmlspecialchars($normalizedTitle) ?>"
                                         data-updated="<?= $updatedTimestamp ?>">
                                         <div class="flex-grow-1" style="min-width: 0;">
                                             <strong title="<?php echo htmlspecialchars($flashcard['title']); ?>"><?php echo htmlspecialchars($flashcard['title']); ?></strong>
-                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars($flashcard['createdAt']); ?></small>
+                                            <small class="text-muted d-block">Updated: <?php echo htmlspecialchars(date('Y-m-d H:i:s', strtotime($flashcard['createdAt'] ?? 'now'))); ?></small>
                                         </div>
                                         <div class="dropdown">
                                             <button class="action-btn" type="button" id="dropdownFileActions<?php echo $flashcard['flashcardID']; ?>" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
@@ -612,6 +613,7 @@ if (isset($flashcards) && is_array($flashcards)) {
         let terms = [];
         let definitions = [];
         let currentIndex = 0;
+        let currentSortType = 'asc';
 
         const flashcard = document.getElementById('flashcard');
         const flashcardFront = document.getElementById('flashcardFront');
@@ -642,6 +644,8 @@ if (isset($flashcards) && is_array($flashcards)) {
             const currentFlashcardSortLabel = document.getElementById('currentFlashcardSortLabel');
             let activeFlashcardId = null;
             let modalVisible = false;
+            const currentFileId = '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>';
+            const deleteFlashcardUrl = '<?= DELETE_FLASHCARD ?>';
 
             if (flashcardAmountRange && flashcardAmountValue) {
                 const updateAmountDisplay = () => {
@@ -886,35 +890,60 @@ if (isset($flashcards) && is_array($flashcards)) {
                 }
             });
 
-        //View flashcards
-        document.addEventListener('click', async (e) => {
-            const btn = e.target.closest('.view-btn');
-            if (!btn) return;
+        async function loadAndShowFlashcard(flashcardId) {
+            if (!flashcardId) return;
 
-            const id = btn.dataset.id;
-                if (activeFlashcardId === id && modalVisible) {
-                    flashcardsModal.hide();
-                    return;
-                }
+            if (activeFlashcardId === flashcardId && modalVisible) {
+                flashcardsModal.show();
+                return;
+            }
 
             const formData = new FormData();
-            formData.append('flashcard_id', id);
-            formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+            formData.append('flashcard_id', flashcardId);
+            formData.append('file_id', currentFileId);
 
-            const res = await fetch('<?= VIEW_FLASHCARD_ROUTE ?>', {
-                method: 'POST',
-                body: formData
-            });
+            try {
+                const res = await fetch('<?= VIEW_FLASHCARD_ROUTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            const json = await res.json();
-            if (json.success && json.flashcard) {
-                    activeFlashcardId = id;
-                renderFlashcard(json.flashcard);
+                const json = await res.json();
+                if (json.success && json.flashcard) {
+                    activeFlashcardId = flashcardId;
+                    renderFlashcard(json.flashcard);
                     flashcardsModal.show();
                 } else {
                     showSnackbar(json.message || 'Failed to load flashcards. Please try again.', 'error');
                 }
-            });
+            } catch (error) {
+                showSnackbar('An error occurred while loading the flashcard. Please try again.', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // View button click
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.view-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const id = btn.dataset.id;
+            await loadAndShowFlashcard(id);
+        });
+
+        // Allow clicking the entire list item (excluding dropdown/actions) to open the preview
+        flashcardList?.addEventListener('click', async (event) => {
+            const dropdownOrButton = event.target.closest('.action-btn, .dropdown-menu, .dropdown-item, button');
+            if (dropdownOrButton) {
+                return;
+            }
+            const listItem = event.target.closest('.flashcard-item');
+            if (!listItem) {
+                return;
+            }
+            const id = listItem.dataset.id;
+            await loadAndShowFlashcard(id);
+        });
 
             document.addEventListener('click', async (e) => {
                 const editBtn = e.target.closest('.edit-btn');
@@ -955,21 +984,14 @@ if (isset($flashcards) && is_array($flashcards)) {
             function renderFlashcard(flashcardData) {
                 const data = Array.isArray(flashcardData) ? flashcardData[0] : flashcardData;
 
-            let term = Array.isArray(data.term) ? data.term[0] : data.term;
-            let definition = Array.isArray(data.definition) ? data.definition[0] : data.definition;
-
-            try {
-                term = JSON.parse(term);
-                definition = JSON.parse(definition);
-            } catch (e) {
-                // ignore if not valid JSON
-            }
-
-            terms = term.split('\n').filter(t => t.trim() !== '');
-            definitions = definition.split('\n').filter(d => d.trim() !== '');
-
-            console.log('Parsed Terms:', terms);
-            console.log('Parsed Definitions:', definitions);
+                if (data.cards && Array.isArray(data.cards) && data.cards.length) {
+                    terms = data.cards.map(card => card.term || '');
+                    definitions = data.cards.map(card => card.definition || '');
+                } else {
+                    const parsed = parseFlashcardEntries(data);
+                    terms = parsed.terms;
+                    definitions = parsed.definitions;
+                }
 
                 currentIndex = 0;
                 flashcard.classList.remove('flipped');
@@ -993,11 +1015,6 @@ if (isset($flashcards) && is_array($flashcards)) {
                 flashcard.classList.remove('flipped');
                 updateFlashcard();
             }
-                if (currentIndex < terms.length - 1) {
-            currentIndex++;
-                    flashcard.classList.remove('flipped');
-            updateFlashcard();
-                }
         });
 
         prevBtn.addEventListener('click', () => {
@@ -1006,11 +1023,6 @@ if (isset($flashcards) && is_array($flashcards)) {
                 flashcard.classList.remove('flipped');
                 updateFlashcard();
             }
-                if (currentIndex > 0) {
-            currentIndex--;
-                    flashcard.classList.remove('flipped');
-            updateFlashcard();
-                }
         });
 
         flipBtn.addEventListener('click', () => {
@@ -1039,21 +1051,34 @@ if (isset($flashcards) && is_array($flashcards)) {
 
                 const data = await response.json();
 
-                if (data.success && data.flashcards) {
-                    terms = data.flashcards.map(f => f.term);
-                    definitions = data.flashcards.map(f => f.definition);
+                if (data.success && data.preview && Array.isArray(data.preview.cards)) {
+                    // Show success message
+                    showSnackbar(data.message || 'Flashcards generated successfully!', 'success');
+                    
+                    // Update flashcard preview with generated flashcards
+                    terms = data.preview.cards.map(card => card.term || '');
+                    definitions = data.preview.cards.map(card => card.definition || '');
 
                     currentIndex = 0;
                     flashcard.classList.remove('flipped');
-                        flashcardsModal.show();
                     updateFlashcard();
                     
-                    location.reload();
-                } else {
-                        showSnackbar(data.message || 'Failed to generate flashcards. Please try again.', 'error');
-                        submitButton.disabled = false;
-                        submitButton.innerHTML = originalButtonText;
+                    // Show the flashcard modal with preview (don't auto-close)
+                    flashcardsModal.show();
+                    
+                    // Restore button
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    
+                    // Update flashcard list in-place
+                    if (data.listItem) {
+                        upsertFlashcardListEntry(data.listItem);
                     }
+                } else {
+                    showSnackbar(data.message || 'Failed to generate flashcards. Please try again.', 'error');
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
                 } catch (error) {
                     showSnackbar('An error occurred while generating flashcards. Please try again.', 'error');
                     console.error('Error:', error);
@@ -1155,7 +1180,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                 document.removeEventListener('keydown', handleFlashcardShortcut);
             });
 
-            document.querySelectorAll('.delete-flashcard-form').forEach((form) => {
+            function bindDeleteConfirmation(form) {
+                if (!form || form.dataset.bound === 'true') return;
                 form.addEventListener('submit', (event) => {
                     const confirmed = confirm('Are you sure you want to delete this flashcard set? This action cannot be undone.');
                     if (!confirmed) {
@@ -1163,7 +1189,10 @@ if (isset($flashcards) && is_array($flashcards)) {
                         event.stopPropagation();
                     }
                 });
-            });
+                form.dataset.bound = 'true';
+            }
+
+            document.querySelectorAll('.delete-flashcard-form').forEach(bindDeleteConfirmation);
 
             function sortFlashcards(sortType = 'asc') {
                 if (!flashcardList) return;
@@ -1198,6 +1227,7 @@ if (isset($flashcards) && is_array($flashcards)) {
                     event.preventDefault();
                     const sortType = option.dataset.sort;
                     if (!sortType) return;
+                    currentSortType = sortType;
                     sortFlashcards(sortType);
                     if (currentFlashcardSortLabel) {
                         currentFlashcardSortLabel.textContent = `Sorted by: ${option.textContent.trim()}`;
@@ -1206,8 +1236,80 @@ if (isset($flashcards) && is_array($flashcards)) {
             });
 
             // Initial sort
-            sortFlashcards('asc');
-        });
+            sortFlashcards(currentSortType);
+
+            function escapeHtml(str = '') {
+                return str.replace(/[&<>"']/g, (char) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[char]));
+            }
+
+            function upsertFlashcardListEntry(listItemMeta) {
+                if (!flashcardList || !listItemMeta || !listItemMeta.title) {
+                    return;
+                }
+
+                const title = listItemMeta.title;
+                const flashcardId = listItemMeta.flashcardID || listItemMeta.flashcardId;
+                const createdAt = listItemMeta.createdAt || new Date().toISOString();
+                const normalizedTitle = title.toLowerCase();
+                const updatedTimestamp = Date.parse(createdAt) || Date.now();
+                    const formattedDate = new Date(createdAt).toLocaleString('en-CA', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }).replace(',', '');
+
+                let listItem = Array.from(flashcardList.querySelectorAll('.flashcard-item'))
+                    .find(item => item.dataset.title === normalizedTitle);
+
+                const dropdownId = `dropdownFlashcardActions_${flashcardId || 'tmp'}_${Date.now()}`;
+                const itemHtml = `
+                    <div class="flex-grow-1" style="min-width: 0;">
+                        <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+                        <small class="text-muted d-block">Updated: ${escapeHtml(formattedDate)}</small>
+                    </div>
+                    <div class="dropdown">
+                        <button class="action-btn" type="button" id="${dropdownId}" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="${dropdownId}">
+                            <li><a class="dropdown-item view-btn" href="#" data-id="${flashcardId}">View</a></li>
+                            <li><a class="dropdown-item edit-btn" href="#" data-id="${flashcardId}">Edit</a></li>
+                            <li>
+                                <form method="POST" action="${deleteFlashcardUrl}" class="delete-flashcard-form" style="display: inline;">
+                                    <input type="hidden" name="flashcard_id" value="${flashcardId}">
+                                    <input type="hidden" name="file_id" value="${currentFileId}">
+                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                `;
+
+                if (!listItem) {
+                    listItem = document.createElement('div');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center flashcard-item';
+                    flashcardList.prepend(listItem);
+                }
+
+                listItem.dataset.id = flashcardId || '';
+                listItem.dataset.title = normalizedTitle;
+                listItem.dataset.updated = updatedTimestamp;
+                listItem.innerHTML = itemHtml;
+
+                const deleteForm = listItem.querySelector('.delete-flashcard-form');
+                bindDeleteConfirmation(deleteForm);
+
+                sortFlashcards(currentSortType);
+            }
 
             editFlashcardForm?.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -1262,99 +1364,6 @@ if (isset($flashcards) && is_array($flashcards)) {
                     if (submitButton) submitButton.disabled = false;
                 }
             });
-
-            const handleFlashcardShortcut = (event) => {
-                if (!modalVisible) return;
-                if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
-                if (event.code === 'Space') {
-                    event.preventDefault();
-                    if (terms.length) {
-                        flashcard.classList.toggle('flipped');
-                        updateFlashcard();
-                    }
-                } else if (event.key === 'ArrowLeft') {
-                    event.preventDefault();
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                        flashcard.classList.remove('flipped');
-                        updateFlashcard();
-                    }
-                } else if (event.key === 'ArrowRight') {
-                    event.preventDefault();
-                    if (currentIndex < terms.length - 1) {
-                        currentIndex++;
-                        flashcard.classList.remove('flipped');
-                        updateFlashcard();
-                    }
-                }
-            };
-
-            flashcardsModalEl.addEventListener('shown.bs.modal', () => {
-                modalVisible = true;
-                document.addEventListener('keydown', handleFlashcardShortcut);
-            });
-
-            flashcardsModalEl.addEventListener('hidden.bs.modal', () => {
-                modalVisible = false;
-                activeFlashcardId = null;
-                flashcard.classList.remove('flipped');
-                document.removeEventListener('keydown', handleFlashcardShortcut);
-            });
-
-            document.querySelectorAll('.delete-flashcard-form').forEach((form) => {
-                form.addEventListener('submit', (event) => {
-                    const confirmed = confirm('Are you sure you want to delete this flashcard set? This action cannot be undone.');
-                    if (!confirmed) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                });
-            });
-
-            function sortFlashcards(sortType = 'asc') {
-                if (!flashcardList) return;
-                const items = Array.from(flashcardList.querySelectorAll('.flashcard-item'));
-                if (!items.length) return;
-
-                items.sort((a, b) => {
-                    const titleA = (a.dataset.title || '').toLowerCase();
-                    const titleB = (b.dataset.title || '').toLowerCase();
-                    const updatedA = parseInt(a.dataset.updated || '0', 10);
-                    const updatedB = parseInt(b.dataset.updated || '0', 10);
-
-                    switch (sortType) {
-                        case 'desc':
-                            return titleB.localeCompare(titleA);
-                        case 'latest':
-                            return updatedB - updatedA;
-                        case 'oldest':
-                            return updatedA - updatedB;
-                        case 'asc':
-                        default:
-                            return titleA.localeCompare(titleB);
-                    }
-                });
-
-                flashcardList.innerHTML = '';
-                items.forEach(item => flashcardList.appendChild(item));
->>>>>>> 1bc5990 (/..)
-            }
-
-            flashcardSortOptions.forEach(option => {
-                option.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    const sortType = option.dataset.sort;
-                    if (!sortType) return;
-                    sortFlashcards(sortType);
-                    if (currentFlashcardSortLabel) {
-                        currentFlashcardSortLabel.textContent = `Sorted by: ${option.textContent.trim()}`;
-                    }
-                });
-            });
-
-            // Initial sort
-            sortFlashcards('asc');
         });
     </script>
 </body>

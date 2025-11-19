@@ -129,8 +129,8 @@
         }
 
         .btn-check:checked+.btn-outline-secondary {
-            background-color: #A855F7;
-            border-color: #A855F7;
+            background-color: var(--sa-primary);
+            border-color: var(--sa-primary);
         }
 
         .btn-check:checked+.btn-outline-secondary:hover {
@@ -291,8 +291,8 @@
         }
 
         .action-btn:hover {
-            background-color: #e7d5ff;
-            color: #6f42c1;
+            background-color: var(--sa-accent);
+            color: var(--sa-primary);
         }
 
         /* Quiz Builder Layout */
@@ -327,14 +327,14 @@
         }
 
         .btn-icon:hover {
-            color: #6f42c1;
-            background-color: #e7d5ff;
+            color: var(--sa-primary);
+            background-color: var(--sa-accent);
         }
 
         .btn-back {
             background-color: transparent;
             border: none;
-            color: #6f42c1;
+            color: var(--sa-primary);
             padding: 8px 12px;
             border-radius: 8px;
             font-weight: 600;
@@ -349,7 +349,7 @@
         }
 
         .btn-back:hover {
-            background-color: #6f42c1;
+            background-color: var(--sa-primary);
             color: white;
         }
 
@@ -429,7 +429,7 @@
                                     <div class="mb-3">
                                         <label class="form-label d-flex justify-content-between align-items-center">
                                             <span>Total Questions</span>
-                                            <span id="questionCountLabel" class="badge rounded-pill" style="background-color: #e7d5ff; color: #5a32a3; font-size: 1rem; min-width: 48px;"><?php echo $defaultQuestionTotal; ?></span>
+                                            <span id="questionCountLabel" class="badge rounded-pill" style="background-color: var(--sa-accent); color: var(--sa-primary-dark); font-size: 1rem; min-width: 48px;"><?php echo $defaultQuestionTotal; ?></span>
                                         </label>
                                         <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>">
                                     </div>
@@ -490,13 +490,15 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label d-block">Exam Mode</label>
-                                        <small class="text-muted d-block">Exam Mode record the score for performance tracking.</small>
+                                        
                                         <div class="btn-group" role="group">
                                             <input type="radio" class="btn-check" name="examMode" id="examModeOff" value="0" checked>
                                             <label class="btn btn-outline-secondary" for="examModeOff">Practice</label>
                                             <input type="radio" class="btn-check" name="examMode" id="examModeOn" value="1">
                                             <label class="btn btn-outline-secondary" for="examModeOn">Exam Mode</label>
+                                            
                                         </div>
+                                        <small class="text-muted d-block">Exam Mode record the score for performance tracking.</small>
 
                                     </div>
                                     <div class="mb-3">
@@ -664,6 +666,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+        // Color constants matching CSS variables
+        const SA_PRIMARY = '#6f42c1';
+        const SA_PRIMARY_DARK = '#593093';
+        const SA_ACCENT = '#e7d5ff';
+        const SA_ACCENT_STRONG = '#d4b5ff';
+        const SA_MUTED = '#6c757d';
+
         // Snackbar function
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');
@@ -805,13 +814,13 @@
                         datasets: [{
                                 label: 'Practice Mode',
                                 data: practiceScores,
-                                borderColor: '#6f42c1',
+                                borderColor: SA_PRIMARY,
                                 backgroundColor: 'rgba(111, 66, 193, 0.1)',
                                 tension: 0.4,
                                 fill: true,
                                 pointRadius: 5,
                                 pointHoverRadius: 7,
-                                pointBackgroundColor: '#6f42c1',
+                                pointBackgroundColor: SA_PRIMARY,
                                 pointBorderColor: '#fff',
                                 pointBorderWidth: 2
                             },
@@ -1324,9 +1333,9 @@
                         </div>
                         <div class="row g-3 mt-2">
                             <div class="col-6 col-md-3">
-                                <div class="text-center p-2 rounded" style="background-color: #ffffff; border: 2px solid #e7d5ff;">
-                                    <p class="mb-1 small" style="color: #6c757d;">Total</p>
-                                    <p class="mb-0 fw-bold" style="font-size: 1.5rem; color: #6f42c1">${totalQuestions}</p>
+                                <div class="text-center p-2 rounded" style="background-color: #ffffff; border: 2px solid ${SA_ACCENT};">
+                                    <p class="mb-1 small" style="color: ${SA_MUTED};">Total</p>
+                                    <p class="mb-0 fw-bold" style="font-size: 1.5rem; color: ${SA_PRIMARY}">${totalQuestions}</p>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
@@ -1342,9 +1351,9 @@
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="text-center p-2 rounded" style="background-color: #e7d5ff; border: 2px solid #6f42c1;">
-                                    <p class="mb-1 small" style="color: #6c757d;">Accuracy</p>
-                                    <p class="mb-0 fw-bold" style="font-size: 1.5rem; color: #6f42c1;">${totalQuestions > 0 ? ((correctCount / totalQuestions) * 100).toFixed(0) : 0}%</p>
+                                <div class="text-center p-2 rounded" style="background-color: ${SA_ACCENT}; border: 2px solid ${SA_PRIMARY};">
+                                    <p class="mb-1 small" style="color: ${SA_MUTED};">Accuracy</p>
+                                    <p class="mb-0 fw-bold" style="font-size: 1.5rem; color: ${SA_PRIMARY};">${totalQuestions > 0 ? ((correctCount / totalQuestions) * 100).toFixed(0) : 0}%</p>
                                 </div>
                             </div>
                         </div>

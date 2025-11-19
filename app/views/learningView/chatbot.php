@@ -259,7 +259,7 @@
                                 <input type="text" class="form-control" id="questionInput" name="question"
                                     placeholder="Type your question here..." required>
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-send me-2"></i>Send
+                                    <i class="bi bi-send me-2"></i>
                                 </button>
                             </div>
                         </form>
@@ -303,12 +303,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const questionChats = <?php echo json_encode($questionChats); ?>;
-            const responseChats = <?php echo json_encode($responseChats); ?>;
-            if (Array.isArray(questionChats)) {
+            const questionChats = <?php echo json_encode($questionChats ?? []); ?>;
+            const responseChats = <?php echo json_encode($responseChats ?? []); ?>;
+            if (Array.isArray(questionChats) && questionChats.length > 0) {
                 questionChats.forEach((questionChat, index) => {
-                    addMessage(questionChat.userQuestion, true);
-                    addMessage(responseChats[index], false);
+                    const question = questionChat['userQuestion'] || questionChat['question'] || '';
+                    if (question) {
+                        addMessage(question, true);
+                    }
+                    const response = responseChats[index] || '';
+                    if (response) {
+                        addMessage(response, false);
+                    }
                 });
             }
         });
@@ -324,16 +330,16 @@
                 minute: '2-digit'
             });
 
-            let contentHTML;
+            let parsedContent;
             if (isUser) {
+                // Escape HTML for user messages
                 const tempDiv = document.createElement('div');
                 tempDiv.textContent = text;
-                contentHTML = tempDiv.innerHTML;
+                parsedContent = tempDiv.innerHTML;
             } else {
-                contentHTML = marked.parse(text);
+                // Parse markdown for bot messages
+                parsedContent = marked.parse(text || '');
             }
-
-            const parsedContent = marked.parse(text);
 
             messageDiv.innerHTML = `
                 <div class="message-header">
@@ -368,30 +374,43 @@
 
             try {
                 const formData = new FormData(chatForm);
-                formData.append('file_id', <?php echo $file['fileID']; ?>);
+                const fileId = <?php echo isset($file['fileID']) ? $file['fileID'] : 'null'; ?>;
+                if (!fileId) {
+                    showSnackbar('File ID is missing. Please refresh the page.', 'error');
+                    chatContainer.removeChild(loadingDiv);
+                    return;
+                }
+                formData.append('file_id', fileId);
                 formData.append('question', question);
                 const response = await fetch(chatForm.action, {
                     method: 'POST',
                     body: formData
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 // Remove loading indicator
-                chatContainer.removeChild(loadingDiv);
+                if (chatContainer.contains(loadingDiv)) {
+                    chatContainer.removeChild(loadingDiv);
+                }
 
                 if (data.success) {
-                    addMessage(data.response || data.message);
+                    const botResponse = data.response || data.message || 'I received your question but could not generate a response.';
+                    addMessage(botResponse, false);
                 } else {
                     showSnackbar(data.message || 'Failed to get response. Please try again.', 'error');
-                    addMessage('Sorry, I encountered an error. Please try asking your question again.');
+                    addMessage('Sorry, I encountered an error. Please try asking your question again.', false);
                 }
             } catch (error) {
                 if (chatContainer.contains(loadingDiv)) {
                     chatContainer.removeChild(loadingDiv);
                 }
                 showSnackbar('Network error. Please check your connection and try again.', 'error');
-                addMessage('Sorry, there was a network error. Please try again.');
+                addMessage('Sorry, there was a network error. Please try again.', false);
                 console.error('Error:', error);
             }
         });

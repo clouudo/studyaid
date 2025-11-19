@@ -1639,7 +1639,8 @@ class LmController
             if ($chatbotId) {
                 $questionChats = $this->lmModel->getQuestionChatByChatbot($chatbotId);
                 foreach ($questionChats as $questionChat) {
-                    $responseChats[] = $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']) . "\n";
+                    $responseChat = $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']);
+                    $responseChats[] = $responseChat ? $responseChat : '';
                 }
             }
         } else {
@@ -1700,28 +1701,40 @@ class LmController
 
             // 3. Calculate cosine similarity and find the most relevant chunks
             $similarities = [];
-            foreach ($chunks as $chunk) {
-                $chunkEmbedding = json_decode($chunk['embedding'], true);
-                if (!empty($chunkEmbedding)) {
-                    $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
-                    $similarities[] = [
-                        'chunk' => $chunk['chunkText'],
-                        'similarity' => $similarity,
-                    ];
+            $context = '';
+            
+            if (!empty($chunks) && is_array($chunks)) {
+                foreach ($chunks as $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'] ?? '', true);
+                    if (!empty($chunkEmbedding) && is_array($chunkEmbedding)) {
+                        $similarity = $this->cosineSimilarity($questionEmbedding, $chunkEmbedding);
+                        $similarities[] = [
+                            'chunk' => $chunk['chunkText'] ?? '',
+                            'similarity' => $similarity,
+                        ];
+                    }
+                }
+
+                // 4. Sort chunks by similarity and get the top N (e.g., top 3)
+                if (!empty($similarities)) {
+                    usort($similarities, function ($a, $b) {
+                        return $b['similarity'] <=> $a['similarity'];
+                    });
+
+                    $topChunks = array_slice($similarities, 0, 3);
+
+                    // 5. Concatenate the text of the top chunks to create a context
+                    foreach ($topChunks as $chunk) {
+                        if (!empty($chunk['chunk'])) {
+                            $context .= $chunk['chunk'] . "\n\n";
+                        }
+                    }
                 }
             }
-
-            // 4. Sort chunks by similarity and get the top N (e.g., top 3)
-            usort($similarities, function ($a, $b) {
-                return $b['similarity'] <=> $a['similarity'];
-            });
-
-            $topChunks = array_slice($similarities, 0, 3);
-
-            // 5. Concatenate the text of the top chunks to create a context
-            $context = '';
-            foreach ($topChunks as $chunk) {
-                $context .= $chunk['chunk'] . "\n\n";
+            
+            // If no chunks found, use the full extracted text as context
+            if (empty($context)) {
+                $context = $file['extracted_text'] ?? '';
             }
 
             // 6. Get chat history
@@ -1989,63 +2002,24 @@ class LmController
 
         $userId = (int)$_SESSION['user_id'];
         $fileId = $this->resolveFileId();
-        $questionAmount = '';
-        $questionDifficulty = '';
-        $instructions = '';
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionAmount'])) {
-            $questionAmount = trim($_POST['questionAmount']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionDifficulty'])) {
-            $questionDifficulty = trim($_POST['questionDifficulty']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instructions'])) {
-            $instructions = trim($_POST['instructions']);
-        }
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['questionType'])) {
-            $questionType = trim($_POST['questionType']);
+        // Get POST parameters
+        $questionAmount = isset($_POST['questionAmount']) ? trim($_POST['questionAmount']) : '';
         $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'medium';
         $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
+        $questionType = isset($_POST['questionType']) ? trim($_POST['questionType']) : 'mixed';
         $examMode = isset($_POST['examMode']) ? (int)$_POST['examMode'] : 0;
         $totalQuestions = isset($_POST['totalQuestions']) ? (int)$_POST['totalQuestions'] : 10;
         $totalQuestions = max(1, min(25, $totalQuestions));
-        $distributionRaw = $_POST['questionDistribution'] ?? '{}';
-        $distribution = json_decode($distributionRaw, true);
-        if (!is_array($distribution)) {
-            $distribution = [];
-        }
-        $allowedTypes = [
-            'multiple_choice',
-            'checkbox',
-            'true_false',
-            'short_answer',
-            'long_answer'
-        ];
-        $normalizedDistribution = [];
-        $totalRequested = 0;
-        foreach ($allowedTypes as $type) {
-            $value = isset($distribution[$type]) ? (int)$distribution[$type] : 0;
-            if ($value < 0) {
-                $value = 0;
-            }
-            $normalizedDistribution[$type] = $value;
-            $totalRequested += $value;
-        }
-        if ($totalRequested === 0) {
-            $normalizedDistribution['multiple_choice'] = $totalQuestions;
-            $totalRequested = $totalQuestions;
-        }
-        if ($totalRequested !== $totalQuestions) {
-            echo json_encode(['success' => false, 'message' => 'Total question distribution must equal selected question quantity.']);
-            exit();
-        }
-
+        
+        // Validate file ID
         if ($fileId === 0) {
             echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
             exit();
         }
 
         try {
+            // Get file data from model
             $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file || !is_array($file)) {
                 echo json_encode(['success' => false, 'message' => 'File not found.']);
@@ -2059,58 +2033,109 @@ class LmController
             }
 
             $context = !empty($instructions) ? $instructions : '';
-            if ($questionType == 'mcq') {
-                $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
-            } elseif ($questionType == 'shortQuestion') {
-                $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
-            $quizJson = $this->gemini->generateMixedQuiz($sourceText, $normalizedDistribution, $totalQuestions, $questionDifficulty, $context);
-            $decodedQuiz = json_decode($quizJson, true);
-            if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
-                echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
-                exit();
-            }
-
-            $decodedQuiz = json_decode($quizData, true);
-            $totalQuestions = count($decodedQuiz['quiz']);
-            $quizArray = $decodedQuiz['quiz'];
-            if (count($quizArray) !== $totalQuestions) {
-                echo json_encode(['success' => false, 'message' => 'Generated quiz does not match requested question count.']);
-                exit();
-            }
-
             $generatedSummary = $this->gemini->generateSummary($sourceText, "A very short summary of the content");
-            $title = $this->gemini->generateTitle($file['name'] . $generatedSummary);
-            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
-            $encodedQuiz = json_encode($decodedQuiz['quiz']);
+
+            // Handle different quiz types
             if ($questionType == 'mcq') {
+                // Generate MCQ quiz
+                $quizData = $this->gemini->generateMCQ($sourceText, $context, $questionAmount, $questionDifficulty);
+                $decodedQuiz = json_decode($quizData, true);
+                
+                if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
+                    echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
+                    exit();
+                }
+
+                $totalQuestions = count($decodedQuiz['quiz']);
+                $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
+                $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
+                $encodedQuiz = json_encode($decodedQuiz['quiz']);
                 $this->lmModel->saveQuestion($quizId, 'MCQ', $encodedQuiz);
-            } elseif ($questionType == 'shortQuestion') {
-                $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
-            }
 
-            $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
-            if ($questionType == 'mcq') {
                 echo json_encode(['success' => true, 'mcq' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+                
             } elseif ($questionType == 'shortQuestion') {
-                echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
-            }
-            $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
-            $config = [
-                'distribution' => $normalizedDistribution,
-                'difficulty' => $questionDifficulty,
-                'instructions' => $instructions,
-                'examMode' => $examMode,
-                'totalQuestions' => $totalQuestions
-            ];
-            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $config, $examMode);
-            $this->lmModel->saveQuestion($quizId, 'Mixed', json_encode(['quiz' => $quizArray]));
+                // Generate Short Question quiz
+                $quizData = $this->gemini->generateShortQuestion($sourceText, $context, $questionAmount, $questionDifficulty);
+                $decodedQuiz = json_decode($quizData, true);
+                
+                if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
+                    echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
+                    exit();
+                }
 
-            echo json_encode([
-                'success' => true,
-                'quiz' => $quizArray,
-                'quizId' => $quizId,
-                'examMode' => $examMode
-            ]);
+                $totalQuestions = count($decodedQuiz['quiz']);
+                $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
+                $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title);
+                $encodedQuiz = json_encode($decodedQuiz['quiz']);
+                $this->lmModel->saveQuestion($quizId, 'Short Question', $encodedQuiz);
+
+                echo json_encode(['success' => true, 'shortQuestion' => $decodedQuiz['quiz'], 'quizId' => $quizId]);
+                
+            } else {
+                // Generate Mixed quiz (default)
+                $distributionRaw = $_POST['questionDistribution'] ?? '{}';
+                $distribution = json_decode($distributionRaw, true);
+                if (!is_array($distribution)) {
+                    $distribution = [];
+                }
+                
+                $allowedTypes = [
+                    'multiple_choice',
+                    'checkbox',
+                    'true_false',
+                    'short_answer',
+                    'long_answer'
+                ];
+                
+                $normalizedDistribution = [];
+                $totalRequested = 0;
+                foreach ($allowedTypes as $type) {
+                    $value = isset($distribution[$type]) ? (int)$distribution[$type] : 0;
+                    if ($value < 0) {
+                        $value = 0;
+                    }
+                    $normalizedDistribution[$type] = $value;
+                    $totalRequested += $value;
+                }
+                
+                if ($totalRequested === 0) {
+                    $normalizedDistribution['multiple_choice'] = $totalQuestions;
+                    $totalRequested = $totalQuestions;
+                }
+                
+                if ($totalRequested !== $totalQuestions) {
+                    echo json_encode(['success' => false, 'message' => 'Total question distribution must equal selected question quantity.']);
+                    exit();
+                }
+
+                $quizJson = $this->gemini->generateMixedQuiz($sourceText, $normalizedDistribution, $totalQuestions, $questionDifficulty, $context);
+                $decodedQuiz = json_decode($quizJson, true);
+                
+                if (!isset($decodedQuiz['quiz']) || !is_array($decodedQuiz['quiz'])) {
+                    echo json_encode(['success' => false, 'message' => 'Unable to generate quiz. Please try again.']);
+                    exit();
+                }
+
+                $quizArray = $decodedQuiz['quiz'] ?? $decodedQuiz['questions'] ?? [];
+                $title = $this->gemini->generateTitle($file['name'] . ' ' . $generatedSummary);
+                $config = [
+                    'distribution' => $normalizedDistribution,
+                    'difficulty' => $questionDifficulty,
+                    'instructions' => $instructions,
+                    'examMode' => $examMode,
+                    'totalQuestions' => $totalQuestions
+                ];
+                $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $config, $examMode);
+                $this->lmModel->saveQuestion($quizId, 'Mixed', json_encode(['quiz' => $quizArray]));
+
+                echo json_encode([
+                    'success' => true,
+                    'quiz' => $quizArray,
+                    'quizId' => $quizId,
+                    'examMode' => $examMode
+                ]);
+            }
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -2272,6 +2297,33 @@ class LmController
     // FLASHCARD PAGE (flashcard.php)
     // ============================================================================
 
+    private function decodeFlashcardCards(array $flashcard): array
+    {
+        $termsRaw = $flashcard['term'] ?? '[]';
+        $definitionsRaw = $flashcard['definition'] ?? '[]';
+
+        $decodedTerms = json_decode($termsRaw, true);
+        if (!is_array($decodedTerms)) {
+            $decodedTerms = array_filter(array_map('trim', explode("\n", (string)$termsRaw)), static fn($item) => $item !== '');
+        }
+
+        $decodedDefinitions = json_decode($definitionsRaw, true);
+        if (!is_array($decodedDefinitions)) {
+            $decodedDefinitions = array_map('trim', explode("\n", (string)$definitionsRaw));
+        }
+
+        $cards = [];
+        $count = max(count($decodedTerms), count($decodedDefinitions));
+        for ($i = 0; $i < $count; $i++) {
+            $cards[] = [
+                'term' => $decodedTerms[$i] ?? '',
+                'definition' => $decodedDefinitions[$i] ?? ''
+            ];
+        }
+
+        return $cards;
+    }
+
     /**
      * VIEW: Display flashcards for a document
      */
@@ -2354,13 +2406,63 @@ class LmController
             $flashcardsData = $this->gemini->generateFlashcards($sourceText, $context, $flashcardAmount, $flashcardType);
             $decodedFlashcards = json_decode($flashcardsData, true);
 
-            $title = $this->gemini->generateTitle($file['name'] . " Flashcards");
-
-            foreach ($decodedFlashcards['flashcards'] as $flashcard) {
-                $this->lmModel->saveFlashcards($fileId, $title, $flashcard['term'], $flashcard['definition']);
+            // Validate the decoded flashcards
+            if (!is_array($decodedFlashcards) || !isset($decodedFlashcards['flashcards']) || !is_array($decodedFlashcards['flashcards'])) {
+                echo json_encode(['success' => false, 'message' => 'Invalid flashcard data received. Please try again.']);
+                exit();
             }
 
-            echo json_encode(['success' => true, 'flashcards' => $decodedFlashcards['flashcards']]);
+            if (empty($decodedFlashcards['flashcards'])) {
+                echo json_encode(['success' => false, 'message' => 'No flashcards were generated. Please try again.']);
+                exit();
+            }
+
+            $title = $this->gemini->generateTitle($file['name'] . " Flashcards");
+
+            $terms = [];
+            $definitions = [];
+            foreach ($decodedFlashcards['flashcards'] as $card) {
+                if (!isset($card['term'], $card['definition'])) {
+                    continue;
+                }
+                $terms[] = trim((string)$card['term']);
+                $definitions[] = trim((string)$card['definition']);
+            }
+
+            if (empty($terms)) {
+                echo json_encode(['success' => false, 'message' => 'No valid flashcards found to save.']);
+                exit();
+            }
+
+            $termJson = json_encode($terms);
+            $definitionJson = json_encode($definitions);
+
+            $flashcardId = $this->lmModel->saveFlashcards($fileId, $title, $termJson, $definitionJson);
+            $flashcardRecord = $this->lmModel->getFlashcardsById($flashcardId);
+
+            $previewCards = [];
+            foreach ($terms as $idx => $term) {
+                $previewCards[] = [
+                    'term' => $term,
+                    'definition' => $definitions[$idx] ?? ''
+                ];
+            }
+
+            $listItemMeta = [
+                'title' => $title,
+                'flashcardID' => $flashcardRecord['flashcardID'] ?? $flashcardId,
+                'createdAt' => $flashcardRecord['createdAt'] ?? date('Y-m-d H:i:s')
+            ];
+
+            echo json_encode([
+                'success' => true, 
+                'message' => "Flashcards generated and saved successfully! (" . count($terms) . " cards saved)",
+                'preview' => [
+                    'title' => $title,
+                    'cards' => $previewCards
+                ],
+                'listItem' => $listItemMeta
+            ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -2494,7 +2596,17 @@ class LmController
                 exit();
             }
 
-            echo json_encode(['success' => true, 'flashcard' => $flashcard]);
+            $cards = $this->decodeFlashcardCards($flashcard);
+
+            echo json_encode([
+                'success' => true,
+                'flashcard' => [
+                    'flashcardID' => $flashcardId,
+                    'title' => $flashcard['title'] ?? '',
+                    'cards' => $cards,
+                    'createdAt' => $flashcard['createdAt'] ?? ''
+                ]
+            ]);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
@@ -2610,8 +2722,8 @@ class LmController
             exit();
         }
 
-        $termString = json_encode(implode("\n", $cleanTerms));
-        $definitionString = json_encode(implode("\n", $cleanDefinitions));
+        $termString = json_encode(array_values($cleanTerms));
+        $definitionString = json_encode(array_values($cleanDefinitions));
 
         try {
             $this->lmModel->saveFlashcards($fileId, $title, $termString, $definitionString);
@@ -2687,8 +2799,8 @@ class LmController
             exit();
         }
 
-        $termString = json_encode(implode("\n", $cleanTerms));
-        $definitionString = json_encode(implode("\n", $cleanDefinitions));
+        $termString = json_encode(array_values($cleanTerms));
+        $definitionString = json_encode(array_values($cleanDefinitions));
 
         try {
             $this->lmModel->updateFlashcard($flashcardId, $title, $termString, $definitionString, $userId);
