@@ -252,16 +252,10 @@ class LmModel
 
         // Clean up local file
         @unlink($localAudioPath);
-
-        // Create unique fileID for this summary's audio
-        $audioFileId = $this->getAudioFileIdForSummary($summaryId, $sourceFileId);
         
-        // Ensure the virtual file entry exists in file table
-        $this->ensureAudioFileEntry($audioFileId, $userId, $folderId);
-        
-        // Save to audio table
-        $stmt = $conn->prepare("INSERT INTO audio (fileID, audioPath) VALUES (:fileID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
-        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        // Save to audio table using only summaryID (audio is based on summary content, not file content)
+        $stmt = $conn->prepare("INSERT INTO audio (summaryID, audioPath) VALUES (:summaryID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
         $stmt->bindParam(':audioPath', $gcsObjectName);
         $stmt->execute();
         
@@ -319,48 +313,14 @@ class LmModel
 
         // Clean up local file
         @unlink($localAudioPath);
-
-        // Create unique fileID for this note's audio
-        $audioFileId = $this->getAudioFileIdForNote($noteId, $sourceFileId);
         
-        // Ensure the virtual file entry exists in file table
-        $this->ensureAudioFileEntry($audioFileId, $userId, $folderId);
-        
-        // Save to audio table
-        $stmt = $conn->prepare("INSERT INTO audio (fileID, audioPath) VALUES (:fileID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
-        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        // Save to audio table using only noteID (audio is based on note content, not file content)
+        $stmt = $conn->prepare("INSERT INTO audio (noteID, audioPath) VALUES (:noteID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
         $stmt->bindParam(':audioPath', $gcsObjectName);
         $stmt->execute();
         
         return $gcsObjectName;
-    }
-
-    /**
-     * Ensure audio file entry exists in file table (for virtual fileIDs)
-     */
-    private function ensureAudioFileEntry(int $audioFileId, int $userId, $folderId): void
-    {
-        $conn = $this->db->connect();
-        
-        // Check if file entry exists
-        $checkStmt = $conn->prepare("SELECT fileID FROM file WHERE fileID = :fileID");
-        $checkStmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
-        $checkStmt->execute();
-        
-        if (!$checkStmt->fetch()) {
-            // Create virtual file entry for audio
-            $insertStmt = $conn->prepare("INSERT INTO file (fileID, userID, folderID, name, fileType, filePath) VALUES (:fileID, :userID, :folderID, :name, :fileType, :filePath)");
-            $insertStmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
-            $insertStmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
-            $insertStmt->bindParam(':folderID', $folderId, $folderId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
-            $name = 'audio_' . $audioFileId;
-            $insertStmt->bindParam(':name', $name);
-            $fileType = 'wav';
-            $insertStmt->bindParam(':fileType', $fileType);
-            $filePath = '';
-            $insertStmt->bindParam(':filePath', $filePath);
-            $insertStmt->execute();
-        }
     }
 
     /**
@@ -370,29 +330,13 @@ class LmModel
     {
         $conn = $this->db->connect();
         
-        // Get summary and its fileID
-        $summary = $conn->prepare("SELECT s.fileID FROM summary s 
-                                   INNER JOIN file f ON s.fileID = f.fileID 
-                                   WHERE s.summaryID = :summaryID AND f.userID = :userID");
-        $summary->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
-        $summary->bindParam(':userID', $userId, \PDO::PARAM_INT);
-        $summary->execute();
-        $summaryData = $summary->fetch(\PDO::FETCH_ASSOC);
-        
-        if (!$summaryData) {
-            return null;
-        }
-        
-        // Create a unique fileID for this summary's audio by using summaryID as identifier
-        // We'll use a hash or combination to create a unique identifier
-        $audioFileId = $this->getAudioFileIdForSummary($summaryId, $summaryData['fileID']);
-        
-        // Get audio record from audio table
+        // Verify summary belongs to user and get audio record directly using summaryID
         $query = "SELECT a.* FROM audio a 
-                  INNER JOIN file f ON a.fileID = f.fileID 
-                  WHERE a.fileID = :fileID AND f.userID = :userID";
+                  INNER JOIN summary s ON a.summaryID = s.summaryID
+                  INNER JOIN file f ON s.fileID = f.fileID 
+                  WHERE a.summaryID = :summaryID AND f.userID = :userID";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':summaryID', $summaryId, \PDO::PARAM_INT);
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
@@ -405,51 +349,16 @@ class LmModel
     {
         $conn = $this->db->connect();
         
-        // Get note and its fileID
-        $note = $conn->prepare("SELECT n.fileID FROM note n 
-                                INNER JOIN file f ON n.fileID = f.fileID 
-                                WHERE n.noteID = :noteID AND f.userID = :userID");
-        $note->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
-        $note->bindParam(':userID', $userId, \PDO::PARAM_INT);
-        $note->execute();
-        $noteData = $note->fetch(\PDO::FETCH_ASSOC);
-        
-        if (!$noteData) {
-            return null;
-        }
-        
-        // Create a unique fileID for this note's audio
-        $audioFileId = $this->getAudioFileIdForNote($noteId, $noteData['fileID']);
-        
-        // Get audio record from audio table
+        // Verify note belongs to user and get audio record directly using noteID
         $query = "SELECT a.* FROM audio a 
-                  INNER JOIN file f ON a.fileID = f.fileID 
-                  WHERE a.fileID = :fileID AND f.userID = :userID";
+                  INNER JOIN note n ON a.noteID = n.noteID
+                  INNER JOIN file f ON n.fileID = f.fileID 
+                  WHERE a.noteID = :noteID AND f.userID = :userID";
         $stmt = $conn->prepare($query);
-        $stmt->bindParam(':fileID', $audioFileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
-    }
-
-    /**
-     * Get unique fileID for summary audio (creates a virtual fileID based on summaryID)
-     */
-    private function getAudioFileIdForSummary(int $summaryId, int $sourceFileId): int
-    {
-        // Create a unique identifier: use a large offset to avoid conflicts
-        // Format: 1000000000 + summaryID (assuming summaryIDs won't exceed this)
-        return 1000000000 + $summaryId;
-    }
-
-    /**
-     * Get unique fileID for note audio (creates a virtual fileID based on noteID)
-     */
-    private function getAudioFileIdForNote(int $noteId, int $sourceFileId): int
-    {
-        // Create a unique identifier: use a different large offset for notes
-        // Format: 2000000000 + noteID (assuming noteIDs won't exceed this)
-        return 2000000000 + $noteId;
     }
 
     /**
