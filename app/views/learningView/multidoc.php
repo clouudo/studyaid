@@ -1072,6 +1072,7 @@
 
                 document.getElementById('chatbotPanel').style.display = 'block';
                 document.getElementById('resultsPanel').style.display = 'none';
+                document.getElementById('knowledgeBasePanel').style.display = 'none';
                 
                 const chatContainer = document.getElementById('chatContainer');
                 chatContainer.scrollTop = chatContainer.scrollHeight;
