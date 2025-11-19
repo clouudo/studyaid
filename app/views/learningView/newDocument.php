@@ -831,14 +831,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     document.getElementById('documentName').focus();
                     return false;
                 }
-
-                // Validate document name length (3-255 characters)
-                if (documentName.length < 3) {
-                    e.preventDefault();
-                    showSnackbar('Document name must be at least 3 characters long.', 'error');
-                    document.getElementById('documentName').focus();
-                    return false;
-                }
             }
 
             // Validate at least one file selected
