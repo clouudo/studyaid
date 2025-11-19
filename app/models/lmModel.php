@@ -1183,6 +1183,41 @@ class LmModel
         return $stmt->rowCount() > 0;
     }
 
+    public function saveNoteImage(int $noteId, string $fileContent, string $fileExtension, int $userId): array
+    {
+        // Generate unique filename
+        $uniqueFileName = uniqid('note_img_', true) . '.' . $fileExtension;
+        $gcsObjectName = 'user_upload/' . $userId . '/note_images/' . $uniqueFileName;
+
+        // Upload to GCS
+        $bucket = $this->storage->bucket($this->bucketName);
+
+        // Determine content type
+        $contentType = 'image/' . ($fileExtension === 'jpg' ? 'jpeg' : $fileExtension);
+
+        $bucket->upload($fileContent, [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => $contentType]
+        ]);
+
+        // Generate signed URL (valid for 7 days - maximum allowed by GCS)
+        $object = $bucket->object($gcsObjectName);
+        $signedUrl = $object->signedUrl(new \DateTimeImmutable('+7 days'), ['version' => 'v4']);
+
+        // Save image path to database
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO image (noteID, imagePath) VALUES (:noteID, :imagePath)");
+        $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':imagePath', $gcsObjectName);
+        $stmt->execute();
+
+        return [
+            'imageId' => (int)$conn->lastInsertId(),
+            'imageUrl' => $signedUrl,
+            'imagePath' => $gcsObjectName
+        ];
+    }
+
     // ============================================================================
     // MINDMAP PAGE (mindmap.php)
     // ============================================================================

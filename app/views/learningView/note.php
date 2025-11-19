@@ -183,6 +183,25 @@
             overflow-x: auto;
             margin-bottom: 0.75rem;
         }
+
+        /* Limit image sizes in note previews */
+        .note-preview-panel img,
+        .note-preview img {
+            display: block;
+            max-width: 100%;
+            max-height: 400px;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0.375rem;
+            margin: 1rem auto;
+        }
+
+        /* Smaller image preview in upload modal */
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+        }
     </style>
 </head>
 
@@ -226,6 +245,7 @@
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-type-h1"></i></button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul"></i></button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image"><i class="bi bi-image"></i></button>
                                 </div>
                             </div>
                             <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px; overflow:hidden; resize:none;"></textarea>
@@ -330,6 +350,7 @@
                                                                         <button type="button" class="btn btn-outline-secondary btn-sm toolbar-heading" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Heading"><i class="bi bi-type-h1"></i></button>
                                                                         <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ul" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Unordered List"><i class="bi bi-list-ul"></i></button>
                                                                         <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ol" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Ordered List"><i class="bi bi-list-ol"></i></button>
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Image"><i class="bi bi-image"></i></button>
                                                                     </div>
                                                                 </div>
                                                                 <textarea 
@@ -361,6 +382,48 @@
     </div>
     </main>
     </div>
+
+    <!-- Image Upload Modal -->
+    <div class="modal fade" id="imageUploadModal" tabindex="-1" aria-labelledby="imageUploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #A855F7; color: white;">
+                    <h5 class="modal-title" id="imageUploadModalLabel">
+                        <i class="bi bi-image me-2"></i>Upload Image
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="imageUploadForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="imageFileInput" class="form-label">Select Image</label>
+                            <input type="file" class="form-control" id="imageFileInput" name="image" accept="image/*" required>
+                            <small class="form-text text-muted">Supported formats: JPG, PNG, GIF, WEBP, BMP (Max 10MB)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imageAltText" class="form-label">Alt Text (optional)</label>
+                            <input type="text" class="form-control" id="imageAltText" placeholder="Describe the image">
+                            <small class="form-text text-muted">This will be used as the image alt text in markdown</small>
+                        </div>
+                        <div id="imagePreviewContainer" class="mb-3" style="display: none;">
+                            <label class="form-label">Preview</label>
+                            <div class="border rounded p-2 text-center">
+                                <img id="imagePreview" src="" alt="Preview">
+                            </div>
+                        </div>
+                        <div id="imageUploadError" class="alert alert-danger" style="display: none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="uploadImageBtn" style="background-color: #A855F7; border: none;">
+                        <i class="bi bi-upload me-2"></i>Upload & Insert
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <style>
         /* Prevent dropdowns from being clipped by list container */
@@ -651,6 +714,12 @@
 
             // Initialize toolbar functionality
             initializeNoteToolbar(noteId, contentInput);
+            
+            // Ensure image button has note-id attribute
+            const imageBtn = editor.querySelector(`#toolbar-image[data-note-id="${noteId}"], .toolbar-image[data-note-id="${noteId}"]`);
+            if (imageBtn && !imageBtn.dataset.noteId) {
+                imageBtn.dataset.noteId = noteId;
+            }
         }
 
         // Function to initialize toolbar for note editor
@@ -897,6 +966,194 @@
                     this.style.pointerEvents = 'auto';
                 }
             });
+        });
+
+        // Image upload modal state
+        let currentImageUploadNoteId = null;
+        let currentImageUploadTextarea = null;
+        let imageUploadModal = null;
+
+        // Initialize image upload modal after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalElement = document.getElementById('imageUploadModal');
+            if (modalElement) {
+                imageUploadModal = new bootstrap.Modal(modalElement);
+            }
+        });
+
+        const imageFileInput = document.getElementById('imageFileInput');
+        const imageAltTextInput = document.getElementById('imageAltText');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imageUploadError = document.getElementById('imageUploadError');
+        const uploadImageBtn = document.getElementById('uploadImageBtn');
+
+        // Handle image file selection preview
+        imageFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+                if (!validTypes.includes(file.type)) {
+                    showImageError('Invalid file type. Please select an image file.');
+                    return;
+                }
+
+                // Validate file size (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    showImageError('File size exceeds 10MB limit.');
+                    return;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.style.display = 'block';
+                    imageUploadError.style.display = 'none';
+                    
+                    // Auto-fill alt text if empty
+                    if (!imageAltTextInput.value.trim()) {
+                        imageAltTextInput.value = file.name.replace(/\.[^/.]+$/, '');
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreviewContainer.style.display = 'none';
+            }
+        });
+
+        function showImageError(message) {
+            imageUploadError.textContent = message;
+            imageUploadError.style.display = 'block';
+            imagePreviewContainer.style.display = 'none';
+        }
+
+        // Handle image button clicks
+        document.addEventListener('click', function(e) {
+            const imageBtn = e.target.closest('#toolbar-image, .toolbar-image');
+            if (imageBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Determine which note/editor we're working with
+                const noteId = imageBtn.dataset.noteId;
+                let textarea = null;
+                
+                if (noteId) {
+                    // Inline editor for existing note
+                    textarea = document.getElementById(`noteSplitEditor-${noteId}`);
+                } else {
+                    // Manual note creation editor
+                    textarea = document.getElementById('noteContent');
+                }
+                
+                if (!textarea) {
+                    alert('Please open a note editor first.');
+                    return;
+                }
+                
+                currentImageUploadNoteId = noteId;
+                currentImageUploadTextarea = textarea;
+                
+                // Reset form
+                document.getElementById('imageUploadForm').reset();
+                imagePreviewContainer.style.display = 'none';
+                imageUploadError.style.display = 'none';
+                
+                // Open modal (ensure it's initialized)
+                if (!imageUploadModal) {
+                    const modalElement = document.getElementById('imageUploadModal');
+                    if (modalElement) {
+                        imageUploadModal = new bootstrap.Modal(modalElement);
+                    }
+                }
+                if (imageUploadModal) {
+                    imageUploadModal.show();
+                }
+            }
+        });
+
+        // Handle upload button click
+        uploadImageBtn.addEventListener('click', async function() {
+            const file = imageFileInput.files[0];
+            if (!file) {
+                showImageError('Please select an image file.');
+                return;
+            }
+
+            if (!currentImageUploadTextarea) {
+                showImageError('No editor found. Please try again.');
+                return;
+            }
+
+            // Disable button and show loading
+            uploadImageBtn.disabled = true;
+            const originalText = uploadImageBtn.innerHTML;
+            uploadImageBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('file_id', CURRENT_FILE_ID);
+                if (currentImageUploadNoteId) {
+                    formData.append('note_id', currentImageUploadNoteId);
+                }
+
+                const response = await fetch('<?= UPLOAD_NOTE_IMAGE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const json = await response.json();
+
+                if (!json.success) {
+                    throw new Error(json.message || 'Failed to upload image');
+                }
+
+                // Insert markdown image syntax at cursor position
+                const altText = imageAltTextInput.value.trim() || json.altText || 'Image';
+                const imageMarkdown = `![${altText}](${json.imageUrl})`;
+                
+                // Insert at cursor position
+                const start = currentImageUploadTextarea.selectionStart;
+                const end = currentImageUploadTextarea.selectionEnd;
+                const textBefore = currentImageUploadTextarea.value.substring(0, start);
+                const textAfter = currentImageUploadTextarea.value.substring(end);
+                const newText = textBefore + imageMarkdown + textAfter;
+                
+                currentImageUploadTextarea.value = newText;
+                const newCursorPos = start + imageMarkdown.length;
+                currentImageUploadTextarea.setSelectionRange(newCursorPos, newCursorPos);
+                currentImageUploadTextarea.focus();
+                
+                // Trigger input event to update preview
+                currentImageUploadTextarea.dispatchEvent(new Event('input'));
+
+                // Close modal and reset
+                imageUploadModal.hide();
+                document.getElementById('imageUploadForm').reset();
+                imagePreviewContainer.style.display = 'none';
+                imageUploadError.style.display = 'none';
+                currentImageUploadNoteId = null;
+                currentImageUploadTextarea = null;
+
+            } catch (error) {
+                console.error('Image upload error:', error);
+                showImageError('Error uploading image: ' + error.message);
+            } finally {
+                uploadImageBtn.disabled = false;
+                uploadImageBtn.innerHTML = originalText;
+            }
+        });
+
+        // Reset modal state when closed
+        document.getElementById('imageUploadModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('imageUploadForm').reset();
+            imagePreviewContainer.style.display = 'none';
+            imageUploadError.style.display = 'none';
+            currentImageUploadNoteId = null;
+            currentImageUploadTextarea = null;
         });
     </script>
 </body>

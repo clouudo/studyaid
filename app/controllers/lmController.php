@@ -966,6 +966,63 @@ class LmController
         }
     }
 
+    public function uploadNoteImage(){
+        header('Content-Type: application/json');
+
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'No image file uploaded or upload error.']);
+            exit();
+        }
+
+        try {
+            $imageFile = $_FILES['image'];
+            $fileExtension = strtolower(pathinfo($imageFile['name'], PATHINFO_EXTENSION));
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+
+            if (!in_array($fileExtension, $allowedExtensions)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid image format. Allowed: ' . implode(', ', $allowedExtensions)]);
+                exit();
+            }
+
+            // Validate file size (max 10MB)
+            $maxSize = 10 * 1024 * 1024; // 10MB
+            if ($imageFile['size'] > $maxSize) {
+                echo json_encode(['success' => false, 'message' => 'Image size exceeds 10MB limit.']);
+                exit();
+            }
+
+            // Read file content
+            $fileContent = file_get_contents($imageFile['tmp_name']);
+            if ($fileContent === false) {
+                throw new \Exception('Failed to read uploaded file.');
+            }
+
+            // Upload to GCS and save to database via model
+            $result = $this->lmModel->saveNoteImage($noteId, $fileContent, $fileExtension, $userId);
+
+            echo json_encode([
+                'success' => true,
+                'imageUrl' => $result['imageUrl'],
+                'altText' => pathinfo($imageFile['name'], PATHINFO_FILENAME)
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Error uploading note image: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Failed to upload image: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
     // ============================================================================
     // MINDMAP PAGE (mindmap.php)
     // ============================================================================

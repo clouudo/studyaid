@@ -75,6 +75,7 @@ define('EXPORT_NOTE_PDF', BASE_PATH . 'lm/exportNoteAsPdf');
 define('EXPORT_NOTE_DOCX', BASE_PATH . 'lm/exportNoteAsDocx');
 define('EXPORT_NOTE_TXT', BASE_PATH . 'lm/exportNoteAsTxt');
 define('AUDIO_NOTE', BASE_PATH . 'lm/audioNote');
+define('UPLOAD_NOTE_IMAGE', BASE_PATH . 'lm/uploadNoteImage');
 
 // Mindmap routes
 define('MINDMAP', BASE_PATH . 'lm/mindmap');

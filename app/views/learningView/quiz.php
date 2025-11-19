@@ -249,8 +249,8 @@
                                             <div class="flex-grow-1">
                                                 <strong><?= htmlspecialchars($quiz['title']) ?></strong><br>
                                                 <small class="text-muted">Created: <?= htmlspecialchars($quiz['createdAt'] ?? '') ?></small>
-                                            </div>
-                                            <div class="dropdown">
+                                        </div>
+                                        <div class="dropdown">
                                                 <button class="action-btn"
                                                     type="button"
                                                     id="dropdownQuizActions<?php echo $quiz['quizID']; ?>"
@@ -258,20 +258,20 @@
                                                     data-bs-display="static"
                                                     aria-expanded="false">
                                                     <i class="bi bi-three-dots-vertical"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
-                                                    <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
-                                                    <li>
-                                                        <hr class="dropdown-divider">
-                                                    </li>
-                                                    <li>
-                                                        <form method="POST" action="#" style="display: inline;">
-                                                            <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
-                                                            <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                            <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
-                                                        </form>
-                                                    </li>
-                                                </ul>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownQuizActions<?php echo $quiz['quizID']; ?>">
+                                                <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($quiz['quizID']) ?>">View</a></li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <form method="POST" action="#" style="display: inline;">
+                                                        <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz['quizID']) ?>">
+                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
                                             </div>
                                         </div>
                                     </div>
@@ -335,8 +335,8 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </main>
+    </div>
+    </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
