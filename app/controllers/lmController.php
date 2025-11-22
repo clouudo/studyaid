@@ -142,14 +142,14 @@ class LmController
      */
     private function normalizeFileArray(array $files, int $index): ?array
     {
-        if (!is_array($files['name'])) {
+                if (!is_array($files['name'])) {
             return [
-                'name' => $files['name'],
-                'type' => $files['type'],
-                'tmp_name' => $files['tmp_name'],
-                'error' => $files['error'],
-                'size' => $files['size']
-            ];
+                        'name' => $files['name'],
+                        'type' => $files['type'],
+                        'tmp_name' => $files['tmp_name'],
+                        'error' => $files['error'],
+                        'size' => $files['size']
+                    ];
         }
 
         if ($files['error'][$index] !== UPLOAD_ERR_OK) {
@@ -172,7 +172,7 @@ class LmController
     {
         $uploadedFileName = !empty($documentName) ? $documentName : $file['name'];
         $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $tmpName = $file['tmp_name'];
+                $tmpName = $file['tmp_name'];
         $isImage = $this->isImageFile($fileExtension);
 
         // Extract text using OCR for images, or standard extraction for other files
@@ -194,9 +194,9 @@ class LmController
 
         // Read file content for storage
         $fileContent = file_get_contents($tmpName);
-        if ($fileContent === false) {
+                if ($fileContent === false) {
             throw new \Exception("Error reading file: {$uploadedFileName}");
-        }
+                }
 
         // Upload file to GCS and save metadata to database
         // Note: File is saved even if extracted text is empty (for images without text)
@@ -204,12 +204,12 @@ class LmController
 
         // Only create chunks and embeddings if text was extracted
         if (!empty($formattedText)) {
-            $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
-            $embeddings = [];
-            foreach ($chunks as $chunk) {
-                $embeddings[] = $this->gemini->generateEmbedding($chunk);
-            }
-            $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
+                    $chunks = $this->lmModel->splitTextIntoChunks($formattedText, $newFileId);
+                    $embeddings = [];
+                    foreach ($chunks as $chunk) {
+                        $embeddings[] = $this->gemini->generateEmbedding($chunk);
+                    }
+                    $this->lmModel->saveChunksToDB($chunks, $embeddings, $newFileId);
         } else {
             error_log("No text content to chunk for file {$uploadedFileName} (ID: {$newFileId}). Chunks and embeddings skipped.");
         }
@@ -222,32 +222,32 @@ class LmController
      */
     private function handleUploadResponse(int $uploadedCount, int $failedCount, array $errors, int $userId): void
     {
-        if ($uploadedCount > 0 && $failedCount === 0) {
-            $_SESSION['message'] = $uploadedCount === 1
-                ? "File uploaded successfully!"
-                : "{$uploadedCount} files uploaded successfully!";
+            if ($uploadedCount > 0 && $failedCount === 0) {
+                $_SESSION['message'] = $uploadedCount === 1
+                    ? "File uploaded successfully!"
+                    : "{$uploadedCount} files uploaded successfully!";
 
-            if ($uploadedCount === 1) {
-                $lastFile = $this->lmModel->getLatestFileForUser($userId);
-                if ($lastFile) {
-                    $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
-                    header('Location: ' . DISPLAY_DOCUMENT);
-                    exit();
+                if ($uploadedCount === 1) {
+                    $lastFile = $this->lmModel->getLatestFileForUser($userId);
+                    if ($lastFile) {
+                        $_SESSION[self::SESSION_CURRENT_FILE_ID] = $lastFile['fileID'];
+                        header('Location: ' . DISPLAY_DOCUMENT);
+                        exit();
+                    }
                 }
+            } elseif ($uploadedCount > 0 && $failedCount > 0) {
+                $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
+                if (!empty($errors)) {
+                    $_SESSION['error'] = implode('<br>', $errors);
+                }
+            } else {
+                $_SESSION['error'] = !empty($errors)
+                    ? implode('<br>', $errors)
+                    : "Failed to upload files. Please try again.";
             }
-        } elseif ($uploadedCount > 0 && $failedCount > 0) {
-            $_SESSION['message'] = "{$uploadedCount} file(s) uploaded successfully, {$failedCount} failed.";
-            if (!empty($errors)) {
-                $_SESSION['error'] = implode('<br>', $errors);
-            }
-        } else {
-            $_SESSION['error'] = !empty($errors)
-                ? implode('<br>', $errors)
-                : "Failed to upload files. Please try again.";
-        }
 
-        header('Location: ' . NEW_DOCUMENT);
-        exit();
+            header('Location: ' . NEW_DOCUMENT);
+            exit();
     }
 
     /**
@@ -1865,7 +1865,7 @@ class LmController
         if ($fileId === 0) {
             $_SESSION['error'] = "File ID not provided.";
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
-            exit();
+                exit();
         }
 
         try {
@@ -1881,7 +1881,7 @@ class LmController
             $user = $this->getUserInfo();
 
             require_once VIEW_FLASHCARD;
-        } catch (\Exception $e) {
+            } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . DISPLAY_LEARNING_MATERIALS);
             exit();
@@ -1954,25 +1954,49 @@ class LmController
                 error_log("[Flashcard Generation] Requested: {$flashcardAmount}, Received: " . count($flashcardsData['flashcards']) . ", Saving: " . count($flashcards));
 
                 $title = $this->gemini->generateTitle($file['name']);
-                $savedCount = 0;
+                
+                // Collect all terms and definitions into arrays
+                $terms = [];
+                $definitions = [];
                 foreach ($flashcards as $card) {
                     if (!isset($card['term']) || !isset($card['definition'])) {
                         continue; // Skip invalid cards
                     }
-                    $this->lmModel->saveFlashcards($fileId, $title, $card['term'], $card['definition']);
-                    $savedCount++;
+                    $terms[] = $card['term'];
+                    $definitions[] = $card['definition'];
                 }
                 
+                if (empty($terms) || empty($definitions)) {
+                    throw new \Exception('No valid flashcards to save.');
+                }
+                
+                // Save all flashcards as JSON in one row
+                $flashcardId = $this->lmModel->saveFlashcards($fileId, $title, $terms, $definitions);
+                $savedCount = count($terms);
+                
                 // Log final count
-                error_log("[Flashcard Generation] Successfully saved {$savedCount} flashcards for file ID: {$fileId}");
+                error_log("[Flashcard Generation] Successfully saved {$savedCount} flashcards for file ID: {$fileId} in one row");
 
                 $conn->commit();
                 
-                // Return format expected by frontend: preview.cards
+                // Get the flashcard to retrieve createdAt timestamp
+                $savedFlashcard = $this->lmModel->getFlashcardsById($flashcardId);
+                
+                // Prepare listItem metadata for frontend list update
+                $listItem = [
+                    'title' => $title,
+                    'flashcardID' => $flashcardId,
+                    'createdAt' => $savedFlashcard['createdAt'] ?? date('Y-m-d H:i:s'),
+                    'cardCount' => $savedCount
+                ];
+                
+                // Return format expected by frontend: preview.cards and listItem
                 $this->sendJsonSuccess([
                     'preview' => [
+                        'title' => $title,
                         'cards' => $flashcards
                     ],
+                    'listItem' => $listItem,
                     'flashcards' => $flashcards // Keep for backward compatibility
                 ]);
             } catch (\Throwable $e) {
@@ -2035,23 +2059,127 @@ class LmController
                 $this->sendJsonError('Flashcard not found.');
             }
 
-            // Get all flashcards with the same title
+            // Get the flashcard (stored as comma-separated strings with "," separator in one row per title)
             $title = $flashcard['title'];
             $flashcardFileId = $flashcard['fileID'];
             
-            $allFlashcards = $this->lmModel->getFlashcardsByTitle($title, $flashcardFileId);
+            // Get the flashcard set (should be one row with comma-separated strings)
+            $flashcardSet = $this->lmModel->getFlashcardsByTitle($title, $flashcardFileId);
             
-            if (empty($allFlashcards)) {
+            if (empty($flashcardSet)) {
                 $this->sendJsonError('No flashcards found.');
             }
-
-            // Format for the view: return as cards array
-            $cards = array_map(function($card) {
-                return [
-                    'term' => $card['term'] ?? '',
-                    'definition' => $card['definition'] ?? ''
+            
+            // Get the first (and should be only) flashcard row
+            $cardData = $flashcardSet[0];
+            $termString = $cardData['term'] ?? '';
+            $definitionString = $cardData['definition'] ?? '';
+            
+            // Parse comma-separated strings (format: "term1","term2","term3")
+            $terms = [];
+            $definitions = [];
+            
+            if (!empty($termString)) {
+                // Split by comma, but handle escaped commas and quoted strings
+                $currentTerm = '';
+                $inQuotes = false;
+                $escaped = false;
+                
+                for ($i = 0; $i < strlen($termString); $i++) {
+                    $char = $termString[$i];
+                    
+                    if ($escaped) {
+                        $currentTerm .= $char;
+                        $escaped = false;
+                    } elseif ($char === '\\') {
+                        $currentTerm .= $char;
+                        $escaped = true;
+                    } elseif ($char === '"') {
+                        $inQuotes = !$inQuotes;
+                        $currentTerm .= $char;
+                    } elseif ($char === ',' && !$inQuotes) {
+                        // Found separator
+                        $terms[] = trim($currentTerm, '"');
+                        $currentTerm = '';
+                    } else {
+                        $currentTerm .= $char;
+                    }
+                }
+                if (!empty($currentTerm)) {
+                    $terms[] = trim($currentTerm, '"');
+                }
+                
+                // Unescape the content
+                $terms = array_map(function($term) {
+                    return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $term);
+                }, $terms);
+            }
+            
+            if (!empty($definitionString)) {
+                // Split by comma, but handle escaped commas and quoted strings
+                $currentDef = '';
+                $inQuotes = false;
+                $escaped = false;
+                
+                for ($i = 0; $i < strlen($definitionString); $i++) {
+                    $char = $definitionString[$i];
+                    
+                    if ($escaped) {
+                        $currentDef .= $char;
+                        $escaped = false;
+                    } elseif ($char === '\\') {
+                        $currentDef .= $char;
+                        $escaped = true;
+                    } elseif ($char === '"') {
+                        $inQuotes = !$inQuotes;
+                        $currentDef .= $char;
+                    } elseif ($char === ',' && !$inQuotes) {
+                        // Found separator
+                        $definitions[] = trim($currentDef, '"');
+                        $currentDef = '';
+                    } else {
+                        $currentDef .= $char;
+                    }
+                }
+                if (!empty($currentDef)) {
+                    $definitions[] = trim($currentDef, '"');
+                }
+                
+                // Unescape the content
+                $definitions = array_map(function($def) {
+                    return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $def);
+                }, $definitions);
+            }
+            
+            // Handle backward compatibility: if empty or single value, treat as single card
+            if (empty($terms) && !empty($termString)) {
+                $terms = [$termString];
+            }
+            if (empty($definitions) && !empty($definitionString)) {
+                $definitions = [$definitionString];
+            }
+            
+            // Filter out empty items
+            $terms = array_filter($terms, function($term) { return !empty(trim($term)); });
+            $definitions = array_filter($definitions, function($def) { return !empty(trim($def)); });
+            
+            // Re-index arrays
+            $terms = array_values($terms);
+            $definitions = array_values($definitions);
+            
+            // Format for the view: return as cards array (term on front, definition on back)
+            $cards = [];
+            $maxLength = max(count($terms), count($definitions));
+            for ($i = 0; $i < $maxLength; $i++) {
+                $cards[] = [
+                    'term' => $terms[$i] ?? '',
+                    'definition' => $definitions[$i] ?? ''
                 ];
-            }, $allFlashcards);
+            }
+            
+            if (empty($cards)) {
+                $this->sendJsonError('No valid flashcards found.');
+            }
 
             $this->sendJsonSuccess([
                 'flashcard' => [
@@ -2091,7 +2219,7 @@ class LmController
         }
 
         try {
-            $file = $this->lmModel->getFile($userId, $fileId);
+        $file = $this->lmModel->getFile($userId, $fileId);
             if (!$file) {
                 $this->sendJsonError('File not found.');
             }
@@ -2101,16 +2229,25 @@ class LmController
             $conn->beginTransaction();
 
             try {
+                // Filter out empty pairs
+                $validTerms = [];
+                $validDefinitions = [];
                 foreach ($terms as $index => $term) {
                     $term = trim($term);
                     $definition = isset($definitions[$index]) ? trim($definitions[$index]) : '';
                     
-                    if (empty($term) || empty($definition)) {
-                        continue; // Skip empty pairs
+                    if (!empty($term) && !empty($definition)) {
+                        $validTerms[] = $term;
+                        $validDefinitions[] = $definition;
                     }
-
-                    $this->lmModel->saveFlashcards($fileId, $title, $term, $definition);
                 }
+                
+                if (empty($validTerms) || empty($validDefinitions)) {
+                    throw new \Exception('No valid flashcard pairs to save.');
+                }
+                
+                // Save all flashcards as JSON in one row
+                $this->lmModel->saveFlashcards($fileId, $title, $validTerms, $validDefinitions);
 
                 $conn->commit();
                 $this->sendJsonSuccess(['message' => 'Flashcards created successfully.']);
@@ -2168,21 +2305,29 @@ class LmController
                 // Delete all flashcards with the old title
                 $this->lmModel->deleteFlashcardsByTitle($oldTitle, $fileId);
 
-                // Create new flashcards with the updated title and terms/definitions
+                // Filter out empty pairs
+                $validTerms = [];
+                $validDefinitions = [];
                 foreach ($terms as $index => $term) {
                     $term = trim($term);
                     $definition = isset($definitions[$index]) ? trim($definitions[$index]) : '';
                     
-                    if (empty($term) || empty($definition)) {
-                        continue; // Skip empty pairs
+                    if (!empty($term) && !empty($definition)) {
+                        $validTerms[] = $term;
+                        $validDefinitions[] = $definition;
                     }
-
-                    $this->lmModel->saveFlashcards($fileId, $title, $term, $definition);
                 }
+                
+                if (empty($validTerms) || empty($validDefinitions)) {
+                    throw new \Exception('No valid flashcard pairs to save.');
+                }
+                
+                // Save all flashcards as JSON in one row
+                $this->lmModel->saveFlashcards($fileId, $title, $validTerms, $validDefinitions);
 
                 $conn->commit();
                 $this->sendJsonSuccess(['message' => 'Flashcards updated successfully.']);
-            } catch (\Throwable $e) {
+        } catch (\Throwable $e) {
                 $conn->rollBack();
                 throw $e;
             }
@@ -2208,7 +2353,7 @@ class LmController
             // If title is provided, delete entire set by title
             if (!empty($title) && $fileId > 0) {
                 // Verify file ownership
-                $file = $this->lmModel->getFile($userId, $fileId);
+        $file = $this->lmModel->getFile($userId, $fileId);
                 if (!$file) {
                     $this->sendJsonError('File not found or you do not have permission to delete flashcards.');
                 }
@@ -2320,7 +2465,7 @@ class LmController
         $fileId = $this->resolveFileId();
         $totalQuestions = isset($_POST['totalQuestions']) ? (int)$_POST['totalQuestions'] : 5;
         $examMode = isset($_POST['examMode']) && $_POST['examMode'] == '1' ? 1 : 0;
-        $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'medium';
+        $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'remember';
         
         // Handle questionDistribution (from frontend) or questionTypes (legacy)
         $distributionRaw = $_POST['questionDistribution'] ?? null;
@@ -2339,7 +2484,7 @@ class LmController
             if (empty($distribution) || $distributionSum === 0) {
                 $this->sendJsonError('No questions allocated. Please assign questions to at least one type.');
             }
-        } else {
+            } else {
             // Legacy: convert questionTypes array to distribution
             $questionTypes = isset($_POST['questionTypes']) && is_array($_POST['questionTypes']) ? $_POST['questionTypes'] : ['multiple_choice'];
             $distribution = [];
@@ -2364,7 +2509,10 @@ class LmController
                 $this->sendJsonError('No extracted text found.');
             }
 
-            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $questionDifficulty);
+            // Get instructions if provided
+            $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : null;
+            
+            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $questionDifficulty, $instructions);
             if (empty($quizDataJson)) {
                 $this->sendJsonError('Failed to generate quiz.');
             }
@@ -2383,7 +2531,9 @@ class LmController
             }
 
             $title = $this->gemini->generateTitle($file['name']);
-            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $quizData, $examMode);
+            // Store Bloom's taxonomy level in questionConfig
+            $questionConfig = ['bloomLevel' => $questionDifficulty];
+            $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $questionConfig, $examMode);
 
             foreach ($quizData as $question) {
                 $explanation = $question['explanation'] ?? null;
@@ -2477,6 +2627,10 @@ class LmController
             $alreadyCompleted = ($quiz['status'] ?? 'pending') === 'completed' && $hasAttempt;
 
             $questions = $this->lmModel->getQuestionsByQuiz($quizId);
+            // Get Bloom's taxonomy level from quiz config
+            $questionConfig = !empty($quiz['questionConfig']) ? json_decode($quiz['questionConfig'], true) : [];
+            $bloomLevel = $questionConfig['bloomLevel'] ?? 'remember';
+            
             foreach ($questions as &$question) {
                 $options = $this->lmModel->getOptionsByQuestion($question['questionID']);
                 // Transform options from objects to array of strings for frontend
@@ -2485,6 +2639,8 @@ class LmController
                 }, $options);
                 // Also include answer field for evaluation
                 $question['answer'] = $this->getCorrectAnswerFromOptions($options);
+                // Add Bloom's taxonomy level for evaluation
+                $question['bloomLevel'] = $bloomLevel;
             }
 
             $this->sendJsonSuccess([
@@ -2519,6 +2675,10 @@ class LmController
             }
 
             $questions = $this->lmModel->getQuestionsByQuiz($quizId);
+            // Get Bloom's taxonomy level from quiz config
+            $questionConfig = !empty($quiz['questionConfig']) ? json_decode($quiz['questionConfig'], true) : [];
+            $bloomLevel = $questionConfig['bloomLevel'] ?? 'remember';
+            
             foreach ($questions as &$question) {
                 $options = $this->lmModel->getOptionsByQuestion($question['questionID']);
                 // Transform options from objects to array of strings for frontend
@@ -2527,6 +2687,8 @@ class LmController
                 }, $options);
                 // Also include answer field for evaluation
                 $question['answer'] = $this->getCorrectAnswerFromOptions($options);
+                // Add Bloom's taxonomy level for evaluation
+                $question['bloomLevel'] = $bloomLevel;
             }
 
             // Get latest attempt
@@ -2551,32 +2713,64 @@ class LmController
                 $feedbackArray = json_decode($attempt['feedback'] ?? '[]', true);
                 $feedbackArray = is_array($feedbackArray) ? $feedbackArray : [];
                 
+                // Check if structured results are stored in suggestions
+                $suggestionsArray = json_decode($attempt['suggestions'] ?? '[]', true);
+                $suggestionsArray = is_array($suggestionsArray) ? $suggestionsArray : [];
+                $storedResults = null;
+                if (isset($suggestionsArray['__results__'])) {
+                    $storedResults = json_decode($suggestionsArray['__results__'], true);
+                    unset($suggestionsArray['__results__']);
+                }
+                
                 // Build structured feedback array indexed by question position
                 $structuredFeedback = [];
                 foreach ($questions as $index => $question) {
                     $questionId = $question['questionID'];
                     $userAnswer = $answersByPosition[$index] ?? null;
                     
-                    // Try to extract feedback for this question
-                    $feedbackText = $feedbackArray[$index] ?? '';
-                    if (empty($feedbackText) && !empty($feedbackArray)) {
-                        // Try to find feedback by question ID in the text
-                        foreach ($feedbackArray as $fb) {
-                            if (is_string($fb) && strpos($fb, "Question {$questionId}:") === 0) {
-                                $feedbackText = $fb;
-                                break;
+                    // Use stored results if available (preferred for long answer questions)
+                    if ($storedResults && isset($storedResults[$index])) {
+                        $result = $storedResults[$index];
+                        $structuredFeedback[$index] = [
+                            'isCorrect' => $result['isCorrect'] ?? false,
+                            'userAnswer' => $result['userAnswer'] ?? $userAnswer,
+                            'correctAnswer' => $result['correctAnswer'] ?? null,
+                            'suggestion' => $result['suggestion'] ?? '',
+                            'explanation' => $result['explanation'] ?? ($question['explanation'] ?? '')
+                        ];
+                    } else {
+                        // Fallback: reconstruct from feedback text
+                        $feedbackText = $feedbackArray[$index] ?? '';
+                        if (empty($feedbackText) && !empty($feedbackArray)) {
+                            // Try to find feedback by question ID in the text
+                            foreach ($feedbackArray as $fb) {
+                                if (is_string($fb) && strpos($fb, "Question {$questionId}:") === 0) {
+                                    $feedbackText = $fb;
+                                    break;
+                                }
                             }
                         }
+                        
+                        // Extract suggestion from suggestions array
+                        $suggestionText = '';
+                        if (!empty($suggestionsArray)) {
+                            foreach ($suggestionsArray as $sug) {
+                                if (is_string($sug) && strpos($sug, "Question {$questionId}:") === 0) {
+                                    $suggestionText = str_replace("Question {$questionId}: ", '', $sug);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Determine if answer was correct based on feedback text
+                        $isCorrect = !empty($feedbackText) && strpos($feedbackText, 'Correct') !== false;
+                        
+                        $structuredFeedback[$index] = [
+                            'isCorrect' => $isCorrect,
+                            'userAnswer' => $userAnswer,
+                            'suggestion' => $suggestionText ?: $feedbackText
+                        ];
                     }
-                    
-                    // Determine if answer was correct based on feedback text
-                    $isCorrect = !empty($feedbackText) && strpos($feedbackText, 'Correct') !== false;
-                    
-                    $structuredFeedback[$index] = [
-                        'isCorrect' => $isCorrect,
-                        'userAnswer' => $userAnswer,
-                        'suggestion' => $feedbackText
-                    ];
                 }
                 
                 $attemptData = [
@@ -2625,6 +2819,10 @@ class LmController
 
             // Get questions and options for evaluation
             $questions = $this->lmModel->getQuestionsByQuiz($quizId);
+            // Get Bloom's taxonomy level from quiz config
+            $questionConfig = !empty($quiz['questionConfig']) ? json_decode($quiz['questionConfig'], true) : [];
+            $bloomLevel = $questionConfig['bloomLevel'] ?? 'remember';
+            
             foreach ($questions as &$question) {
                 $options = $this->lmModel->getOptionsByQuestion($question['questionID']);
                 // Transform options from objects to array of strings for frontend
@@ -2633,6 +2831,8 @@ class LmController
                 }, $options);
                 // Also include answer field for evaluation
                 $question['answer'] = $this->getCorrectAnswerFromOptions($options);
+                // Add Bloom's taxonomy level for evaluation
+                $question['bloomLevel'] = $bloomLevel;
             }
 
             // Map answers from array index (0,1,2...) to questionID
@@ -2659,10 +2859,31 @@ class LmController
             // Convert feedback and suggestions strings to arrays for saveQuizAttempt
             $feedbackArray = !empty($feedback['feedback']) ? explode("\n", $feedback['feedback']) : [];
             $suggestionsArray = !empty($feedback['suggestions']) ? explode("\n", $feedback['suggestions']) : null;
+            
+            // Store structured results array for proper review display (especially for long answer questions)
+            // Map results from questionID-indexed to position-indexed for storage
+            $resultsByPosition = [];
+            if (!empty($feedback['results'])) {
+                foreach ($questions as $index => $question) {
+                    $questionId = $question['questionID'];
+                    // Find the result for this question
+                    foreach ($feedback['results'] as $result) {
+                        if (isset($result['questionID']) && $result['questionID'] == $questionId) {
+                            $resultsByPosition[$index] = $result;
+                            break;
+                        }
+                    }
+                }
+            }
 
             // Save answers indexed by questionID (not position) for proper retrieval later
             // This ensures answers can be matched to questions even if question order changes
-            $this->lmModel->saveQuizAttempt($quizId, $userId, $answersByQuestionId, $feedbackArray, $suggestionsArray, $score, $quiz['examMode']);
+            // Store results in suggestions field as JSON for retrieval
+            $suggestionsWithResults = $suggestionsArray;
+            if (!empty($resultsByPosition)) {
+                $suggestionsWithResults = array_merge($suggestionsArray ?? [], ['__results__' => json_encode($resultsByPosition)]);
+            }
+            $this->lmModel->saveQuizAttempt($quizId, $userId, $answersByQuestionId, $feedbackArray, $suggestionsWithResults, $score, $quiz['examMode']);
             $this->lmModel->updateQuizStatus($quizId, 'completed', $score);
 
             // Return feedback with results array for frontend
@@ -2755,7 +2976,30 @@ class LmController
             }
 
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
-            $chatHistory = $this->lmModel->chatHistory($fileId);
+            
+            // Get chat history for the view
+            $questionChats = [];
+            $responseChats = [];
+            $chatbot = $this->lmModel->getChatBotByFile($fileId);
+            if ($chatbot && isset($chatbot['chatbotID'])) {
+                $allQuestionChats = $this->lmModel->getQuestionChatByChatbot($chatbot['chatbotID']);
+                // Sort by createdAt ASC for chronological order
+                if (!empty($allQuestionChats)) {
+                    usort($allQuestionChats, function($a, $b) {
+                        $dateA = isset($a['createdAt']) ? strtotime($a['createdAt']) : 0;
+                        $dateB = isset($b['createdAt']) ? strtotime($b['createdAt']) : 0;
+                        return $dateA - $dateB; // ASC order for display
+                    });
+                    
+                    foreach ($allQuestionChats as $questionChat) {
+                        $questionChats[] = $questionChat;
+                        $responseChat = $this->lmModel->getResponseChatByQuestionChat($questionChat['questionChatID']);
+                        // Ensure response is a string, not false/null
+                        $responseChats[] = $responseChat !== false && $responseChat !== null ? (string)$responseChat : '';
+                    }
+                }
+            }
+            
             $user = $this->getUserInfo();
 
             require_once VIEW_CHATBOT;
@@ -2797,8 +3041,63 @@ class LmController
                 $this->sendJsonError('No extracted text found.');
             }
 
-            $response = $this->gemini->generateChatbotResponse($extractedText, $question);
+            // Use RAG (Retrieval-Augmented Generation) for better context
+            $context = $extractedText; // Default to full text
+            
+            try {
+                // Generate embedding for the question
+                $queryEmbedding = $this->gemini->generateEmbedding($question);
+                
+                if (!empty($queryEmbedding)) {
+                    // Get document chunks
+                    $chunks = $this->lmModel->getChunksByFile($fileId);
+                    
+                    if (!empty($chunks)) {
+                        // Find relevant chunks using cosine similarity
+                        $similarities = [];
+                        $similarityThreshold = 0.15;
+                        
+                        foreach ($chunks as $chunk) {
+                            $chunkEmbedding = json_decode($chunk['embedding'] ?? '[]', true);
+                            
+                            if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
+                                continue;
+                            }
+                            
+                            $similarity = $this->cosineSimilarity($queryEmbedding, $chunkEmbedding);
+                            
+                            if ($similarity >= $similarityThreshold) {
+                                $similarities[] = [
+                                    'chunkText' => $chunk['chunkText'] ?? '',
+                                    'similarity' => $similarity,
+                                ];
+                            }
+                        }
+                        
+                        // Sort by similarity and get top chunks
+                        if (!empty($similarities)) {
+                            usort($similarities, function ($a, $b) {
+                                return $b['similarity'] <=> $a['similarity'];
+                            });
+                            
+                            $topK = min(10, count($similarities));
+                            $topChunks = array_slice($similarities, 0, $topK);
+                            
+                            // Combine relevant context
+                            $context = '';
+                            foreach ($topChunks as $chunk) {
+                                $context .= $chunk['chunkText'] . "\n\n";
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $ragError) {
+                // If RAG fails, fall back to using full extracted text
+                error_log('[Chatbot RAG Error] ' . $ragError->getMessage());
+                $context = $extractedText;
+            }
 
+            // Get or create chatbot first (before generating response to ensure we can save)
             $chatbot = $this->lmModel->getChatBotByFile($fileId);
             if (!$chatbot) {
                 $title = $this->gemini->generateTitle($file['name']);
@@ -2807,9 +3106,21 @@ class LmController
                 $chatbotId = $chatbot['chatbotID'];
             }
 
+            // Save user question first
             $questionChatId = $this->lmModel->saveQuestionChat($chatbotId, $question);
+
+            // Generate response using context (either RAG chunks or full text)
+            $response = $this->gemini->generateChatbotResponse($context, $question);
+            
+            // Ensure response is not empty
+            if (empty($response)) {
+                $response = 'I apologize, but I was unable to generate a response. Please try asking your question again.';
+            }
+
+            // Save bot response
             $this->lmModel->saveResponseChat($questionChatId, $response);
 
+            // Return response to display in UI
             $this->sendJsonSuccess(['response' => $response]);
         } catch (\Throwable $e) {
             $this->sendJsonError($e->getMessage());
@@ -2852,7 +3163,7 @@ class LmController
     {
         header('Content-Type: application/json');
         $this->checkSession(true);
-        
+
         $data = json_decode(file_get_contents('php://input'), true);
         $checkedFileIds = isset($data['fileIds']) && is_array($data['fileIds']) 
             ? array_map('intval', $data['fileIds']) 
@@ -2973,7 +3284,7 @@ class LmController
             } else {
                 // Fallback: combine all extracted text if no relevant chunks found
                 foreach ($validFileIds as $fileId) {
-                    $file = $this->lmModel->getFile($userId, $fileId);
+            $file = $this->lmModel->getFile($userId, $fileId);
                     if ($file && !empty($file['extracted_text'])) {
                         $context .= "Document: " . ($file['name'] ?? 'Unknown') . "\n";
                         $context .= $file['extracted_text'] . "\n\n";
@@ -3003,7 +3314,7 @@ class LmController
         $data = json_decode(file_get_contents('php://input'), true);
         $this->checkSession(true);
         $userId = (int)$_SESSION['user_id'];
-        
+
         if (!isset($data['fileIds']) || empty($data['fileIds'])) {
             echo json_encode(['success' => false, 'message' => 'No files selected.']);
             exit();
@@ -3035,19 +3346,19 @@ class LmController
 
             if (empty($queryEmbedding)) {
                 echo json_encode(['success' => false, 'message' => 'Could not generate embedding for the description.']);
-                exit();
-            }
+            exit();
+        }
 
             $similarities = [];
             $totalChunksSearched = 0;
             $similarityThreshold = 0.15; // Lower threshold for more sensitive search
-            
+
             foreach ($validFileIds as $fileId) {
                 $chunks = $this->lmModel->getChunksByFile($fileId);
-                
+
                 if (empty($chunks)) {
-                    continue;
-                }
+                continue;
+            }
 
                 foreach ($chunks as $chunk) {
                     $chunkEmbedding = json_decode($chunk['embedding'], true);
@@ -3078,8 +3389,8 @@ class LmController
 
             if (empty($topChunks)) {
                 echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents that matches your query. Please try a different query or select different documents.']);
-                exit();
-            }
+            exit();
+        }
 
             $context = '';
             foreach ($topChunks as $index => $chunk) {
@@ -3088,15 +3399,15 @@ class LmController
 
             if (empty($context)) {
                 echo json_encode(['success' => false, 'message' => 'No relevant content found in selected documents.']);
-                exit();
-            }
+            exit();
+        }
 
             $document = $this->gemini->synthesizeDocument($context, $description);
 
             if (empty($document)) {
                 echo json_encode(['success' => false, 'message' => 'Failed to synthesize document.']);
-                exit();
-            }
+            exit();
+        }
 
             $formattedDocument = $this->gemini->formatContent($document);
 

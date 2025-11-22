@@ -399,7 +399,7 @@ if (isset($flashcards) && is_array($flashcards)) {
         }
 
         .dropdown-menu li + li {
-            border-top: 1px solid #f0e6ff;
+            border-top: none;
         }
 
         .list-group-item .dropdown.show .dropdown-menu {
@@ -476,8 +476,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                         </div>
                                     </div>
                                     <small class="text-muted d-block mb-3">Drag the slider to choose anywhere between 1 and 25 flashcards.</small>
-                                    <label for="flashcardType" class="form-label d-block">Level of Difficulty</label>
-                            <div class="btn-group mb-3" role="group">
+                                    <label class="form-label d-block">Level of Difficulty</label>
+                            <div class="btn-group mb-3" role="group" aria-label="Level of Difficulty">
                                 <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="easy" id="easy">
                                 <label class="btn btn-outline-secondary" for="easy">Easy</label>
                                 <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" checked value="medium" id="medium">
@@ -486,8 +486,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                 <label class="btn btn-outline-secondary" for="hard">Hard</label>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Instructions (optional)</label>
-                                        <input type="text" name="instructions" class="form-control" placeholder="Describe your instruction">
+                                <label for="flashcardInstructions" class="form-label">Instructions (optional)</label>
+                                        <input type="text" id="flashcardInstructions" name="instructions" class="form-control" placeholder="Describe your instruction">
                                     </div>
                                     <button type="submit" id="genFlashcards" class="btn btn-primary">Generate Flashcard</button>
                                 </form>
@@ -506,8 +506,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                 <form id="manualFlashcardForm">
                                     <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
                                     <div class="mb-3">
-                                        <label class="form-label fw-semibold">Flashcard Title</label>
-                                        <input type="text" id="manualFlashcardTitle" class="form-control" placeholder="Enter flashcard title">
+                                        <label for="manualFlashcardTitle" class="form-label fw-semibold">Flashcard Title</label>
+                                        <input type="text" id="manualFlashcardTitle" name="title" class="form-control" placeholder="Enter flashcard title">
                                     </div>
                                     <div id="manualPairsContainer" class="flashcard-pairs d-flex flex-column gap-3"></div>
                                     <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
@@ -574,7 +574,7 @@ if (isset($flashcards) && is_array($flashcards)) {
                                                     <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">
                                                         <input type="hidden" name="title" value="<?= htmlspecialchars($flashcardSet['title']) ?>">
                                                         <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
-                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete Set</button>
+                                                        <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                     </form>
                                                 </li>
                                             </ul>
@@ -648,8 +648,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                 <form id="editFlashcardForm">
                                     <input type="hidden" id="editFlashcardId" name="flashcard_id">
                                     <div class="mb-3">
-                                        <label class="form-label fw-semibold">Flashcard Title</label>
-                                        <input type="text" id="editFlashcardTitle" class="form-control">
+                                        <label for="editFlashcardTitle" class="form-label fw-semibold">Flashcard Title</label>
+                                        <input type="text" id="editFlashcardTitle" name="title" class="form-control">
                                     </div>
                                     <div id="editPairsContainer" class="flashcard-pairs d-flex flex-column gap-3"></div>
                                     <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
@@ -688,7 +688,7 @@ if (isset($flashcards) && is_array($flashcards)) {
             
             setTimeout(function() {
                 snackbar.classList.remove('show');
-            }, 3000);
+            }, 5000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -751,16 +751,20 @@ if (isset($flashcards) && is_array($flashcards)) {
                     return;
                 }
 
+                const pairIndex = container.children.length;
+                const termId = `term_${container.id || 'pair'}_${pairIndex}_${Date.now()}`;
+                const definitionId = `definition_${container.id || 'pair'}_${pairIndex}_${Date.now()}`;
+
                 const row = document.createElement('div');
                 row.className = 'flashcard-pair row g-3 align-items-center';
                 row.innerHTML = `
                     <div class="col-12 col-lg-4">
-                        <label class="form-label small text-muted mb-1">Term</label>
-                        <input type="text" class="form-control term-input" placeholder="Term">
+                        <label for="${termId}" class="form-label small text-muted mb-1">Term</label>
+                        <input type="text" id="${termId}" name="terms[]" class="form-control term-input" placeholder="Term">
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label class="form-label small text-muted mb-1">Definition</label>
-                        <textarea class="form-control definition-input" rows="1" placeholder="Definition"></textarea>
+                        <label for="${definitionId}" class="form-label small text-muted mb-1">Definition</label>
+                        <textarea id="${definitionId}" name="definitions[]" class="form-control definition-input" rows="1" placeholder="Definition"></textarea>
                     </div>
                     <div class="col-12 col-lg-2 d-flex align-items-center justify-content-lg-end">
                         <button type="button" class="btn btn-remove-pair" aria-label="Remove flashcard">
@@ -1197,60 +1201,6 @@ if (isset($flashcards) && is_array($flashcards)) {
                 }
             });
 
-            editFlashcardForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const title = editFlashcardTitleInput?.value.trim() || '';
-                if (!title) {
-                    showSnackbar('Please enter a title for your flashcards.', 'error');
-                    return;
-                }
-
-                let collectedPairs;
-                try {
-                    collectedPairs = collectPairs(editPairsContainer);
-                } catch (error) {
-                    showSnackbar(error.message, 'error');
-                    return;
-                }
-
-                if (!collectedPairs.terms.length) {
-                    showSnackbar('Add at least one flashcard before saving.', 'error');
-                    return;
-                }
-
-                const submitButton = editFlashcardForm.querySelector('button[type="submit"]');
-                if (submitButton) submitButton.disabled = true;
-
-                const editFormData = new FormData();
-                editFormData.append('flashcard_id', editFlashcardIdInput.value);
-                editFormData.append('title', title);
-                collectedPairs.terms.forEach((term, index) => {
-                    editFormData.append('terms[]', term);
-                    editFormData.append('definitions[]', collectedPairs.definitions[index]);
-                });
-
-                try {
-                    const response = await fetch('<?= UPDATE_FLASHCARD ?>', {
-                        method: 'POST',
-                        body: editFormData
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        showSnackbar(data.message || 'Flashcard updated successfully!', 'success');
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        showSnackbar(data.message || 'Failed to update flashcard. Please try again.', 'error');
-                    }
-                } catch (error) {
-                    showSnackbar('An error occurred while updating the flashcard. Please try again.', 'error');
-                    console.error('Error:', error);
-                } finally {
-                    if (submitButton) submitButton.disabled = false;
-                }
-            });
-
             const handleFlashcardShortcut = (event) => {
                 if (!modalVisible) return;
                 if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -1406,16 +1356,18 @@ if (isset($flashcards) && is_array($flashcards)) {
                 const title = listItemMeta.title;
                 const flashcardId = listItemMeta.flashcardID || listItemMeta.flashcardId;
                 const createdAt = listItemMeta.createdAt || new Date().toISOString();
+                const cardCount = listItemMeta.cardCount || 1;
                 const normalizedTitle = title.toLowerCase();
                 const updatedTimestamp = Date.parse(createdAt) || Date.now();
-                    const formattedDate = new Date(createdAt).toLocaleString('en-CA', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    }).replace(',', '');
+                const formattedDate = new Date(createdAt).toLocaleString('en-CA', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).replace(/(\d{4})-(\d{2})-(\d{2}), (\d{2}):(\d{2}):(\d{2})/, '$1-$2-$3 $4:$5:$6');
 
                 let listItem = Array.from(flashcardList.querySelectorAll('.flashcard-item'))
                     .find(item => item.dataset.title === normalizedTitle);
@@ -1424,18 +1376,21 @@ if (isset($flashcards) && is_array($flashcards)) {
                 const itemHtml = `
                     <div class="flex-grow-1" style="min-width: 0;">
                         <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
-                        <small class="text-muted d-block">Updated: ${escapeHtml(formattedDate)}</small>
+                        <small class="text-muted d-block">
+                            ${cardCount} card${cardCount !== 1 ? 's' : ''} • 
+                            Updated: ${escapeHtml(formattedDate)}
+                        </small>
                     </div>
                     <div class="dropdown">
                         <button class="action-btn" type="button" id="${dropdownId}" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="${dropdownId}">
-                            <li><a class="dropdown-item view-btn" href="#" data-id="${flashcardId}">View</a></li>
+                            <li><a class="dropdown-item view-btn" href="#" data-id="${flashcardId}" data-title="${escapeHtml(title)}">View</a></li>
                             <li><a class="dropdown-item edit-btn" href="#" data-id="${flashcardId}">Edit</a></li>
                             <li>
-                                <form method="POST" action="${deleteFlashcardUrl}" class="delete-flashcard-form" style="display: inline;">
-                                    <input type="hidden" name="flashcard_id" value="${flashcardId}">
+                                <form method="POST" action="${deleteFlashcardUrl}" class="delete-flashcard-form" style="display: inline;" data-title="${escapeHtml(title)}">
+                                    <input type="hidden" name="title" value="${escapeHtml(title)}">
                                     <input type="hidden" name="file_id" value="${currentFileId}">
                                     <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                 </form>
@@ -1498,9 +1453,19 @@ if (isset($flashcards) && is_array($flashcards)) {
                         method: 'POST',
                         body: editFormData
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
-                    if (data.success) {
+                    
+                    // Explicitly check for success === true
+                    if (data.success === true) {
                         showSnackbar(data.message || 'Flashcard updated successfully!', 'success');
+                        if (editFlashcardModal) {
+                            editFlashcardModal.hide();
+                        }
                         setTimeout(() => {
                             location.reload();
                         }, 1000);

@@ -103,7 +103,7 @@ define('GENERATE_QUIZ', BASE_PATH . 'lm/generateQuiz');
 define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
 define('DELETE_QUIZ', BASE_PATH . 'lm/deleteQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
-define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
+define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/chat');
 
 //Document Hub
 define('DOCUMENT_HUB', BASE_PATH . 'lm/documentHub');

@@ -1353,15 +1353,45 @@ class LmModel
     /**
      * Save flashcards to database
      */
-    public function saveFlashcards(int $fileId, string $title, string $term, string $definition): int
+    /**
+     * Saves flashcards as comma-separated strings (one row per title/set)
+     * Uses "," as separator between cards (format: "term1","term2","term3")
+     * @param int $fileId
+     * @param string $title
+     * @param array $terms Array of term strings
+     * @param array $definitions Array of definition strings
+     * @return int The flashcard ID
+     */
+    public function saveFlashcards(int $fileId, string $title, array $terms, array $definitions): int
     {
         try {
             $conn = $this->db->connect();
+            
+            // Escape quotes and commas in terms, then wrap each in quotes and join with ","
+            $escapedTerms = array_map(function($term) {
+                // Escape quotes and commas within the content
+                $term = str_replace('\\', '\\\\', $term); // Escape backslashes first
+                $term = str_replace('"', '\\"', $term);  // Escape quotes
+                $term = str_replace(',', '\\,', $term);   // Escape commas
+                return '"' . $term . '"';
+            }, $terms);
+            $termString = implode(',', $escapedTerms);
+            
+            // Escape quotes and commas in definitions, then wrap each in quotes and join with ","
+            $escapedDefinitions = array_map(function($def) {
+                // Escape quotes and commas within the content
+                $def = str_replace('\\', '\\\\', $def); // Escape backslashes first
+                $def = str_replace('"', '\\"', $def);    // Escape quotes
+                $def = str_replace(',', '\\,', $def);    // Escape commas
+                return '"' . $def . '"';
+            }, $definitions);
+            $definitionString = implode(',', $escapedDefinitions);
+            
             $stmt = $conn->prepare("INSERT INTO flashcard (fileID, title, term, definition) VALUES (:fileID, :title, :term, :definition)");    
             $stmt->bindParam(':fileID', $fileId);
             $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':term', $term);
-            $stmt->bindParam(':definition', $definition);
+            $stmt->bindParam(':term', $termString);
+            $stmt->bindParam(':definition', $definitionString);
             $stmt->execute();
             $lastId = (int)$conn->lastInsertId();
             if ($lastId === 0) {
@@ -1376,6 +1406,7 @@ class LmModel
 
     /**
      * Get all flashcards for a specific file, grouped by title (one entry per title/set)
+     * Now calculates card count from JSON arrays
      */
     public function getFlashcardsByFile(int $fileId)
     {
@@ -1387,15 +1418,98 @@ class LmModel
                 fileID,
                 MAX(createdAt) as createdAt,
                 MIN(flashcardID) as flashcardID,
-                COUNT(*) as cardCount
+                term,
+                definition
             FROM flashcard 
             WHERE fileID = :fileID 
-            GROUP BY title, fileID
+            GROUP BY title, fileID, term, definition
             ORDER BY createdAt DESC
         ");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Calculate card count from comma-separated strings
+        foreach ($results as &$result) {
+            $termString = $result['term'] ?? '';
+            $definitionString = $result['definition'] ?? '';
+            
+            // Parse comma-separated strings (format: "term1","term2","term3")
+            $termString = trim($termString, '"');
+            $definitionString = trim($definitionString, '"');
+            
+            $termCount = 0;
+            $defCount = 0;
+            
+            if (!empty($termString)) {
+                // Count cards by counting opening quotes (each opening quote = one card)
+                // Format: "term1","term2","term3"
+                $inQuotes = false;
+                $escaped = false;
+                $cardCount = 0;
+                
+                for ($i = 0; $i < strlen($termString); $i++) {
+                    $char = $termString[$i];
+                    
+                    if ($escaped) {
+                        $escaped = false;
+                        continue;
+                    }
+                    
+                    if ($char === '\\') {
+                        $escaped = true;
+                        continue;
+                    }
+                    
+                    if ($char === '"') {
+                        if (!$inQuotes) {
+                            // Opening quote - start of a new card
+                            $cardCount++;
+                        }
+                        $inQuotes = !$inQuotes;
+                    }
+                }
+                $termCount = $cardCount;
+            }
+            
+            if (!empty($definitionString)) {
+                // Count cards by counting opening quotes (each opening quote = one card)
+                // Format: "def1","def2","def3"
+                $inQuotes = false;
+                $escaped = false;
+                $cardCount = 0;
+                
+                for ($i = 0; $i < strlen($definitionString); $i++) {
+                    $char = $definitionString[$i];
+                    
+                    if ($escaped) {
+                        $escaped = false;
+                        continue;
+                    }
+                    
+                    if ($char === '\\') {
+                        $escaped = true;
+                        continue;
+                    }
+                    
+                    if ($char === '"') {
+                        if (!$inQuotes) {
+                            // Opening quote - start of a new card
+                            $cardCount++;
+                        }
+                        $inQuotes = !$inQuotes;
+                    }
+                }
+                $defCount = $cardCount;
+            }
+            
+            $result['cardCount'] = max($termCount, $defCount, 1);
+            
+            // Remove term and definition from result (not needed in list)
+            unset($result['term'], $result['definition']);
+        }
+        
+        return $results;
     }
 
     /**

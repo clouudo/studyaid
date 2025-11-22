@@ -167,7 +167,7 @@ PROMPT;
         string $sourceText,
         array $distribution,
         int $totalQuestions,
-        string $questionDifficulty = 'medium',
+        string $questionDifficulty = 'remember',
         ?string $instructions = null
     ): string {
         $model = $this->models['quiz'] ?? $this->defaultModel;
@@ -183,6 +183,17 @@ PROMPT;
             }
         }
         $typeLines = implode("\n", $typeBreakdown);
+
+        // Map Bloom's taxonomy level to description
+        $bloomDescriptions = [
+            'remember' => 'Remember: Questions should test recall of facts, terms, basic concepts, and definitions. Focus on memorization and recognition.',
+            'understand' => 'Understand: Questions should test comprehension, interpretation, explanation, and classification of concepts.',
+            'apply' => 'Apply: Questions should test the ability to use information in new situations, solve problems, and implement procedures.',
+            'analysis' => 'Analysis: Questions should test the ability to break down information, identify relationships, compare and contrast, and analyze structure.',
+            'evaluate' => 'Evaluate: Questions should test the ability to justify decisions, critique arguments, assess value, and make judgments.',
+            'create' => 'Create: Questions should test the ability to produce new or original work, design solutions, construct theories, and synthesize information.'
+        ];
+        $bloomDescription = $bloomDescriptions[$questionDifficulty] ?? $bloomDescriptions['remember'];
 
         $schema = <<<PROMPT
 You are an educational quiz generator. Create {$totalQuestions} questions using the provided document content.
@@ -211,7 +222,7 @@ Return JSON ONLY in this structure:
 PROMPT;
 
         $prompt = $schema . "\n"
-            . "Question Difficulty: {$questionDifficulty}\n"
+            . "Bloom's Taxonomy Level: {$bloomDescription}\n"
             . "Total Questions: {$totalQuestions}\n"
             . ($instructions ? ("Constraints: {$instructions}\n") : '')
             . "\nContent:\n{$sourceText}";
@@ -262,7 +273,7 @@ PROMPT;
         string $expectedAnswer,
         string $userAnswer,
         string $type = 'short_answer',
-        string $difficulty = 'medium'
+        string $bloomLevel = 'remember'
     ): array {
         $model = $this->models['quiz'] ?? $this->defaultModel;
         if (trim($userAnswer) === '') {
@@ -273,12 +284,29 @@ PROMPT;
             ];
         }
 
+        // Map Bloom's taxonomy level to description
+        $bloomDescriptions = [
+            'remember' => 'Remember: Evaluate based on recall of facts, terms, basic concepts, and definitions.',
+            'understand' => 'Understand: Evaluate based on comprehension, interpretation, explanation, and classification.',
+            'apply' => 'Apply: Evaluate based on ability to use information in new situations and solve problems.',
+            'analysis' => 'Analysis: Evaluate based on ability to break down information, identify relationships, and analyze structure.',
+            'evaluate' => 'Evaluate: Evaluate based on ability to justify decisions, critique arguments, and make judgments.',
+            'create' => 'Create: Evaluate based on ability to produce new or original work and synthesize information.'
+        ];
+        $bloomDescription = $bloomDescriptions[$bloomLevel] ?? $bloomDescriptions['remember'];
+
         $prompt = <<<PROMPT
-You are grading a student's response for a {$type} question (difficulty: {$difficulty}).
+You are grading a student's response for a {$type} question.
+Bloom's Taxonomy Level: {$bloomDescription}
+
 Compare the student's answer with the expected answer. Provide:
-- score: value between 0 and 1 (two decimal places) representing correctness.
+- score: value between 0 and 1 (two decimal places) representing correctness based on the Bloom's taxonomy level.
 - isCorrect: true if score >= 0.6, false otherwise.
-- suggestion: short constructive feedback referencing missing information or improvements. If answer is excellent, acknowledge it.
+- suggestion: Provide constructive feedback that:
+  1. References the expected answer content
+  2. Points out what is missing or could be improved
+  3. If the answer is excellent, acknowledge it
+  4. Be specific and helpful for learning
 
 Return JSON ONLY:
 {
@@ -390,17 +418,23 @@ PROMPT;
                 case 'short_answer':
                 case 'long_answer':
                     // Use AI evaluation for open-ended questions
+                    // Get Bloom's taxonomy level from question config or default to 'remember'
+                    $bloomLevel = $question['bloomLevel'] ?? 'remember';
+                    // Convert correctAnswer to string if it's an array
+                    $correctAnswerStr = is_array($correctAnswer) ? implode(' ', $correctAnswer) : (string)$correctAnswer;
                     $evaluation = $this->evaluateOpenAnswer(
                         $question['question'] ?? '',
-                        $correctAnswer,
-                        is_array($userAnswer) ? json_encode($userAnswer) : $userAnswer,
+                        $correctAnswerStr,
+                        is_array($userAnswer) ? implode(' ', $userAnswer) : (string)$userAnswer,
                         $questionType,
-                        'medium'
+                        $bloomLevel
                     );
                     $isCorrect = $evaluation['isCorrect'];
-                    if (!$isCorrect && !empty($evaluation['suggestion'])) {
-                        $suggestions[] = "Question {$questionId}: " . $evaluation['suggestion'];
-                        $suggestion = $evaluation['suggestion'];
+                    // Always include suggestion for short/long answer questions (even if correct, for feedback)
+                    $suggestion = $evaluation['suggestion'] ?? '';
+                    // Add to suggestions array for both correct and incorrect answers
+                    if (!empty($suggestion)) {
+                        $suggestions[] = "Question {$questionId}: " . $suggestion;
                     }
                     break;
 
