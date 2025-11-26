@@ -636,4 +636,62 @@ PROMPT;
             . "Synthesize the document now:";
         return $this->generateText($model, $prompt);
     }
+
+    /**
+     * Answer homework question from extracted text or image
+     * Returns array with 'hasQuestion' (bool) and 'answer' (string)
+     */
+    public function answerHomeworkQuestion(string $extractedText): array
+    {
+        $model = $this->models['default'] ?? $this->defaultModel;
+        
+        $prompt = <<<PROMPT
+You are a helpful homework assistant. Analyze the following content from an uploaded image or PDF.
+
+INSTRUCTIONS:
+1. First, identify if there is a question or problem to solve in the content.
+2. If NO question is found, respond with exactly: "NO_QUESTION_FOUND"
+3. If a question IS found:
+   - Extract and clearly state the question
+   - Provide a detailed, step-by-step answer
+   - Explain your reasoning
+   - Use clear formatting (markdown is acceptable)
+   - Be thorough but concise
+
+Content to analyze:
+{$extractedText}
+
+Now analyze and respond:
+PROMPT;
+
+        try {
+            $response = $this->generateText($model, $prompt);
+            
+            // Check if no question was found
+            if (stripos($response, 'NO_QUESTION_FOUND') !== false || 
+                stripos($response, 'no question found') !== false ||
+                stripos($response, 'no question') !== false) {
+                return [
+                    'hasQuestion' => false,
+                    'answer' => 'No question found in the uploaded document. Please ensure the document contains a clear question or problem to solve.',
+                    'question' => null
+                ];
+            }
+            
+            // Extract question if possible (look for patterns like "Question:", "Problem:", etc.)
+            $question = null;
+            if (preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:]\s*(.+?)(?:\n|$)/i', $extractedText, $matches)) {
+                $question = trim($matches[1]);
+            }
+            
+            return [
+                'hasQuestion' => true,
+                'answer' => $response,
+                'question' => $question
+            ];
+        } catch (\Exception $e) {
+            error_log('Gemini API - Error answering homework question: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to process homework question: ' . $e->getMessage(), 0, $e);
+        }
+    }
 }

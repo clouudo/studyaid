@@ -2250,4 +2250,109 @@ class LmModel
             return [];
         }
     }
+
+    // ============================================================================
+    // HOMEWORK HELPER PAGE (homeworkHelper.php)
+    // ============================================================================
+
+    /**
+     * Save homework helper entry
+     */
+    public function saveHomeworkHelper(int $userId, string $fileName, string $fileType, string $filePath, ?string $extractedText = null, ?string $question = null, ?string $answer = null, string $status = 'pending'): int
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO homework_helper (userID, fileName, fileType, filePath, extractedText, question, answer, status) VALUES (:userID, :fileName, :fileType, :filePath, :extractedText, :question, :answer, :status)");
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileName', $fileName);
+        $stmt->bindParam(':fileType', $fileType);
+        $stmt->bindParam(':filePath', $filePath);
+        $stmt->bindParam(':extractedText', $extractedText);
+        $stmt->bindParam(':question', $question);
+        $stmt->bindParam(':answer', $answer);
+        $stmt->bindParam(':status', $status);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Update homework helper entry
+     */
+    public function updateHomeworkHelper(int $homeworkId, ?string $extractedText = null, ?string $question = null, ?string $answer = null, ?string $status = null): bool
+    {
+        $conn = $this->db->connect();
+        $updates = [];
+        $params = [':homeworkID' => $homeworkId];
+
+        if ($extractedText !== null) {
+            $updates[] = "extractedText = :extractedText";
+            $params[':extractedText'] = $extractedText;
+        }
+        if ($question !== null) {
+            $updates[] = "question = :question";
+            $params[':question'] = $question;
+        }
+        if ($answer !== null) {
+            $updates[] = "answer = :answer";
+            $params[':answer'] = $answer;
+        }
+        if ($status !== null) {
+            $updates[] = "status = :status";
+            $params[':status'] = $status;
+        }
+
+        if (empty($updates)) {
+            return false;
+        }
+
+        $query = "UPDATE homework_helper SET " . implode(', ', $updates) . " WHERE homeworkID = :homeworkID";
+        $stmt = $conn->prepare($query);
+        
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Get all homework helper entries for a user
+     */
+    public function getHomeworkHelpersByUser(int $userId): array
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE userID = :userID ORDER BY createdAt DESC");
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get homework helper entry by ID
+     */
+    public function getHomeworkHelperById(int $homeworkId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE homeworkID = :homeworkID AND userID = :userID");
+        $stmt->bindParam(':homeworkID', $homeworkId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $result ?: null;
+    }
+
+    /**
+     * Get storage client (for controller use)
+     */
+    public function getStorage()
+    {
+        return $this->storage;
+    }
+
+    /**
+     * Get bucket name (for controller use)
+     */
+    public function getBucketName()
+    {
+        return $this->bucketName;
+    }
 }

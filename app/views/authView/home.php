@@ -91,8 +91,8 @@
                 <span class="brand-name">StudyAid</span>
             </div>
             <div class="d-flex gap-2">
-                <a class="btn btn-login rounded-pill px-4" href="<?php echo LOGIN; ?>" role="button">Login</a>
-                <a class="btn btn-signup rounded-pill px-4" href="<?php echo REGISTER; ?>" role="button">Sign up</a>
+                <a class="btn btn-login rounded-pill px-4" href="<?= BASE_PATH ?>auth/login" role="button">Login</a>
+                <a class="btn btn-signup rounded-pill px-4" href="<?= BASE_PATH ?>auth/register" role="button">Sign up</a>
             </div>
         </header>
     </div>

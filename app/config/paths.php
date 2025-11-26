@@ -17,12 +17,12 @@ define('CSS_PATH', PUBLIC_PATH . 'css/');
 define('JS_PATH', PUBLIC_PATH . 'js/');
 define('ASSET_PATH', PUBLIC_PATH . 'asset/');
 
-// Images
-define('IMG_VISIBLE', ASSET_PATH . 'visible.png');
-define('IMG_INVISIBLE', ASSET_PATH . 'invisible.png');
-define('IMG_LOGO', ASSET_PATH . 'logo.png');
-define('IMG_SETTING', ASSET_PATH . 'setting.png');
-define('IMG_CARET_DOWN', ASSET_PATH . 'down-chevron.png');
+// Images - using absolute URLs for better compatibility
+define('IMG_VISIBLE', APP_URL . 'public/asset/visible.png');
+define('IMG_INVISIBLE', APP_URL . 'public/asset/invisible.png');
+define('IMG_LOGO', APP_URL . 'public/asset/logo.png');
+define('IMG_SETTING', APP_URL . 'public/asset/setting.png');
+define('IMG_CARET_DOWN', APP_URL . 'public/asset/down-chevron.png');
 
 // ============================================================================
 // AUTH ROUTES
@@ -110,6 +110,10 @@ define('DOCUMENT_HUB', BASE_PATH . 'lm/documentHub');
 define('SAVE_CHECKED_DOCUMENTS', BASE_PATH . 'lm/saveCheckedDocuments');
 define('SEARCH_KNOWLEDGE_BASE', BASE_PATH . 'lm/searchKnowledgeBase');
 
+//Homework Helper
+define('HOMEWORK_HELPER', BASE_PATH . 'lm/homeworkHelper');
+define('PROCESS_HOMEWORK', BASE_PATH . 'lm/processHomework');
+
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');
 define('RENAME_FILE', BASE_PATH . 'lm/renameFile');
@@ -143,6 +147,7 @@ define('VIEW_FLASHCARD', LEARNING_VIEWS_PATH . 'flashcard.php');
 define('VIEW_NAVBAR', LEARNING_VIEWS_PATH . 'navbar.php');
 define('VIEW_CONFIRM', LEARNING_VIEWS_PATH . 'confirm.php');
 define('VIEW_DOCUMENT_HUB', LEARNING_VIEWS_PATH . 'multidoc.php');
+define('VIEW_HOMEWORK_HELPER', LEARNING_VIEWS_PATH . 'homeworkHelper.php');
 // ============================================================================
 // URL PATTERNS FOR isActive() FUNCTION
 // ============================================================================
@@ -159,3 +164,4 @@ define('URL_FLASHCARD', 'index.php?url=lm/flashcard');
 define('URL_QUIZ', 'index.php?url=lm/quiz');
 define('URL_DOCUMENT_HUB', 'index.php?url=lm/documentHub');
 define('URL_DISPLAY_DOCUMENT', 'index.php?url=lm/displayDocument');
+define('URL_HOMEWORK_HELPER', 'index.php?url=lm/homeworkHelper');

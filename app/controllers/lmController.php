@@ -3601,4 +3601,130 @@ class LmController
             $this->sendJsonError('An error occurred while searching: ' . $e->getMessage());
         }
     }
+
+    // ============================================================================
+    // HOMEWORK HELPER PAGE (homeworkHelper.php)
+    // ============================================================================
+
+    /**
+     * Displays the homework helper interface
+     */
+    public function homeworkHelper()
+    {
+        $this->checkSession();
+        
+        try {
+            $userId = (int)$_SESSION['user_id'];
+            $user = $this->getUserInfo();
+            $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
+            
+            // Get all homework entries for the user
+            $homeworkEntries = $this->lmModel->getHomeworkHelpersByUser($userId);
+            
+            require_once VIEW_HOMEWORK_HELPER;
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
+            header('Location: ' . DISPLAY_LEARNING_MATERIALS);
+            exit();
+        }
+    }
+
+    /**
+     * Processes homework upload: extracts text, identifies question, gets answer from Gemini
+     */
+    public function processHomework()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_FILES['homework_file'])) {
+            $this->sendJsonError('No file uploaded.');
+        }
+
+        $file = $_FILES['homework_file'];
+        
+        // Validate file
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $this->sendJsonError('File upload error: ' . $file['error']);
+        }
+
+        $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+        
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            $this->sendJsonError('Invalid file type. Please upload a PDF or image file.');
+        }
+
+        try {
+            // Extract text from file
+            $tmpName = $file['tmp_name'];
+            $extractedText = $this->extractTextFromFile($tmpName, $fileExtension, $file);
+            
+            if (empty($extractedText)) {
+                $this->sendJsonError('Could not extract text from the file. Please ensure the file contains readable text or questions.');
+            }
+
+            // Upload file to GCS
+            $fileContent = file_get_contents($tmpName);
+            if ($fileContent === false) {
+                throw new \Exception("Error reading file: {$file['name']}");
+            }
+
+            // Generate unique filename
+            $uniqueFileName = uniqid('homework_', true) . '.' . $fileExtension;
+            $gcsObjectName = 'user_upload/' . $userId . '/homework/' . $uniqueFileName;
+
+            // Upload to GCS
+            $bucket = $this->lmModel->getStorage()->bucket($this->lmModel->getBucketName());
+            $contentType = $fileExtension === 'pdf' ? 'application/pdf' : 'image/' . ($fileExtension === 'jpg' ? 'jpeg' : $fileExtension);
+            
+            $bucket->upload($fileContent, [
+                'name' => $gcsObjectName,
+                'metadata' => ['contentType' => $contentType]
+            ]);
+
+            // Save to database with pending status
+            $homeworkId = $this->lmModel->saveHomeworkHelper(
+                $userId,
+                $file['name'],
+                $fileExtension,
+                $gcsObjectName,
+                $extractedText,
+                null,
+                null,
+                'processing'
+            );
+
+            // Process with Gemini
+            try {
+                $result = $this->gemini->answerHomeworkQuestion($extractedText);
+                
+                $status = $result['hasQuestion'] ? 'completed' : 'no_question';
+                $question = $result['question'] ?? null;
+                $answer = $result['answer'];
+
+                // Update database with results
+                $this->lmModel->updateHomeworkHelper($homeworkId, null, $question, $answer, $status);
+
+                $this->sendJsonSuccess([
+                    'homeworkId' => $homeworkId,
+                    'hasQuestion' => $result['hasQuestion'],
+                    'question' => $question,
+                    'answer' => $answer,
+                    'status' => $status,
+                    'fileName' => $file['name']
+                ]);
+            } catch (\Exception $geminiError) {
+                // Update status to indicate error
+                $this->lmModel->updateHomeworkHelper($homeworkId, null, null, null, 'pending');
+                error_log('Homework Helper Gemini Error: ' . $geminiError->getMessage());
+                $this->sendJsonError('Failed to process homework question: ' . $geminiError->getMessage());
+            }
+        } catch (\Exception $e) {
+            error_log('Homework Helper Processing Error: ' . $e->getMessage());
+            $this->sendJsonError('An error occurred while processing the homework: ' . $e->getMessage());
+        }
+    }
 }
