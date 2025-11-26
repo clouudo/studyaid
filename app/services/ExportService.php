@@ -536,35 +536,6 @@ class ExportService
     }
 
     /**
-     * Generates DOCX file from title and content using PHPWord
-     */
-    public function generateDocx($title, $content)
-    {
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $section = $phpWord->addSection();
-
-        $section->addTitle($title, 1);
-        $section->addTextBreak(1);
-
-        $paragraphs = preg_split('/\n\s*\n/', $content);
-        foreach ($paragraphs as $paragraph) {
-            $paragraph = trim($paragraph);
-            if (!empty($paragraph)) {
-                $section->addText($paragraph);
-                $section->addTextBreak(1);
-            }
-        }
-
-        $writer = new \PhpOffice\PhpWord\Writer\Word2007($phpWord);
-        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) . '.docx';
-
-        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        $writer->save('php://output');
-        exit();
-    }
-
-    /**
      * Generates TXT file from title and content
      */
     public function generateTxt($title, $content)

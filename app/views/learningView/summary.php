@@ -548,7 +548,6 @@
                                                         <i class="bi bi-volume-up me-2"></i>Listen to Audio
                                                     </a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="pdf" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
-                                                    <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="docx" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-summary-btn" href="#" data-export-type="txt" data-summary-id="<?= htmlspecialchars($summary['summaryID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
                                                     <li>
                                                         <hr class="dropdown-divider">
@@ -1019,7 +1018,7 @@
             /**
              * Export summary button handler
              * 
-             * Behavior: Exports summary as PDF, DOCX, or TXT file. Downloads file
+             * Behavior: Exports summary as PDF or TXT file. Downloads file
              * via blob URL. Handles errors and validates response content type.
              */
             // Handle export summary buttons
@@ -1035,8 +1034,6 @@
                     let exportUrl = '';
                     if (exportType === 'pdf') {
                         exportUrl = '<?= EXPORT_SUMMARY_PDF ?>';
-                    } else if (exportType === 'docx') {
-                        exportUrl = '<?= EXPORT_SUMMARY_DOCX ?>';
                     } else if (exportType === 'txt') {
                         exportUrl = '<?= EXPORT_SUMMARY_TXT ?>';
                     }

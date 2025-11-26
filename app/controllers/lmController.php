@@ -1696,38 +1696,6 @@ class LmController
     }
 
     /**
-     * Exports a summary as DOCX file download
-     */
-    public function exportSummaryAsDocx()
-    {
-        $this->checkSession();
-
-        $userId = (int)$_SESSION['user_id'];
-        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
-
-        if ($summaryId === 0) {
-            $_SESSION['error'] = "Summary ID not provided.";
-            header('Location: ' . SUMMARY);
-            exit();
-        }
-
-        try {
-            $summary = $this->lmModel->getSummaryById($summaryId, $userId);
-            if (!$summary) {
-                $_SESSION['error'] = "Summary not found.";
-                header('Location: ' . SUMMARY);
-                exit();
-            }
-
-            $this->exportService->generateDocx($summary['title'], $summary['content']);
-        } catch (\Exception $e) {
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . SUMMARY);
-            exit();
-        }
-    }
-
-    /**
      * Exports a summary as TXT file download
      */
     public function exportSummaryAsTxt()
@@ -1784,38 +1752,6 @@ class LmController
             }
 
             $this->exportService->generatePdf($note['title'], $note['content']);
-        } catch (\Exception $e) {
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . NOTE);
-            exit();
-        }
-    }
-
-    /**
-     * Exports a note as DOCX file download
-     */
-    public function exportNoteAsDocx()
-    {
-        $this->checkSession();
-
-        $userId = (int)$_SESSION['user_id'];
-        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
-
-        if ($noteId === 0) {
-            $_SESSION['error'] = "Note ID not provided.";
-            header('Location: ' . NOTE);
-            exit();
-        }
-
-        try {
-            $note = $this->lmModel->getNoteById($noteId, $userId);
-            if (!$note) {
-                $_SESSION['error'] = "Note not found.";
-                header('Location: ' . NOTE);
-                exit();
-            }
-
-            $this->exportService->generateDocx($note['title'], $note['content']);
         } catch (\Exception $e) {
             $_SESSION['error'] = "Error: " . $e->getMessage();
             header('Location: ' . NOTE);

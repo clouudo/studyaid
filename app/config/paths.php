@@ -60,7 +60,6 @@ define('GENERATE_SUMMARY', BASE_PATH . 'lm/generateSummary');
 define('DELETE_SUMMARY', BASE_PATH . 'lm/deleteSummary');
 define('SAVE_SUMMARY_AS_FILE', BASE_PATH . 'lm/saveSummaryAsFile');
 define('EXPORT_SUMMARY_PDF', BASE_PATH . 'lm/exportSummaryAsPdf');
-define('EXPORT_SUMMARY_DOCX', BASE_PATH . 'lm/exportSummaryAsDocx');
 define('EXPORT_SUMMARY_TXT', BASE_PATH . 'lm/exportSummaryAsTxt');
 define('AUDIO_SUMMARY', BASE_PATH . 'lm/audioSummary');
 
@@ -72,7 +71,6 @@ define('UPDATE_NOTE', BASE_PATH . 'lm/updateNote');
 define('DELETE_NOTE', BASE_PATH . 'lm/deleteNote');
 define('SAVE_NOTE_AS_FILE', BASE_PATH . 'lm/saveNoteAsFile');
 define('EXPORT_NOTE_PDF', BASE_PATH . 'lm/exportNoteAsPdf');
-define('EXPORT_NOTE_DOCX', BASE_PATH . 'lm/exportNoteAsDocx');
 define('EXPORT_NOTE_TXT', BASE_PATH . 'lm/exportNoteAsTxt');
 define('AUDIO_NOTE', BASE_PATH . 'lm/audioNote');
 define('UPLOAD_NOTE_IMAGE', BASE_PATH . 'lm/uploadNoteImage');
