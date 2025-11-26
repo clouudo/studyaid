@@ -258,7 +258,7 @@
                                         <?php elseif ($entry['status'] === 'no_question'): ?>
                                             <div class="alert alert-warning mb-0">
                                                 <i class="bi bi-exclamation-triangle me-2"></i>
-                                                No question found in the uploaded document.
+                                                No question found.
                                             </div>
                                         <?php endif; ?>
                                     </div>

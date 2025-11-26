@@ -671,7 +671,7 @@ PROMPT;
                 stripos($response, 'no question') !== false) {
                 return [
                     'hasQuestion' => false,
-                    'answer' => 'No question found in the uploaded document. Please ensure the document contains a clear question or problem to solve.',
+                    'answer' => 'No question found.',
                     'question' => null
                 ];
             }
