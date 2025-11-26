@@ -290,7 +290,7 @@
             
             setTimeout(function() {
                 snackbar.classList.remove('show');
-            }, 3000);
+            }, 5000);
         }
 
         const chatContainer = document.getElementById('chatContainer');
@@ -388,10 +388,29 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    // Try to get error message from response
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (e) {
+                        // If response is not JSON, use status text
+                        errorMessage = response.statusText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
                 }
 
-                const data = await response.json();
+                let data;
+                try {
+                    const responseText = await response.text();
+                    if (!responseText) {
+                        throw new Error('Empty response from server');
+                    }
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON Parse Error:', parseError);
+                    throw new Error('Invalid response format from server');
+                }
 
                 // Remove loading indicator
                 if (chatContainer.contains(loadingDiv)) {

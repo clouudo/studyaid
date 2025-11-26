@@ -36,13 +36,50 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
         body {
             background-color: #f8f9fa;
         }
-        .folder-item {
-            text-decoration: none;
+        
+        /* Theme Variables & Base */
+        :root {
+            --sa-primary: #6f42c1;
+            --sa-primary-dark: #593093;
+            --sa-accent: #e7d5ff;
+            --sa-accent-strong: #d4b5ff;
+            --sa-muted: #6c757d;
+            --sa-card-border: #ede1ff;
         }
+
+        /* Card Styles matching HomeworkHelper */
+        .card {
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+            overflow: visible;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f6efff, #ffffff);
+            border-bottom: 1px solid var(--sa-card-border);
+            color: var(--sa-primary);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+        
+        .card-header h5 {
+            color: inherit;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
         .upload-container {
             background-color: #f8f9fa;
             padding: 30px;
+            min-height: 100%;
         }
+
+        /* Input Styles */
         .form-input-theme {
             background-color: #e7d5ff;
             border: none;
@@ -70,47 +107,37 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             color: #6c757d;
             pointer-events: none;
         }
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 30px;
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--sa-primary) !important;
+            border-color: var(--sa-primary) !important;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
         }
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--sa-primary-dark) !important;
+            border-color: var(--sa-primary-dark) !important;
+        }
+
         .btn-cancel {
-            background-color: #e7d5ff;
-            border: none;
-            color: #6f42c1;
+            background-color: transparent;
+            border: 1px solid var(--sa-card-border);
+            color: #6c757d;
             padding: 10px 24px;
             border-radius: 8px;
             font-weight: 600;
         }
         .btn-cancel:hover {
-            background-color: #d4b5ff;
-            color: #5a32a3;
-        }
-        .btn-create {
             background-color: #e7d5ff;
-            border: none;
-            color: #6f42c1;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
+            color: var(--sa-primary);
+            border-color: var(--sa-primary);
         }
-        .btn-create:hover {
-            background-color: #6f42c1;
-            color: white;
+
+        .folder-item {
+            text-decoration: none;
         }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-        }
+        
         .modal-close-btn {
             background-color: transparent;
             border: none;
@@ -237,28 +264,38 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 }
                 ?>
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Create New Folder</h3>
-                <form action="<?= BASE_PATH ?>lm/createFolder" method="POST">
-                    <input type="hidden" name="parentFolderId" id="parentFolderId">
-                    
-                    <div class="form-row">
-                        <div>
-                            <label for="folderName" class="form-label fw-semibold">Folder Name</label>
-                            <input type="text" class="form-control form-input-theme" id="folderName" name="folderName" placeholder="Enter your folder name here..." required>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-folder-plus me-2"></i>
+                            New Folder Details
+                        </h5>
                     </div>
-                        <div>
-                            <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
-                            <div class="folder-select-wrapper">
-                                <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose folder to add" readonly onclick="openFolderModal()">
-                                <i class="bi bi-chevron-expand folder-select-icon"></i>
+                    <div class="card-body">
+                        <form action="<?= BASE_PATH ?>lm/createFolder" method="POST">
+                            <input type="hidden" name="parentFolderId" id="parentFolderId">
+                            
+                            <div class="mb-4">
+                                <label for="folderName" class="form-label fw-semibold">Folder Name</label>
+                                <input type="text" class="form-control form-input-theme" id="folderName" name="folderName" placeholder="Enter your folder name here..." required>
                             </div>
-                        </div>
-                    </div>  
+                            
+                            <div class="mb-4">
+                                <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder (Optional)</label>
+                                <div class="folder-select-wrapper">
+                                    <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose parent folder (default: root)" readonly onclick="openFolderModal()">
+                                    <i class="bi bi-chevron-expand folder-select-icon"></i>
+                                </div>
+                            </div>
 
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
-                        <button type="submit" class="btn btn-create">Create</button>
+                            <div class="d-flex gap-3 justify-content-center mt-4">
+                                <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
+                                <button type="submit" class="btn btn-primary px-5">Create Folder</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
         </main>
     </div>
