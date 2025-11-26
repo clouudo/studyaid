@@ -3588,6 +3588,7 @@ class LmController
         }
 
         $file = $_FILES['homework_file'];
+        $instructions = $_POST['instruction'] ?? null;
         
         // Validate file
         if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -3638,12 +3639,13 @@ class LmController
                 $extractedText,
                 null,
                 null,
-                'processing'
+                'processing',
+                $instructions
             );
 
             // Process with Gemini
             try {
-                $result = $this->gemini->answerHomeworkQuestion($extractedText);
+                $result = $this->gemini->answerHomeworkQuestion($extractedText, $instructions);
                 
                 $status = $result['hasQuestion'] ? 'completed' : 'no_question';
                 $question = $result['question'] ?? null;
@@ -3669,6 +3671,43 @@ class LmController
         } catch (\Exception $e) {
             error_log('Homework Helper Processing Error: ' . $e->getMessage());
             $this->sendJsonError('An error occurred while processing the homework: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * View original homework file
+     */
+    public function viewHomeworkFile()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        $homeworkId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+        if (!$homeworkId) {
+            die('Invalid homework ID.');
+        }
+
+        $homework = $this->lmModel->getHomeworkHelperById($homeworkId, $userId);
+        
+        if (!$homework) {
+            die('Homework not found or access denied.');
+        }
+
+        $filePath = $homework['filePath'];
+        
+        try {
+            $bucket = $this->lmModel->getStorage()->bucket($this->lmModel->getBucketName());
+            $object = $bucket->object($filePath);
+            
+            if (!$object->exists()) {
+                die('File not found in storage.');
+            }
+
+            $signedUrl = $object->signedUrl(new \DateTimeImmutable('+1 hour'), ['version' => 'v4']);
+            header('Location: ' . $signedUrl);
+            exit;
+        } catch (\Exception $e) {
+            die('Error retrieving file: ' . $e->getMessage());
         }
     }
 }

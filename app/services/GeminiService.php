@@ -659,7 +659,11 @@ INSTRUCTIONS:
 Content to analyze:
 {$extractedText}
 
-Now analyze and respond:
+Respond only in question and answer format.
+Format example:
+###Question1: (QUESTION)
+###Answer: (ANSWER)
+Now analyze and respond only in markdown format:
 PROMPT;
 
         try {

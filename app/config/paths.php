@@ -111,6 +111,7 @@ define('SEARCH_KNOWLEDGE_BASE', BASE_PATH . 'lm/searchKnowledgeBase');
 //Homework Helper
 define('HOMEWORK_HELPER', BASE_PATH . 'lm/homeworkHelper');
 define('PROCESS_HOMEWORK', BASE_PATH . 'lm/processHomework');
+define('VIEW_HOMEWORK_FILE', BASE_PATH . 'lm/viewHomeworkFile');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');

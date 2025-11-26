@@ -73,7 +73,7 @@ function isActive($link_url, $current_url)
     </li>
     <li class="sidebarlist <?php echo isActive(URL_HOMEWORK_HELPER, $current_url); ?>">
       <a href="<?= HOMEWORK_HELPER ?>" class="nav-link text-dark <?php echo isActive(URL_HOMEWORK_HELPER, $current_url); ?>">
-        <i class="bi bi-journal-text me-2"></i>Homework Helper
+        Homework Helper
       </a>
     </li>
   </ul>

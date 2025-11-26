@@ -2258,10 +2258,10 @@ class LmModel
     /**
      * Save homework helper entry
      */
-    public function saveHomeworkHelper(int $userId, string $fileName, string $fileType, string $filePath, ?string $extractedText = null, ?string $question = null, ?string $answer = null, string $status = 'pending'): int
+    public function saveHomeworkHelper(int $userId, string $fileName, string $fileType, string $filePath, ?string $extractedText = null, ?string $question = null, ?string $answer = null, string $status = 'pending', ?string $instruction = null): int
     {
         $conn = $this->db->connect();
-        $stmt = $conn->prepare("INSERT INTO homework_helper (userID, fileName, fileType, filePath, extractedText, question, answer, status) VALUES (:userID, :fileName, :fileType, :filePath, :extractedText, :question, :answer, :status)");
+        $stmt = $conn->prepare("INSERT INTO homework_helper (userID, fileName, fileType, filePath, extractedText, question, answer, status, instruction) VALUES (:userID, :fileName, :fileType, :filePath, :extractedText, :question, :answer, :status, :instruction)");
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         $stmt->bindParam(':fileName', $fileName);
         $stmt->bindParam(':fileType', $fileType);
@@ -2270,6 +2270,7 @@ class LmModel
         $stmt->bindParam(':question', $question);
         $stmt->bindParam(':answer', $answer);
         $stmt->bindParam(':status', $status);
+        $stmt->bindParam(':instruction', $instruction);
         $stmt->execute();
         return (int)$conn->lastInsertId();
     }

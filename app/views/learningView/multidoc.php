@@ -265,6 +265,17 @@
             border-left: none;
             padding: 0.75rem 1.5rem;
         }
+
+        /* Themed Checkboxes */
+        .form-check-input:checked {
+            background-color: var(--sa-primary);
+            border-color: var(--sa-primary);
+        }
+        
+        .form-check-input:focus {
+            border-color: var(--sa-primary);
+            box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.25);
+        }
     </style>
 </head>
 

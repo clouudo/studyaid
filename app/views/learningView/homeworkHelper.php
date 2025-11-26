@@ -1,3 +1,9 @@
+<?php
+// Ensure homeworkEntries is defined
+if (!isset($homeworkEntries)) {
+    $homeworkEntries = [];
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -23,12 +29,18 @@
             border: 1px solid var(--sa-card-border);
             border-radius: 16px;
             box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+            overflow: visible;
         }
 
         .card-header {
             background: linear-gradient(135deg, #f6efff, #ffffff);
             border-bottom: 1px solid var(--sa-card-border);
             color: var(--sa-primary);
+            font-weight: 600;
+        }
+        
+        .card-header h5 {
+            color: inherit;
             font-weight: 600;
         }
 
@@ -44,6 +56,7 @@
             border-color: var(--sa-primary-dark) !important;
         }
 
+        /* Upload Area Styles */
         .upload-area {
             border: 2px dashed var(--sa-card-border);
             border-radius: 12px;
@@ -64,19 +77,70 @@
             background-color: var(--sa-accent-strong);
         }
 
-        .homework-item {
-            border: 1px solid var(--sa-card-border);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            background-color: white;
-            transition: all 0.3s;
+        /* List Group Styles (Consolidated with Flashcards) */
+        .list-group-item {
+            border-left: none;
+            border-right: none;
+            padding: 1.25rem;
+            transition: background-color 0.2s;
         }
 
-        .homework-item:hover {
-            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.15);
+        .list-group-item:first-child {
+            border-top: none;
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: none;
         }
 
+        /* Action Button (Three dots) */
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            color: #6c757d;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e7d5ff;
+            color: #6f42c1;
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            border-radius: 12px !important;
+            border: 1px solid #d4b5ff !important;
+            box-shadow: 0 10px 24px rgba(90, 50, 163, 0.12) !important;
+            padding: 8px 0 !important;
+            min-width: 200px;
+            z-index: 1050;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        
+        .dropdown-item:active, .dropdown-item.active {
+            background-color: var(--sa-primary);
+            color: white;
+        }
+
+        .dropdown-header {
+            color: var(--sa-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            padding: 8px 16px 4px;
+        }
+
+        /* Status Badges - Removed custom class to use Bootstrap default */
+        
+        /* Answer Content */
         .answer-content {
             background-color: #f8f9fa;
             border-left: 4px solid var(--sa-primary);
@@ -85,60 +149,37 @@
             margin-top: 15px;
         }
 
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .status-pending {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-
-        .status-processing {
-            background-color: #cfe2ff;
-            color: #084298;
-        }
-
-        .status-completed {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-
-        .status-no_question {
-            background-color: #f8d7da;
-            color: #842029;
-        }
-
+        /* Snackbar */
         .snackbar {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: white;
             padding: 16px 24px;
             border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            z-index: 9999;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transform: translateY(100px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9999;
             opacity: 0;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            min-width: 300px;
+            max-width: 500px;
         }
-
+        
         .snackbar.show {
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
-
-        .snackbar.success {
-            background-color: #28a745;
-        }
-
-        .snackbar.error {
-            background-color: #dc3545;
-        }
+        
+        .snackbar.success { background-color: #28a745; }
+        .snackbar.error { background-color: #dc3545; }
+        
+        .snackbar-icon { font-size: 1.2rem; }
+        .snackbar-message { flex: 1; font-size: 0.95rem; }
 
         .loading-spinner {
             display: inline-block;
@@ -150,53 +191,63 @@
             animation: spin 1s ease-in-out infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .upload-container {
+            background-color: #f8f9fa;
+            padding: 30px;
+            min-height: 100%;
+        }
+        
+        .view-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--sa-muted);
+            margin-bottom: 0.5rem;
+            display: block;
         }
     </style>
 </head>
 
-<body>
-    <div class="d-flex">
-        <?php require_once VIEW_SIDEBAR; ?>
-        <main class="flex-grow-1 p-4">
-            <div class="container-fluid">
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <h2 class="mb-0">
-                            <i class="bi bi-journal-text me-2" style="color: var(--sa-primary);"></i>
-                            Homework Helper
-                        </h2>
-                        <p class="text-muted">Upload your homework questions in PDF or image format and get AI-powered answers</p>
-                    </div>
-                </div>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Snackbar Container -->
+    <div id="snackbar" class="snackbar">
+        <i class="snackbar-icon" id="snackbarIcon"></i>
+        <span class="snackbar-message" id="snackbarMessage"></span>
+    </div>
+
+    <div class="d-flex flex-grow-1">
+        <?php include 'app/views/sidebar.php'; ?>
+        <main class="flex-grow-1 p-3" style="background-color: #f8f9fa;">
+            <div class="container-fluid upload-container">
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Homework Helper</h3>
 
                 <!-- Upload Section -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-cloud-upload me-2"></i>
-                            Upload Homework Question
-                        </h5>
+                        <h5 class="mb-0">Generate with AI</h5>
+                        <small class="text-muted">Upload PDF or image to get AI answers.</small>
                     </div>
                     <div class="card-body">
                         <form id="homeworkForm" enctype="multipart/form-data">
                             <div class="upload-area" id="uploadArea">
-                                <i class="bi bi-file-earmark-pdf" style="font-size: 3rem; color: var(--sa-primary);"></i>
+                                <i class="bi bi-cloud-upload" style="font-size: 3rem; color: var(--sa-primary);"></i>
                                 <h5 class="mt-3 mb-2">Drag & Drop or Click to Upload</h5>
-                                <p class="text-muted mb-3">Supports PDF and image files (JPG, PNG, GIF, BMP, WEBP)</p>
+                                <p class="text-muted mb-3">Supports PDF and image files (JPG, PNG, WEBP)</p>
                                 <input type="file" id="homeworkFile" name="homework_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp" style="display: none;" required>
-                                <button type="button" class="btn btn-primary" onclick="document.getElementById('homeworkFile').click()">
-                                    <i class="bi bi-upload me-2"></i>Choose File
-                                </button>
                                 <div id="fileName" class="mt-3" style="display: none;">
                                     <p class="mb-0"><strong>Selected:</strong> <span id="selectedFileName"></span></p>
                                 </div>
                             </div>
+                            
+                            <div class="mt-3">
+                                <label for="homeworkInstruction" class="form-label">Instructions (Optional)</label>
+                                <textarea class="form-control" id="homeworkInstruction" name="instruction" rows="2" placeholder="e.g., Solve only question 3, or Explain the concept of..."></textarea>
+                            </div>
+
                             <div class="text-center mt-3">
-                                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-                                    <i class="bi bi-send me-2"></i>Process Homework
-                                </button>
+                                <button type="submit" class="btn btn-primary" id="submitBtn">Process Homework</button>
                             </div>
                         </form>
                     </div>
@@ -204,14 +255,14 @@
 
                 <!-- Homework History -->
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-clock-history me-2"></i>
-                            Homework History
-                        </h5>
+                    <div class="card-header d-flex flex-wrap gap-3 justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">Homework History</h5>
+                            <small class="text-muted d-block">Your past questions and answers</small>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div id="homeworkList">
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="homeworkList">
                             <?php if (empty($homeworkEntries)): ?>
                                 <div class="text-center py-5">
                                     <i class="bi bi-inbox" style="font-size: 3rem; color: var(--sa-muted);"></i>
@@ -219,46 +270,87 @@
                                 </div>
                             <?php else: ?>
                                 <?php foreach ($homeworkEntries as $entry): ?>
-                                    <div class="homework-item" data-homework-id="<?= $entry['homeworkID'] ?>">
+                                    <div class="list-group-item">
+                                        <!-- Header Row -->
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div class="flex-grow-1">
-                                                <h6 class="mb-1">
-                                                    <i class="bi bi-file-earmark me-2"></i>
-                                                    <?= htmlspecialchars($entry['fileName']) ?>
-                                                </h6>
-                                                <small class="text-muted">
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <strong class="h6 mb-0"><?= htmlspecialchars($entry['fileName']) ?></strong>
+                                                    <?php
+                                                    $statusClass = 'bg-secondary';
+                                                    if ($entry['status'] === 'completed') $statusClass = 'bg-success';
+                                                    elseif ($entry['status'] === 'processing') $statusClass = 'bg-primary';
+                                                    elseif ($entry['status'] === 'no_question') $statusClass = 'bg-danger';
+                                                    elseif ($entry['status'] === 'pending') $statusClass = 'bg-warning text-dark';
+                                                    ?>
+                                                    <span class="badge rounded-pill <?= $statusClass ?>">
+                                                        <?= ucfirst(str_replace('_', ' ', $entry['status'])) ?>
+                                                    </span>
+                                                </div>
+                                                <small class="text-muted d-block">
                                                     <i class="bi bi-calendar me-1"></i>
                                                     <?= date('Y-m-d H:i:s', strtotime($entry['createdAt'])) ?>
                                                 </small>
+                                                <?php if (!empty($entry['instruction'])): ?>
+                                                    <div class="mt-1 text-muted small">
+                                                        <i class="bi bi-info-circle me-1"></i>
+                                                        Instruction: <?= htmlspecialchars($entry['instruction']) ?>
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
-                                            <span class="status-badge status-<?= $entry['status'] ?>">
-                                                <?= ucfirst(str_replace('_', ' ', $entry['status'])) ?>
-                                            </span>
+                                            
+                                            <!-- Actions Dropdown -->
+                                            <div class="dropdown">
+                                                <button class="action-btn" type="button" id="dropdownAction<?= $entry['homeworkID'] ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownAction<?= $entry['homeworkID'] ?>">
+                                                    <li><button class="dropdown-item active" type="button" onclick="switchView(<?= $entry['homeworkID'] ?>, 'answer', this)">Answer</button></li>
+                                                    <li><button class="dropdown-item" type="button" onclick="switchView(<?= $entry['homeworkID'] ?>, 'text', this)">Extracted Text</button></li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li><a class="dropdown-item" href="<?= VIEW_HOMEWORK_FILE ?>&id=<?= $entry['homeworkID'] ?>" target="_blank">View Original File</a></li>
+                                                </ul>
+                                            </div>
                                         </div>
-                                        
-                                        <?php if (!empty($entry['question'])): ?>
-                                            <div class="mb-3">
-                                                <strong><i class="bi bi-question-circle me-2"></i>Question:</strong>
-                                                <p class="mb-0 mt-2" style="white-space: pre-wrap;"><?= htmlspecialchars($entry['question']) ?></p>
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <?php if (!empty($entry['answer'])): ?>
-                                            <div class="answer-content">
-                                                <strong><i class="bi bi-lightbulb me-2"></i>Answer:</strong>
-                                                <div class="mt-2" id="answer-<?= $entry['homeworkID'] ?>">
-                                                    <?= $entry['answer'] ?>
+
+                                        <!-- Content Display Area -->
+                                        <?php if ($entry['status'] === 'completed' || $entry['status'] === 'no_question'): ?>
+                                            <div id="content-wrapper-<?= $entry['homeworkID'] ?>">
+                                                
+                                                <!-- Answer View -->
+                                                <div id="answer-content-<?= $entry['homeworkID'] ?>" class="view-section">
+                                                    <span class="view-label">Answer</span>
+                                                    <?php if ($entry['status'] === 'no_question'): ?>
+                                                        <div class="alert alert-warning mb-0">
+                                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                                            No question found.
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <div class="answer-content mt-0">
+                                                            <div id="answer-text-<?= $entry['homeworkID'] ?>">
+                                                                <?= $entry['answer'] ?>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <!-- Extracted Text View -->
+                                                <div id="text-content-<?= $entry['homeworkID'] ?>" class="view-section d-none">
+                                                    <span class="view-label">Extracted Text</span>
+                                                    <div class="p-3 bg-light rounded border" style="max-height: 300px; overflow-y: auto;">
+                                                        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;"><?= htmlspecialchars($entry['extractedText'] ?? 'No text extracted.') ?></pre>
+                                                    </div>
                                                 </div>
                                             </div>
+
                                         <?php elseif ($entry['status'] === 'processing'): ?>
                                             <div class="text-center py-3">
-                                                <div class="loading-spinner"></div>
-                                                <p class="text-muted mt-2 mb-0">Processing...</p>
+                                                <div class="loading-spinner" style="border-color: var(--sa-primary); border-top-color: transparent;"></div>
+                                                <p class="text-muted mt-2 mb-0">Processing your file...</p>
                                             </div>
-                                        <?php elseif ($entry['status'] === 'no_question'): ?>
-                                            <div class="alert alert-warning mb-0">
-                                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                                No question found.
+                                        <?php else: ?>
+                                            <div class="alert alert-secondary mb-0">
+                                                Status: <?= htmlspecialchars($entry['status']) ?>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -271,19 +363,43 @@
         </main>
     </div>
 
-    <!-- Snackbar -->
-    <div id="snackbar" class="snackbar"></div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
         // Snackbar function
         function showSnackbar(message, type = 'success') {
             const snackbar = document.getElementById('snackbar');
-            snackbar.textContent = message;
-            snackbar.className = `snackbar ${type} show`;
+            const snackbarMessage = document.getElementById('snackbarMessage');
+            const snackbarIcon = document.getElementById('snackbarIcon');
+            
+            snackbarMessage.textContent = message;
+            snackbar.className = 'snackbar ' + type;
+            
+            if (type === 'success') {
+                snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
+            } else if (type === 'error') {
+                snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+            }
+            
+            snackbar.classList.add('show');
             setTimeout(() => {
                 snackbar.classList.remove('show');
             }, 5000);
+        }
+
+        // Switch View Function
+        function switchView(id, type, btnElement) {
+            // Hide all sections for this entry
+            document.getElementById(`answer-content-${id}`).classList.add('d-none');
+            document.getElementById(`question-content-${id}`).classList.add('d-none');
+            document.getElementById(`text-content-${id}`).classList.add('d-none');
+            
+            // Show selected section
+            document.getElementById(`${type}-content-${id}`).classList.remove('d-none');
+            
+            // Update Dropdown Active State
+            const dropdown = btnElement.closest('.dropdown-menu');
+            dropdown.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('active'));
+            btnElement.classList.add('active');
         }
 
         // File input handling
@@ -292,7 +408,11 @@
         const fileName = document.getElementById('fileName');
         const selectedFileName = document.getElementById('selectedFileName');
 
-        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('click', (e) => {
+             if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
+                 fileInput.click();
+             }
+        });
 
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -338,6 +458,10 @@
 
             const formData = new FormData();
             formData.append('homework_file', fileInput.files[0]);
+            const instruction = document.getElementById('homeworkInstruction').value;
+            if (instruction) {
+                formData.append('instruction', instruction);
+            }
 
             // Disable submit button and show loading
             submitBtn.disabled = true;
@@ -387,7 +511,7 @@
 
         // Parse markdown in answer content
         document.addEventListener('DOMContentLoaded', () => {
-            const answerElements = document.querySelectorAll('[id^="answer-"]');
+            const answerElements = document.querySelectorAll('[id^="answer-text-"]');
             answerElements.forEach(element => {
                 if (element.textContent.trim()) {
                     try {
@@ -400,7 +524,4 @@
         });
     </script>
 </body>
-
 </html>
-
-

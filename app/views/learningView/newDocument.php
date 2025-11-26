@@ -51,6 +51,16 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             background-color: #f8f9fa;
         }
 
+        /* Theme Variables & Base */
+        :root {
+            --sa-primary: #6f42c1;
+            --sa-primary-dark: #593093;
+            --sa-accent: #e7d5ff;
+            --sa-accent-strong: #d4b5ff;
+            --sa-muted: #6c757d;
+            --sa-card-border: #ede1ff;
+        }
+
         .folder-item {
             text-decoration: none;
         }
@@ -58,8 +68,36 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
         .upload-container {
             background-color: #f8f9fa;
             padding: 30px;
+            min-height: 100%;
         }
 
+        /* Card Styles matching HomeworkHelper */
+        .card {
+            border: 1px solid var(--sa-card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(111, 66, 193, 0.08);
+            overflow: visible;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f6efff, #ffffff);
+            border-bottom: 1px solid var(--sa-card-border);
+            color: var(--sa-primary);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+        
+        .card-header h5 {
+            color: inherit;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Input Styles */
         .form-input-theme {
             background-color: #e7d5ff;
             border: none;
@@ -92,9 +130,10 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             pointer-events: none;
         }
 
+        /* Drag & Drop Area */
         .drag-drop-area {
-            background-color: #e7d5ff;
-            border: 2px dashed #d4b5ff;
+            background-color: #f8f9fa;
+            border: 2px dashed var(--sa-card-border);
             border-radius: 16px;
             padding: 60px 40px;
             text-align: center;
@@ -104,22 +143,23 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
         }
 
         .drag-drop-area:hover {
-            background-color: #d4b5ff;
-            border-color: #6f42c1;
+            background-color: var(--sa-accent);
+            border-color: var(--sa-primary);
         }
 
         .drag-drop-area.dragover {
-            background-color: #d4b5ff;
-            border-color: #6f42c1;
+            background-color: var(--sa-accent-strong);
+            border-color: var(--sa-primary);
             border-style: solid;
         }
 
         .upload-icon {
             font-size: 4rem;
-            color: #212529;
+            color: var(--sa-primary);
             margin-bottom: 20px;
         }
 
@@ -132,7 +172,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         .upload-formats {
             font-size: 0.9rem;
-            color: #495057;
+            color: #6c757d;
             margin-top: 10px;
         }
 
@@ -240,52 +280,34 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             font-family: 'Courier New', monospace;
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 30px;
-        }
-
         .btn-cancel {
-            background-color: #e7d5ff;
-            border: none;
-            color: #6f42c1;
+            background-color: transparent;
+            border: 1px solid var(--sa-card-border);
+            color: #6c757d;
             padding: 10px 24px;
             border-radius: 8px;
             font-weight: 600;
         }
 
         .btn-cancel:hover {
-            background-color: #d4b5ff;
-            color: #5a32a3;
+            background-color: #e7d5ff;
+            color: var(--sa-primary);
+            border-color: var(--sa-primary);
         }
 
         .btn-create {
-            background-color: #e7d5ff;
-            border: none;
-            color: #6f42c1;
+            background-color: var(--sa-primary) !important;
+            border-color: var(--sa-primary) !important;
+            box-shadow: 0 8px 18px rgba(111, 66, 193, 0.2);
+            color: white;
             padding: 10px 24px;
             border-radius: 8px;
             font-weight: 600;
         }
 
         .btn-create:hover {
-            background-color: #6f42c1;
-            color: white;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
+            background-color: var(--sa-primary-dark) !important;
+            border-color: var(--sa-primary-dark) !important;
         }
 
         .modal-close-btn {
@@ -427,8 +449,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
                 <?php
                 // Extract and clear session messages for display
-                // Behavior: Retrieves success/error messages from session, clears them
-                // to prevent re-display on page refresh, and stores in local variables
                 $successMessage = null;
                 $errorMessage = null;
                 if (isset($_SESSION['message'])) {
@@ -441,42 +461,55 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 }
                 ?>
                 <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">Upload Document</h3>
-                <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data" id="uploadDocumentForm">
-                    <input type="hidden" name="folderSelect" id="folderSelect">
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-file-earmark-plus me-2"></i>
+                            New Document Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="<?= BASE_PATH ?>lm/uploadDocument" method="POST" enctype="multipart/form-data" id="uploadDocumentForm">
+                            <input type="hidden" name="folderSelect" id="folderSelect">
 
-                    <div class="form-row">
-                        <div>
-                            <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here..." required>
-                        </div>
-                        <div>
-                            <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
-                            <div class="folder-select-wrapper">
-                                <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose folder to add" readonly onclick="openFolderModal()">
-                                <i class="bi bi-chevron-expand folder-select-icon"></i>
+                            <div class="mb-4">
+                                <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here..." required>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div id="dragDropArea" class="drag-drop-area" onclick="document.getElementById('documentFile').click();">
-                            <div id="dropZone" class="drop-zone-content">
-                                <div class="upload-icon">📄</div>
-                                <div class="upload-title">Click or drag to upload document</div>
-                                <div class="upload-formats">Supported formats: PDF, DOCS, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
+                            
+                            <div class="mb-4">
+                                <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
+                                <div class="folder-select-wrapper">
+                                    <input type="text" class="form-control form-input-theme" id="folderSelectInput" placeholder="Choose folder to add (default: root)" readonly onclick="openFolderModal()">
+                                    <i class="bi bi-chevron-expand folder-select-icon"></i>
+                                </div>
                             </div>
-                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
-                        </div>
-                        <div id="fileListContainer" style="display: none; margin-top: 20px;">
-                            <div id="fileList"></div>
-                        </div>
-                    </div>
 
-                    <div class="action-buttons">
-                        <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
-                        <button type="submit" class="btn btn-create">Create</button>
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Upload Files</label>
+                                <div id="dragDropArea" class="drag-drop-area" onclick="document.getElementById('documentFile').click();">
+                                    <div id="dropZone" class="drop-zone-content">
+                                        <div class="upload-icon">
+                                            <i class="bi bi-cloud-arrow-up"></i>
+                                        </div>
+                                        <div class="upload-title">Click or drag to upload document</div>
+                                        <div class="upload-formats">Supported formats: PDF, DOCS, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
+                                    </div>
+                                    <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
+                                </div>
+                                <div id="fileListContainer" style="display: none; margin-top: 20px;">
+                                    <div id="fileList"></div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-3 justify-content-center mt-4">
+                                <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
+                                <button type="submit" class="btn btn-create px-5">Create</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
         </main>
     </div>
@@ -528,12 +561,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
     <script>
         /**
          * Formats file size in bytes to human-readable format
-         * 
-         * Behavior: Converts bytes to appropriate unit (Bytes, KB, MB, GB)
-         * using base-1024 calculation. Returns formatted string with 2 decimal places.
-         * 
-         * @param {number} bytes File size in bytes
-         * @returns {string} Formatted file size (e.g., "1.5 MB")
          */
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -545,13 +572,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         /**
          * Updates the file list display with selected files
-         * 
-         * Behavior: Creates visual list items for each file with appropriate icon
-         * based on file extension. Stores file metadata in data attributes for preview.
-         * Shows/hides file list container based on file count. Each file item is
-         * clickable for preview and has a remove button.
-         * 
-         * @param {FileList} files FileList object containing selected files
          */
         function updateFileList(files) {
             const fileListContainer = document.getElementById('fileListContainer');
@@ -601,12 +621,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         /**
          * Removes a file from the file input by index
-         * 
-         * Behavior: Removes file at specified index from FileList, creates new
-         * DataTransfer object to rebuild FileList (since FileList is read-only),
-         * and updates the visual file list display.
-         * 
-         * @param {number} index Zero-based index of file to remove
          */
         function removeFile(index) {
             const fileInput = document.getElementById('documentFile');
@@ -615,7 +629,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             if (index >= 0 && index < files.length) {
                 files.splice(index, 1);
 
-                // Rebuild FileList using DataTransfer API (FileList is immutable)
+                // Rebuild FileList using DataTransfer API
                 const dt = new DataTransfer();
                 files.forEach(file => dt.items.add(file));
                 fileInput.files = dt.files;
@@ -627,14 +641,10 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         /**
          * Object URL management for file previews
-         * 
-         * Behavior: Stores current preview URL to prevent memory leaks.
-         * Automatically revokes object URL when preview modal closes to free
-         * browser memory. Clears preview content on modal close.
          */
         let currentPreviewUrl = null;
 
-        // Cleanup: Revoke object URLs when preview modal closes to prevent memory leaks
+        // Cleanup: Revoke object URLs when preview modal closes
         const previewModalElement = document.getElementById('filePreviewModal');
         if (previewModalElement) {
             previewModalElement.addEventListener('hidden.bs.modal', function() {
@@ -649,10 +659,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         /**
          * Event delegation for file list interactions
-         * 
-         * Behavior: Handles clicks on dynamically created file items and remove buttons.
-         * Uses event delegation to work with dynamically added elements. Prevents
-         * preview from opening when clicking remove button.
          */
         document.addEventListener('click', function(e) {
             // Handle remove button clicks
@@ -668,7 +674,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             // Handle file item clicks for preview (exclude remove button clicks)
             if (e.target.closest('.uploaded-file-item')) {
                 const fileItem = e.target.closest('.uploaded-file-item');
-                // Don't trigger preview if clicking the remove button
                 if (!e.target.closest('.remove-file-btn')) {
                     const index = parseInt(fileItem.getAttribute('data-file-index'));
                     previewFile(index);
@@ -678,16 +683,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
         /**
          * Displays file preview in modal based on file type
-         * 
-         * Behavior: Opens modal and renders preview based on file extension:
-         * - PDF: Uses object URL in iframe for native PDF viewer
-         * - Images: Reads as data URL and displays as <img>
-         * - Text: Reads as text and displays in <pre> with escaped HTML
-         * - Other: Shows file info message (no preview available)
-         * 
-         * Automatically cleans up previous object URLs to prevent memory leaks.
-         * 
-         * @param {number} index Zero-based index of file to preview
          */
         function previewFile(index) {
             const fileInput = document.getElementById('documentFile');
@@ -707,27 +702,22 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 const fileExt = file.name.split('.').pop().toLowerCase();
 
                 if (fileExt === 'pdf') {
-                    // Preview PDF using object URL in iframe
-                    // Clean up previous URL to prevent memory leaks
                     if (currentPreviewUrl) {
                         URL.revokeObjectURL(currentPreviewUrl);
                     }
                     currentPreviewUrl = URL.createObjectURL(file);
                     previewContent.innerHTML = `<iframe src="${currentPreviewUrl}"></iframe>`;
                 } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt)) {
-                    // Preview images as data URL
                     reader.onload = function(e) {
                         previewContent.innerHTML = `<img src="${e.target.result}" alt="${file.name}">`;
                     };
                     reader.readAsDataURL(file);
                 } else if (fileExt === 'txt') {
-                    // Preview text files with HTML escaping
                     reader.onload = function(e) {
                         previewContent.innerHTML = `<pre>${escapeHtml(e.target.result)}</pre>`;
                     };
                     reader.readAsText(file);
                 } else {
-                    // Show file info for unsupported preview types
                     previewContent.innerHTML = `
                         <div class="text-center py-5">
                             <i class="bi bi-file-earmark" style="font-size: 4rem; color: #d4b5ff;"></i>
@@ -740,31 +730,12 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             }
         }
 
-        /**
-         * Escapes HTML special characters to prevent XSS attacks
-         * 
-         * Behavior: Uses DOM textContent property to safely escape HTML characters,
-         * then returns innerHTML which contains the escaped version.
-         * 
-         * @param {string} text Text to escape
-         * @returns {string} HTML-escaped text
-         */
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        /**
-         * Displays temporary notification snackbar message
-         * 
-         * Behavior: Shows animated notification at bottom of screen with
-         * appropriate icon based on type (success/error). Automatically hides
-         * after 3 seconds. Updates icon and styling based on message type.
-         * 
-         * @param {string} message Message text to display
-         * @param {string} type Message type: 'success' or 'error'
-         */
         function showSnackbar(message, type) {
             const snackbar = document.getElementById('snackbar');
             const snackbarMessage = document.getElementById('snackbarMessage');
@@ -773,7 +744,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             snackbarMessage.textContent = message;
             snackbar.className = 'snackbar ' + type;
 
-            // Set appropriate icon based on message type
             if (type === 'success') {
                 snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
             } else if (type === 'error') {
@@ -782,18 +752,11 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
 
             snackbar.classList.add('show');
 
-            // Auto-hide after 3 seconds
             setTimeout(function() {
                 snackbar.classList.remove('show');
             }, 3000);
         }
 
-        /**
-         * Display session messages on page load
-         * 
-         * Behavior: Checks for success/error messages from PHP session and
-         * displays them as snackbar notifications when DOM is ready.
-         */
         <?php if ($successMessage): ?>
             document.addEventListener('DOMContentLoaded', function() {
                 showSnackbar('<?php echo addslashes($successMessage); ?>', 'success');
@@ -806,24 +769,12 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             });
         <?php endif; ?>
 
-        /**
-         * Form submission validation
-         * 
-         * Behavior: Validates form before submission:
-         * - Document name is required and non-empty
-         * - At least one file must be selected
-         * - Document name length between 3-255 characters
-         * 
-         * Prevents form submission if validation fails and shows error snackbar.
-         * Focuses on first invalid field for better UX.
-         */
         document.getElementById('uploadDocumentForm').addEventListener('submit', function(e) {
             const documentName = document.getElementById('documentName').value.trim();
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
 
             if (getDocumentSelection().mode === 'single') {
-                // Validate document name exists
                 if (!documentName) {
                     e.preventDefault();
                     showSnackbar('Please enter a document name.', 'error');
@@ -832,14 +783,12 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 }
             }
 
-            // Validate at least one file selected
             if (!files || files.length === 0) {
                 e.preventDefault();
                 showSnackbar('Please select at least one file to upload.', 'error');
                 return false;
             }
 
-            // Validate no PPTX files are present
             const pptxFiles = [];
             Array.from(files).forEach(file => {
                 const ext = file.name.split('.').pop().toLowerCase();
@@ -862,35 +811,15 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             }
         });
 
-        /**
-         * Resets the entire upload form to initial state
-         * 
-         * Behavior: Clears all form fields including document name, folder selection,
-         * and file input. Updates file list display to reflect empty state.
-         */
         function resetForm() {
-            // Clear document name field
             document.getElementById('documentName').value = '';
-
-            // Clear folder selection (both hidden input and display field)
             document.getElementById('folderSelect').value = '';
             document.getElementById('folderSelectInput').value = '';
-
-            // Clear file input and update visual file list
             const fileInput = document.getElementById('documentFile');
             fileInput.value = '';
             updateFileList(fileInput.files);
         }
 
-        /**
-         * Validates file type and rejects PPTX files
-         * 
-         * Behavior: Checks if any file has PPTX extension and removes it
-         * from the file list, showing an error message to the user.
-         * 
-         * @param {FileList} files FileList object containing selected files
-         * @returns {FileList} Filtered FileList without PPTX files
-         */
         function validateFileTypes(files) {
             const fileInput = document.getElementById('documentFile');
             const validFiles = [];
@@ -909,7 +838,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 showSnackbar(`PPTX files are not supported. Removed: ${pptxFiles.join(', ')}`, 'error');
             }
             
-            // Rebuild FileList with only valid files
             const dt = new DataTransfer();
             validFiles.forEach(file => dt.items.add(file));
             fileInput.files = dt.files;
@@ -917,48 +845,28 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             return fileInput.files;
         }
 
-        /**
-         * File input change handler
-         * 
-         * Behavior: Updates file list display when files are selected via
-         * file input dialog (not drag-and-drop). Validates file types first.
-         */
         document.getElementById('documentFile').addEventListener('change', function() {
             const validatedFiles = validateFileTypes(this.files);
             updateFileList(validatedFiles);
         });
 
-        /**
-         * Drag and drop file upload functionality
-         * 
-         * Behavior: Enables drag-and-drop file upload with visual feedback.
-         * - dragover: Adds visual highlight class when files are dragged over
-         * - dragleave: Removes highlight when drag leaves area (with boundary check)
-         * - drop: Merges dropped files with existing selection and updates display
-         * 
-         * Prevents default browser drag behaviors to enable custom handling.
-         */
         const dragDropArea = document.getElementById('dragDropArea');
         const dropZone = document.getElementById('dropZone');
 
-        // Visual feedback when dragging over drop area
         dragDropArea.addEventListener('dragover', function(e) {
             e.preventDefault();
             e.stopPropagation();
             dragDropArea.classList.add('dragover');
         });
 
-        // Remove visual feedback when drag leaves area
         dragDropArea.addEventListener('dragleave', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            // Only remove highlight if actually leaving the drop area (not entering child)
             if (!dragDropArea.contains(e.relatedTarget)) {
                 dragDropArea.classList.remove('dragover');
             }
         });
 
-        // Handle file drop: merge with existing files and update display
         dragDropArea.addEventListener('drop', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -967,24 +875,19 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 const fileInput = document.getElementById('documentFile');
-
-                // Merge dropped files with existing file selection
                 const existingFiles = Array.from(fileInput.files);
                 const newFiles = Array.from(files);
                 const allFiles = [...existingFiles, ...newFiles];
 
-                // Rebuild FileList using DataTransfer API
                 const dt = new DataTransfer();
                 allFiles.forEach(file => dt.items.add(file));
                 fileInput.files = dt.files;
 
-                // Validate file types and refresh file list display
                 const validatedFiles = validateFileTypes(fileInput.files);
                 updateFileList(validatedFiles);
             }
         });
 
-        // Prevent default browser drag behaviors to enable custom handling
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dragDropArea.addEventListener(eventName, function(e) {
                 e.preventDefault();
@@ -992,33 +895,18 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             }, false);
         });
 
-        /**
-         * Opens folder selection modal
-         * 
-         * Behavior: Displays modal with hierarchical folder tree for user
-         * to select destination folder for uploaded documents.
-         */
         function openFolderModal() {
             const modal = new bootstrap.Modal(document.getElementById('selectFolderModal'));
             modal.show();
         }
 
-        /**
-         * Folder selection handler
-         * 
-         * Behavior: When user clicks a folder in the modal, stores folder ID
-         * in hidden input and displays folder name in visible input field.
-         * Closes modal after selection. Uses jQuery for event handling.
-         */
         $(document).ready(function() {
             var selectFolderModal = new bootstrap.Modal(document.getElementById('selectFolderModal'));
             $('.folder-item').on('click', function(e) {
                 e.preventDefault();
                 var folderId = $(this).data('folder-id');
                 var folderName = $(this).data('folder-name');
-                // Store selected folder ID in hidden input for form submission
                 $('#folderSelect').val(folderId);
-                // Display selected folder name in visible input field
                 $('#folderSelectInput').val(folderName);
                 selectFolderModal.hide();
             });
@@ -1029,23 +917,13 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const files = fileInput.files;
 
             if (!files || files.length === 0) {
-                return {
-                    count: 0,
-                    mode: 'none'
-                };
+                return { count: 0, mode: 'none' };
             }
             if (files.length === 1) {
-                return {
-                    count: 1,
-                    mode: 'single'
-                };
+                return { count: 1, mode: 'single' };
             }
-            return {
-                count: files.length,
-                mode: 'multiple'
-            };
+            return { count: files.length, mode: 'multiple' };
         }
     </script>
 </body>
-
 </html>
