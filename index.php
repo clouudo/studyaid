@@ -3,16 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Set custom session save path to avoid permission issues
-$sessionPath = __DIR__ . '/temp/sessions';
-if (!is_dir($sessionPath)) {
-    mkdir($sessionPath, 0777, true);
-}
-// Set permissions to allow web server to write
-chmod($sessionPath, 0777);
-// Set umask to allow write permissions for session files
-umask(0000);
-ini_set('session.save_path', $sessionPath);
+// Start session - let PHP use default session path
 session_start();
 
 require_once 'autoloader.php';
