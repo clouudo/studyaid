@@ -6,3 +6,6 @@ credentials/studyaid-475504-ab6eeec0b8d7.json
 app/.DS_Store
 public/.DS_Store
 vendor/.DS_Store
+test_cases_CM1.txt
+test_cases_CM2.txt
+test_plan.txt
