@@ -463,9 +463,9 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <div id="dropZone" class="drop-zone-content">
                                 <div class="upload-icon">📄</div>
                                 <div class="upload-title">Click or drag to upload document</div>
-                                <div class="upload-formats">Supported formats: PDF, DOCS, PPTX, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
+                                <div class="upload-formats">Supported formats: PDF, DOCS, TXT, Images (JPG, PNG, GIF, BMP, WEBP, TIFF)</div>
                             </div>
-                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.pptx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
+                            <input type="file" id="documentFile" name="document[]" style="display: none;" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif" multiple>
                         </div>
                         <div id="fileListContainer" style="display: none; margin-top: 20px;">
                             <div id="fileList"></div>
@@ -571,7 +571,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     const ext = file.name.split('.').pop().toLowerCase();
                     if (ext === 'pdf') fileIcon = '📄';
                     else if (['doc', 'docx'].includes(ext)) fileIcon = '📝';
-                    else if (ext === 'pptx') fileIcon = '📊';
                     else if (ext === 'txt') fileIcon = '📄';
                     else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'].includes(ext)) fileIcon = '🖼️';
 
@@ -840,6 +839,21 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 return false;
             }
 
+            // Validate no PPTX files are present
+            const pptxFiles = [];
+            Array.from(files).forEach(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'pptx') {
+                    pptxFiles.push(file.name);
+                }
+            });
+            
+            if (pptxFiles.length > 0) {
+                e.preventDefault();
+                showSnackbar(`PPTX files are not supported. Please remove: ${pptxFiles.join(', ')}`, 'error');
+                return false;
+            }
+
             if (documentName.length > 255) {
                 e.preventDefault();
                 showSnackbar('Document name must be less than 255 characters.', 'error');
@@ -869,13 +883,49 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
         }
 
         /**
+         * Validates file type and rejects PPTX files
+         * 
+         * Behavior: Checks if any file has PPTX extension and removes it
+         * from the file list, showing an error message to the user.
+         * 
+         * @param {FileList} files FileList object containing selected files
+         * @returns {FileList} Filtered FileList without PPTX files
+         */
+        function validateFileTypes(files) {
+            const fileInput = document.getElementById('documentFile');
+            const validFiles = [];
+            const pptxFiles = [];
+            
+            Array.from(files).forEach(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'pptx') {
+                    pptxFiles.push(file.name);
+                } else {
+                    validFiles.push(file);
+                }
+            });
+            
+            if (pptxFiles.length > 0) {
+                showSnackbar(`PPTX files are not supported. Removed: ${pptxFiles.join(', ')}`, 'error');
+            }
+            
+            // Rebuild FileList with only valid files
+            const dt = new DataTransfer();
+            validFiles.forEach(file => dt.items.add(file));
+            fileInput.files = dt.files;
+            
+            return fileInput.files;
+        }
+
+        /**
          * File input change handler
          * 
          * Behavior: Updates file list display when files are selected via
-         * file input dialog (not drag-and-drop).
+         * file input dialog (not drag-and-drop). Validates file types first.
          */
         document.getElementById('documentFile').addEventListener('change', function() {
-            updateFileList(this.files);
+            const validatedFiles = validateFileTypes(this.files);
+            updateFileList(validatedFiles);
         });
 
         /**
@@ -928,8 +978,9 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 allFiles.forEach(file => dt.items.add(file));
                 fileInput.files = dt.files;
 
-                // Refresh file list display
-                updateFileList(fileInput.files);
+                // Validate file types and refresh file list display
+                const validatedFiles = validateFileTypes(fileInput.files);
+                updateFileList(validatedFiles);
             }
         });
 

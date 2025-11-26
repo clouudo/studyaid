@@ -281,6 +281,14 @@ class LmController
                     continue;
                 }
 
+                // Validate file type - reject PPTX files
+                $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if ($fileExtension === 'pptx') {
+                    $errors[] = "PPTX files are not supported. File: {$file['name']}";
+                    $failedCount++;
+                    continue;
+                }
+
                 try {
                     $this->processFileUpload($file, $userId, $folderId, $documentName);
                     $uploadedCount++;

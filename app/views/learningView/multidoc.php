@@ -400,7 +400,7 @@
         </main>
 
         <!-- Right Side: Document & Folder Selection -->
-        <aside class="selection-panel p-3" style="width: 350px;">
+        <aside class="selection-panel p-3" style="width: 400px;">
             <div class="card h-100">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">

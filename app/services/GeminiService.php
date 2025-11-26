@@ -38,11 +38,12 @@ class GeminiService
     {
         $model = $this->models['default'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-        Format the following content into organised and structured content. 
-        Do not change the content of the original text.
-        Do not add any extra text and only organise the content into logical chapters and sections.
-        Return the content in markdown format.
-        PROMPT;
+Format the following content into well-structured and logically organized chapters and sections.
+Preserve all original content exactly as-is.
+Do not include any additional explanations or text.
+Organize hierarchically using headings and subheadings where appropriate.
+Output should be plain text formatted with markdown-style headers such as #, ##, ###, etc.
+PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $content;
         return $this->generateText($model, $prompt);
     }
@@ -57,7 +58,7 @@ class GeminiService
     public function generateNotes(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
-        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Notes should be concise and short.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         return $this->generateText($model, $prompt);
     }
 
@@ -65,36 +66,33 @@ class GeminiService
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-Create a mindmap in Markdown format optimized for Markmap.js visualization.
-
-Rules:
-
-1. Heading Structure
-
-   * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
-
-   * Each idea should be a **heading**, not a paragraph.
-
-2. Style & Formatting
-
-   * Use **bold** for key terms and *italic* for emphasis.
-
-   * Keep headings short and meaningful.
-
-   * Avoid lists (-, *) — use subheadings instead.
-
-3. Content
-
-   * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
-
-   * For structured data, use markdown tables under headings.
-
-4. Output
-
-   * Output only the Markdown (no explanations or extra text).
-
-   * Start directly with #Main Topic.
-PROMPT;
+        Create a simple and concise mindmap in Markdown format optimized for Markmap.js visualization.
+        
+        Rules:
+        
+        1. **Structure**
+           * Use # for main topic, then only ## and ### (maximum 3 levels).
+           * No more than 5 main branches (##).
+           * Each main branch should have 1–3 sub-branches (###).
+        
+        2. **Formatting**
+           * Write short, clear headings (< 6 words if possible).
+           * Use **bold** for key terms.
+           * Avoid paragraphs or long sentences — keep statements minimal.
+        
+        3. **Content**
+           * Focus on core ideas, do not add extended explanations.
+           * Replace bulleted lists with hierarchical subheadings.
+           * For comparisons or structured data, use inline text instead of tables.
+        
+        4. **Length**
+           * Keep total number of nodes below 25.
+           * Aim for ~10–15 nodes for brevity.
+        
+        5. **Output Format**
+           * Return only valid Markdown with no extra text before/after.
+           * Start directly with # [Main Topic].
+        PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $sourceText;
         $markdown = $this->generateText($model, $prompt);
         
