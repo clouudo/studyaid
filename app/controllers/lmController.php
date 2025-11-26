@@ -3552,6 +3552,7 @@ class LmController
 
     /**
      * Displays the homework helper interface
+     * Automatically creates homework_helper table if it doesn't exist
      */
     public function homeworkHelper()
     {
@@ -3562,7 +3563,7 @@ class LmController
             $user = $this->getUserInfo();
             $allUserFolders = $this->lmModel->getAllFoldersForUser($userId);
             
-            // Get all homework entries for the user
+            // Get all homework entries for the user (this will auto-create table if needed)
             $homeworkEntries = $this->lmModel->getHomeworkHelpersByUser($userId);
             
             require_once VIEW_HOMEWORK_HELPER;

@@ -2256,10 +2256,57 @@ class LmModel
     // ============================================================================
 
     /**
+     * Ensures homework_helper table exists in database
+     */
+    private function ensureHomeworkHelperSchema(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+
+        try {
+            $conn = $this->db->connect();
+            
+            // Check if table exists
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'homework_helper'");
+            $stmt->execute();
+            
+            if ((int)$stmt->fetchColumn() === 0) {
+                // Table doesn't exist, create it
+                $conn->exec("
+                    CREATE TABLE `homework_helper` (
+                        `homeworkID` INT(11) NOT NULL AUTO_INCREMENT,
+                        `userID` INT(11) NOT NULL,
+                        `fileName` VARCHAR(255) NOT NULL,
+                        `fileType` VARCHAR(50) NOT NULL,
+                        `filePath` TEXT NOT NULL,
+                        `extractedText` TEXT DEFAULT NULL,
+                        `question` TEXT DEFAULT NULL,
+                        `answer` TEXT DEFAULT NULL,
+                        `status` ENUM('pending', 'processing', 'completed', 'no_question') DEFAULT 'pending',
+                        `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`homeworkID`),
+                        KEY `idx_userID` (`userID`),
+                        KEY `idx_createdAt` (`createdAt`),
+                        CONSTRAINT `homework_helper_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+        } catch (\Throwable $e) {
+            error_log('Homework Helper schema ensure failed: ' . $e->getMessage());
+        }
+
+        $checked = true;
+    }
+
+    /**
      * Save homework helper entry
      */
     public function saveHomeworkHelper(int $userId, string $fileName, string $fileType, string $filePath, ?string $extractedText = null, ?string $question = null, ?string $answer = null, string $status = 'pending'): int
     {
+        $this->ensureHomeworkHelperSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("INSERT INTO homework_helper (userID, fileName, fileType, filePath, extractedText, question, answer, status) VALUES (:userID, :fileName, :fileType, :filePath, :extractedText, :question, :answer, :status)");
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
@@ -2319,6 +2366,7 @@ class LmModel
      */
     public function getHomeworkHelpersByUser(int $userId): array
     {
+        $this->ensureHomeworkHelperSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE userID = :userID ORDER BY createdAt DESC");
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
@@ -2331,6 +2379,7 @@ class LmModel
      */
     public function getHomeworkHelperById(int $homeworkId, int $userId): ?array
     {
+        $this->ensureHomeworkHelperSchema();
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE homeworkID = :homeworkID AND userID = :userID");
         $stmt->bindParam(':homeworkID', $homeworkId, \PDO::PARAM_INT);
