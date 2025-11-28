@@ -593,6 +593,28 @@
         .dropdown-menu { 
             z-index: 1060; 
         }
+        
+        /* Audio highlighting styles */
+        .summaryContent .audio-word {
+            transition: background-color 0.2s ease, color 0.2s ease;
+            padding: 2px 1px;
+            border-radius: 3px;
+            display: inline;
+            line-height: inherit;
+        }
+        
+        .summaryContent .audio-word.highlighted {
+            background-color: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+        }
+        
+        .summaryContent .audio-word.current {
+            background-color: #ffc107;
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+        }
     </style>
     <script>
             /**
@@ -950,19 +972,47 @@
             });
 
             /**
-             * Audio summary button handler
+             * Audio summary button handler with text highlighting
              * 
              * Behavior: Generates audio for summary via AJAX, creates Audio element,
-             * and plays it. Shows loading state during generation.
+             * wraps text in spans for highlighting, and highlights words as audio plays.
              */
             // Handle audio summary buttons
             document.querySelectorAll('.audio-summary-btn').forEach(function(btn) {
+                let audioElement = null;
+                let isPlaying = false;
+                
                 btn.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
 
                     const summaryId = this.dataset.summaryId;
                     const originalText = this.innerHTML;
+                    
+                    // If audio is already playing, toggle pause/play
+                    if (audioElement && !audioElement.ended) {
+                        if (audioElement.paused) {
+                            audioElement.play();
+                            this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                        } else {
+                            audioElement.pause();
+                            this.innerHTML = '<i class="bi bi-pause-fill me-2"></i>Paused';
+                        }
+                        return;
+                    }
+                    
+                    // Find the summary content element
+                    const summaryContentDiv = document.querySelector(`#summaryContent-${summaryId} .summaryContent`);
+                    if (!summaryContentDiv) {
+                        alert('Summary content not found. Please view the summary first.');
+                        return;
+                    }
+                    
+                    // Ensure summary is visible (expand collapse)
+                    const collapseElement = document.getElementById(`summaryContent-${summaryId}`);
+                    if (collapseElement && !collapseElement.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(collapseElement, { toggle: true });
+                    }
                     
                     // Show loading state
                     this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
@@ -984,25 +1034,100 @@
                             throw new Error(json.message || 'Failed to generate audio');
                         }
 
-                        // Create audio element and play
+                        // Store original HTML if not already wrapped
+                        if (!summaryContentDiv.dataset.originalHtml) {
+                            summaryContentDiv.dataset.originalHtml = summaryContentDiv.innerHTML;
+                        }
+                        
+                        // Wrap words in spans for highlighting (only if not already wrapped)
+                        if (!summaryContentDiv.querySelector('.audio-word')) {
+                            wrapWordsForHighlighting(summaryContentDiv);
+                        }
+
+                        // Create audio element
                         const audio = new Audio(json.audioUrl);
+                        audioElement = audio; // Store reference
+                        
+                        // Set up highlighting
+                        let wordSpans = summaryContentDiv.querySelectorAll('.audio-word');
+                        let currentWordIndex = -1;
+                        
+                        // Function to highlight word based on audio time
+                        function updateHighlight() {
+                            if (!audio.duration || wordSpans.length === 0) return;
+                            
+                            const progress = audio.currentTime / audio.duration;
+                            const targetIndex = Math.floor(progress * wordSpans.length);
+                            
+                            if (targetIndex !== currentWordIndex && targetIndex < wordSpans.length) {
+                                // Remove previous highlights
+                                wordSpans.forEach(span => {
+                                    span.classList.remove('current', 'highlighted');
+                                });
+                                
+                                // Highlight current word
+                                if (targetIndex >= 0) {
+                                    wordSpans[targetIndex].classList.add('current');
+                                    
+                                    // Highlight previous words (fade effect)
+                                    for (let i = Math.max(0, targetIndex - 5); i < targetIndex; i++) {
+                                        wordSpans[i].classList.add('highlighted');
+                                    }
+                                    
+                                    // Scroll to current word
+                                    wordSpans[targetIndex].scrollIntoView({
+                                        behavior: 'smooth',
+                                        block: 'center'
+                                    });
+                                }
+                                
+                                currentWordIndex = targetIndex;
+                            }
+                        }
+                        
+                        // Update highlight on timeupdate
+                        audio.addEventListener('timeupdate', updateHighlight);
+                        
+                        // Reset highlights when audio ends
+                        audio.addEventListener('ended', () => {
+                            wordSpans.forEach(span => {
+                                span.classList.remove('current', 'highlighted');
+                            });
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
+                            currentWordIndex = -1;
+                            audioElement = null;
+                            isPlaying = false;
+                        });
+                        
+                        // Reset highlights on pause
+                        audio.addEventListener('pause', () => {
+                            wordSpans.forEach(span => {
+                                span.classList.remove('current');
+                            });
+                        });
+                        
+                        // Play audio
                         audio.play().catch(err => {
                             console.error('Error playing audio:', err);
                             alert('Error playing audio. Please check your browser settings.');
+                            this.innerHTML = originalText;
+                            this.style.pointerEvents = 'auto';
                         });
 
                         // Update button state
                         this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                        isPlaying = true;
                         
-                        // Reset button when audio ends
-                        audio.addEventListener('ended', () => {
-                            this.innerHTML = originalText;
-                            this.style.pointerEvents = 'auto';
-                        });
-
+                        // Clean up on error
                         audio.addEventListener('error', () => {
                             this.innerHTML = originalText;
                             this.style.pointerEvents = 'auto';
+                            wordSpans.forEach(span => {
+                                span.classList.remove('current', 'highlighted');
+                            });
+                            audioElement = null;
+                            isPlaying = false;
                             alert('Error loading audio file.');
                         });
 
@@ -1014,6 +1139,68 @@
                     }
                 });
             });
+            
+            /**
+             * Wraps words in spans for audio highlighting
+             * Preserves HTML structure and markdown formatting
+             */
+            function wrapWordsForHighlighting(element) {
+                let wordIndex = 0;
+                
+                // Recursively process all text nodes
+                function processTextNode(textNode) {
+                    const text = textNode.textContent;
+                    if (!text.trim()) {
+                        return; // Skip empty text nodes
+                    }
+                    
+                    // Split text into words while preserving whitespace
+                    const words = text.split(/(\s+)/);
+                    const fragment = document.createDocumentFragment();
+                    
+                    words.forEach(word => {
+                        if (word.trim() === '') {
+                            // Preserve whitespace as text node
+                            fragment.appendChild(document.createTextNode(word));
+                        } else {
+                            // Wrap word in span
+                            const span = document.createElement('span');
+                            span.className = 'audio-word';
+                            span.setAttribute('data-word-index', wordIndex++);
+                            span.textContent = word;
+                            fragment.appendChild(span);
+                        }
+                    });
+                    
+                    // Replace the text node with the fragment
+                    if (textNode.parentNode) {
+                        textNode.parentNode.replaceChild(fragment, textNode);
+                    }
+                }
+                
+                // Traverse DOM tree and process all text nodes
+                function traverse(node) {
+                    const children = Array.from(node.childNodes);
+                    
+                    children.forEach(child => {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            // Process text node
+                            processTextNode(child);
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            // Skip script, style, and code/pre elements
+                            const tagName = child.tagName.toLowerCase();
+                            if (tagName === 'script' || tagName === 'style' || 
+                                tagName === 'code' || tagName === 'pre') {
+                                return;
+                            }
+                            // Recursively process child elements
+                            traverse(child);
+                        }
+                    });
+                }
+                
+                traverse(element);
+            }
 
             /**
              * Export summary button handler

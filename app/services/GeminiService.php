@@ -613,12 +613,53 @@ PROMPT;
 
     public function generateEmbedding(string $text): array
     {
+        // Validate input
+        if (empty(trim($text))) {
+            error_log('Gemini API - Error generating embedding: Empty text provided');
+            return [];
+        }
+
+        // Check if API key is configured
+        $config = require __DIR__ . '/../config/gemini.php';
+        if (empty($config['api_key'])) {
+            error_log('Gemini API - Error generating embedding: API key not configured');
+            return [];
+        }
+
         $model = $this->models['embedding'] ?? 'text-embedding-004';
+        
         try {
             $response = $this->client->embeddingModel($model)->embedContent($text);
-            return $response->embedding->values;
+            
+            // Check if response and embedding exist
+            if (!$response || !isset($response->embedding)) {
+                error_log('Gemini API - Error generating embedding: Invalid response structure');
+                error_log('Gemini API - Response type: ' . gettype($response));
+                if ($response) {
+                    error_log('Gemini API - Response class: ' . get_class($response));
+                }
+                return [];
+            }
+            
+            $values = $response->embedding->values ?? [];
+            
+            // Validate that we got actual embedding values
+            if (empty($values) || !is_array($values)) {
+                error_log('Gemini API - Error generating embedding: No embedding values returned');
+                error_log('Gemini API - Values type: ' . gettype($values));
+                error_log('Gemini API - Values count: ' . (is_array($values) ? count($values) : 'N/A'));
+                return [];
+            }
+            
+            return $values;
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating embedding: ' . $e->getMessage());
+            error_log('Gemini API - Exception class: ' . get_class($e));
+            error_log('Gemini API - Stack trace: ' . $e->getTraceAsString());
+            return [];
+        } catch (\Throwable $e) {
+            error_log('Gemini API - Fatal error generating embedding: ' . $e->getMessage());
+            error_log('Gemini API - Exception class: ' . get_class($e));
             return [];
         }
     }

@@ -409,6 +409,67 @@ class LmModel
     }
 
     /**
+     * Upload audio file to Google Cloud Storage and save metadata to audio table for document
+     */
+    public function uploadAudioFileToGCSForDocument(int $fileId, string $localAudioPath): string
+    {
+        if(empty($localAudioPath) || !file_exists($localAudioPath)){
+            throw new \Exception("Audio file not found locally.");
+        }
+
+        $audioExtension = pathinfo($localAudioPath, PATHINFO_EXTENSION) ?: 'wav';
+        $uniqueFileName = 'document_' . $fileId . '_' . uniqid('', true) . '.' . $audioExtension;
+        
+        // Get file info to determine folder structure
+        $conn = $this->db->connect();
+        $fileStmt = $conn->prepare("SELECT userID, folderID FROM file WHERE fileID = :fileID");
+        $fileStmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $fileStmt->execute();
+        $fileInfo = $fileStmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if (!$fileInfo) {
+            throw new \Exception("Source file not found.");
+        }
+        
+        $userId = (int)$fileInfo['userID'];
+        $folderId = $fileInfo['folderID'];
+        
+        $logicalFolderPath = '';
+        if ($folderId !== null) {
+            $logicalFolderPath = $this->getLogicalFolderPath($folderId, $userId);
+        }
+
+        $gcsObjectName = 'user_upload/' . $userId . '/content/' . $logicalFolderPath . $uniqueFileName;
+
+        $bucket = $this->storage->bucket($this->bucketName);
+        
+        // Use file stream instead of file_get_contents to avoid temp file permission issues
+        $audioStream = fopen($localAudioPath, 'rb');
+        if (!$audioStream) {
+            throw new \Exception("Failed to open audio file for reading.");
+        }
+        
+        $options = [
+            'name' => $gcsObjectName,
+            'metadata' => ['contentType' => 'audio/' . ($audioExtension === 'wav' ? 'wav' : 'x-wav')]
+        ];
+        
+        $bucket->upload($audioStream, $options);
+        // Note: GCS upload() automatically closes the stream, so no need to fclose()
+
+        // Clean up local file
+        @unlink($localAudioPath);
+        
+        // Save to audio table using only fileID (audio is based on document content)
+        $stmt = $conn->prepare("INSERT INTO audio (fileID, audioPath) VALUES (:fileID, :audioPath) ON DUPLICATE KEY UPDATE audioPath = :audioPath");
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
+        $stmt->bindParam(':audioPath', $gcsObjectName);
+        $stmt->execute();
+        
+        return $gcsObjectName;
+    }
+
+    /**
      * Get audio file for a specific summary ID from audio table
      */
     public function getAudioFileForSummary(int $summaryId, int $userId): ?array
@@ -441,6 +502,24 @@ class LmModel
                   WHERE a.noteID = :noteID AND f.userID = :userID";
         $stmt = $conn->prepare($query);
         $stmt->bindParam(':noteID', $noteId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Get audio file for a specific document/file ID from audio table
+     */
+    public function getAudioFileForDocument(int $fileId, int $userId): ?array
+    {
+        $conn = $this->db->connect();
+        
+        // Verify file belongs to user and get audio record directly using fileID
+        $query = "SELECT a.* FROM audio a 
+                  INNER JOIN file f ON a.fileID = f.fileID 
+                  WHERE a.fileID = :fileID AND f.userID = :userID AND a.summaryID IS NULL AND a.noteID IS NULL";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':fileID', $fileId, \PDO::PARAM_INT);
         $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;

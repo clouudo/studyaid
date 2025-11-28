@@ -52,6 +52,7 @@ define('DISPLAY_LEARNING_MATERIALS', BASE_PATH . 'lm/displayLearningMaterials');
 define('DISPLAY_DOCUMENT', BASE_PATH . 'lm/displayDocument');
 define('DELETE_DOCUMENT', BASE_PATH . 'lm/deleteDocument');
 define('DELETE_FOLDER', BASE_PATH . 'lm/deleteFolder');
+define('AUDIO_DOCUMENT', BASE_PATH . 'lm/audioDocument');
 
 // Summary routes
 define('SUMMARY', BASE_PATH . 'lm/summary');

@@ -299,6 +299,17 @@
             position: relative;
             z-index: 1;
             overflow: visible;
+        }
+        
+        /* When dropdown is open, bring the list item to front */
+        .list-group-item:has(.dropdown.show) {
+            z-index: 2147483645 !important;
+            isolation: isolate;
+        }
+        
+        /* Fallback for browsers that don't support :has() */
+        .list-group-item.dropdown-open {
+            z-index: 2147483645 !important;
             isolation: isolate;
         }
 
@@ -331,9 +342,11 @@
         }
         
         /* Ensure list-group-item doesn't clip dropdown when it's open */
-        .list-group-item.dropdown-open {
+        .list-group-item.dropdown-open,
+        .list-group-item:has(.dropdown.show) {
             z-index: 2147483645 !important;
             overflow: visible !important;
+            position: relative;
         }
 
         .dropdown-item {
@@ -543,6 +556,11 @@
                                     <button type="button" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ol"></i></button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image"><i class="bi bi-image"></i></button>
                                 </div>
+                                <div class="btn-group ms-2">
+                                    <button type="button" class="btn btn-outline-warning btn-sm toolbar-highlight" data-color="yellow" title="Yellow Highlighter" style="background-color: #ffeb3b; border-color: #ffeb3b;"><i class="bi bi-highlighter"></i></button>
+                                    <button type="button" class="btn btn-outline-success btn-sm toolbar-highlight" data-color="green" title="Green Highlighter" style="background-color: #4caf50; border-color: #4caf50; color: white;"><i class="bi bi-highlighter"></i></button>
+                                    <button type="button" class="btn btn-outline-info btn-sm toolbar-highlight" data-color="blue" title="Blue Highlighter" style="background-color: #2196f3; border-color: #2196f3; color: white;"><i class="bi bi-highlighter"></i></button>
+                                </div>
                             </div>
                             <textarea class="form-control mb-3" id="noteContent" name="noteContent" placeholder="Enter note content" style="min-height:120px; overflow:hidden; resize:none;"></textarea>
                             <div id="preview" class="bg-light border px-2 py-2 mb-3" style="min-height:120px"></div>
@@ -647,6 +665,11 @@
                                                                         <button type="button" class="btn btn-outline-secondary btn-sm toolbar-ol" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Ordered List"><i class="bi bi-list-ol"></i></button>
                                                                         <button type="button" class="btn btn-outline-secondary btn-sm" id="toolbar-image" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" title="Image"><i class="bi bi-image"></i></button>
                                                                     </div>
+                                                                    <div class="btn-group ms-2">
+                                                                        <button type="button" class="btn btn-outline-warning btn-sm toolbar-highlight" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-color="yellow" title="Yellow Highlighter" style="background-color: #ffeb3b; border-color: #ffeb3b;"><i class="bi bi-highlighter"></i></button>
+                                                                        <button type="button" class="btn btn-outline-success btn-sm toolbar-highlight" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-color="green" title="Green Highlighter" style="background-color: #4caf50; border-color: #4caf50; color: white;"><i class="bi bi-highlighter"></i></button>
+                                                                        <button type="button" class="btn btn-outline-info btn-sm toolbar-highlight" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-color="blue" title="Blue Highlighter" style="background-color: #2196f3; border-color: #2196f3; color: white;"><i class="bi bi-highlighter"></i></button>
+                                                                    </div>
                                                                 </div>
                                                                 <textarea 
                                                                     id="noteSplitEditor-<?= htmlspecialchars($note['noteID']) ?>" 
@@ -722,6 +745,63 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
+        // Function to convert highlight syntax to HTML before markdown parsing
+        // Converts [yellow]text[/yellow] to HTML spans
+        // Also converts [img:alt-text:url] to markdown image syntax
+        // This function is used globally across all note editing contexts
+        // Preserves all formatting including newlines, paragraph breaks, and spacing
+        function convertHighlightsToHTML(text) {
+            if (!text) return text;
+            
+            // Color mapping
+            const colorMap = {
+                'yellow': '#ffeb3b',
+                'green': '#4caf50',
+                'blue': '#2196f3'
+            };
+            
+            // First, convert image syntax to markdown ![alt-text](url)
+            // Supports multiple formats:
+            // 1. [img:alt-text:id|url] - full format with id and url (stored format)
+            // 2. [img:alt-text:id] - short format (display format, needs URL lookup)
+            // 3. [img:alt-text|url] - old format for backward compatibility
+            // Pattern 1: [img:alt-text:id|url] - full format
+            text = text.replace(/\[img:([^:|]+):([^|]+)\|([^\]]+)\]/g, function(match, altText, imageId, url) {
+                // Store URL mapping
+                imageUrlMap.set(imageId.toString(), url);
+                // Convert to markdown image syntax
+                return `![${altText}](${url})`;
+            });
+            // Pattern 2: [img:alt-text:id] - short format, lookup URL from map
+            text = text.replace(/\[img:([^:]+):([^\]]+)\]/g, function(match, altText, imageId) {
+                const url = imageUrlMap.get(imageId.toString());
+                if (url) {
+                    // Convert to markdown image syntax
+                    return `![${altText}](${url})`;
+                }
+                // If URL not found, return placeholder (shouldn't happen in normal flow)
+                return `![${altText}](image-not-found)`;
+            });
+            // Pattern 3: [img:alt-text|url] - old format for backward compatibility
+            text = text.replace(/\[img:([^|]+)\|([^\]]+)\]/g, function(match, altText, url) {
+                // Convert to markdown image syntax
+                return `![${altText}](${url})`;
+            });
+            
+            // Then convert highlight syntax to HTML spans
+            // Pattern: [color]text[/color]
+            // Uses [\s\S]*? to match any character including newlines (non-greedy)
+            // This preserves all formatting, paragraph breaks, and spacing
+            // The content is preserved exactly as-is - markdown parser will handle formatting
+            return text.replace(/\[(yellow|green|blue)\]([\s\S]*?)\[\/\1\]/g, function(match, color, content) {
+                const bgColor = colorMap[color] || '#ffeb3b';
+                // Preserve content exactly as-is - don't escape or modify it
+                // Markdown parser will handle newlines, paragraphs, and all formatting
+                // The span is inline so it doesn't break block-level markdown structure
+                return `<span style="background-color: ${bgColor}; padding: 2px 4px; border-radius: 3px; display: inline;">${content}</span>`;
+            });
+        }
+        
         // Main note editor toolbar and preview functionality
         document.addEventListener('DOMContentLoaded', function() {
             const editor = document.getElementById('noteContent');
@@ -741,7 +821,11 @@
 
             function render() {
                 const raw = editor.value || '';
-                const html = marked.parse(raw, { gfm: true, breaks: true });
+                // Update display to show shortened image syntax
+                updateImageSyntaxDisplay(editor);
+                // Convert highlight syntax to HTML before markdown parsing
+                const textWithHighlights = convertHighlightsToHTML(raw);
+                const html = marked.parse(textWithHighlights, { gfm: true, breaks: true });
                 preview.innerHTML = DOMPurify.sanitize(html);
             }
 
@@ -855,6 +939,15 @@
                 buttons[6].addEventListener('click', () => replaceSelection(orderedList()));
                 // Image button (index 7) is handled separately in the image upload handler below
             }
+            
+            // Highlighter buttons (for adding new notes)
+            const highlightButtons = toolbar.querySelectorAll('.toolbar-highlight');
+            highlightButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const color = this.dataset.color;
+                    applyHighlight(editor, color);
+                });
+            });
 
             editor.addEventListener('keydown', (e) => {
                 const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -1054,6 +1147,15 @@
             color: #6c757d;
             font-style: italic;
         }
+        
+        /* Highlight styles for note previews */
+        .note-preview span[style*="background-color"],
+        .note-preview-panel span[style*="background-color"] {
+            display: inline;
+            padding: 2px 4px;
+            border-radius: 3px;
+            line-height: inherit;
+        }
 
         .view-toggle-active {
             background-color: #6f42c1 !important;
@@ -1079,6 +1181,27 @@
             .note-preview-panel {
                 max-height: 400px;
             }
+        }
+        /* Audio highlighting styles for notes */
+        .note-preview .audio-word {
+            transition: background-color 0.2s ease, color 0.2s ease;
+            padding: 2px 1px;
+            border-radius: 3px;
+            display: inline;
+            line-height: inherit;
+        }
+        
+        .note-preview .audio-word.highlighted {
+            background-color: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+        }
+        
+        .note-preview .audio-word.current {
+            background-color: #ffc107;
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
         }
     </style>
     <script>
@@ -1185,6 +1308,27 @@
             hydrateNotePreviews();
             bindInlineEditorInputs();
 
+            // Handle dropdown z-index to ensure dropdowns appear above other list items
+            document.querySelectorAll('.list-group-item .dropdown').forEach(function(dropdown) {
+                const listItem = dropdown.closest('.list-group-item');
+                if (!listItem) return;
+                
+                // Get the dropdown button
+                const dropdownToggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+                if (!dropdownToggle) return;
+                
+                // Handle Bootstrap dropdown events
+                dropdownToggle.addEventListener('show.bs.dropdown', function() {
+                    // Add class to parent list item to bring it to front
+                    listItem.classList.add('dropdown-open');
+                });
+                
+                dropdownToggle.addEventListener('hidden.bs.dropdown', function() {
+                    // Remove class when dropdown is closed
+                    listItem.classList.remove('dropdown-open');
+                });
+            });
+
             // Handle export note buttons
             document.querySelectorAll('.export-note-btn').forEach(function(btn) {
                 btn.addEventListener('click', async function(e) {
@@ -1287,8 +1431,18 @@
             document.querySelectorAll('.note-item').forEach(function(item) {
                 const preview = item.querySelector('.note-preview');
                 if (!preview) return;
-                const rawContent = getNoteDatasetContent(item);
-                preview.innerHTML = marked.parse(rawContent || '');
+                let rawContent = getNoteDatasetContent(item);
+                
+                // Extract and store image URLs from full format [img:alt-text:id|url]
+                // This populates the imageUrlMap for conversion
+                rawContent = rawContent.replace(/\[img:([^:|]+):([^|]+)\|([^\]]+)\]/g, function(match, altText, imageId, url) {
+                    imageUrlMap.set(imageId.toString(), url);
+                    return match; // Keep original format in content
+                });
+                
+                // Convert highlight syntax to HTML before markdown parsing
+                const textWithHighlights = convertHighlightsToHTML(rawContent || '');
+                preview.innerHTML = marked.parse(textWithHighlights);
             });
         }
 
@@ -1334,23 +1488,36 @@
                 titleInput.value = item.dataset.noteTitle || '';
             }
             if (contentInput) {
-                const content = getNoteDatasetContent(item);
+                let content = getNoteDatasetContent(item);
+                // Extract and store image URLs from full format before displaying shortened version
+                // This ensures URLs are available in imageUrlMap for conversion
+                content = content.replace(/\[img:([^:|]+):([^|]+)\|([^\]]+)\]/g, function(match, altText, imageId, url) {
+                    imageUrlMap.set(imageId.toString(), url);
+                    return match; // Keep original for now
+                });
                 contentInput.value = content;
+                // Update display to show shortened image syntax
+                updateImageSyntaxDisplay(contentInput);
                 autoResizeTextarea(contentInput);
                 
                 // Initial preview render
                 if (previewPanel && typeof marked !== 'undefined') {
-                    previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
+                    const textWithHighlights = convertHighlightsToHTML(content || '');
+                    previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(textWithHighlights));
                 }
 
                 // Real-time preview update with debouncing
                 let previewTimeout = null;
                 contentInput.addEventListener('input', function() {
+                    // Update display to show shortened image syntax
+                    updateImageSyntaxDisplay(this);
+                    
                     clearTimeout(previewTimeout);
                     previewTimeout = setTimeout(() => {
                         if (previewPanel && typeof marked !== 'undefined') {
                             const markdownText = contentInput.value || '';
-                            previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(markdownText));
+                            const textWithHighlights = convertHighlightsToHTML(markdownText);
+                            previewPanel.innerHTML = DOMPurify.sanitize(marked.parse(textWithHighlights));
                         }
                     }, 300); // 300ms debounce
                 });
@@ -1456,6 +1623,15 @@
                     insertMarkdown(textarea, '1. ', '', 'List item');
                 });
             }
+            
+            // Highlighter functionality
+            const highlightButtons = document.querySelectorAll(`.toolbar-highlight[data-note-id="${noteId}"]`);
+            highlightButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const color = this.dataset.color;
+                    applyHighlight(textarea, color);
+                });
+            });
         }
 
         // Function to insert markdown at cursor position
@@ -1479,6 +1655,41 @@
             // Trigger input event to update preview
             textarea.dispatchEvent(new Event('input'));
         }
+        
+        // Function to apply highlighting to selected text
+        // Uses short syntax: [yellow]text[/yellow], [green]text[/green], [blue]text[/blue]
+        function applyHighlight(textarea, color) {
+            if (!textarea) return;
+            
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            
+            if (start === end) {
+                // No selection, show message
+                alert('Please select text to highlight.');
+                return;
+            }
+            
+            const selectedText = textarea.value.substring(start, end);
+            
+            // Use short syntax instead of HTML
+            const highlightedText = `[${color}]${selectedText}[/${color}]`;
+            
+            const newText = textarea.value.substring(0, start) + 
+                          highlightedText + 
+                          textarea.value.substring(end);
+            
+            textarea.value = newText;
+            
+            // Set cursor position after highlighted text
+            const newCursorPos = start + highlightedText.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            textarea.focus();
+            
+            // Trigger input event to update preview if it exists
+            textarea.dispatchEvent(new Event('input'));
+        }
+        
 
         function closeNoteEditor(item) {
             if (!item) return;
@@ -1504,7 +1715,10 @@
             const contentInput = editor.querySelector(`#noteSplitEditor-${noteId}`) || editor.querySelector('.note-edit-content');
 
             const title = titleInput.value.trim();
-            const content = contentInput.value.trim();
+            let content = contentInput.value.trim();
+            
+            // Restore full image syntax with URLs before saving
+            content = restoreImageSyntaxForSave(content);
 
             if (!title || !content) {
                 alert('Title and content are required.');
@@ -1534,7 +1748,8 @@
                 const updatedNote = json.note || {};
                 const preview = item.querySelector('.note-preview');
                 if (preview && typeof marked !== 'undefined') {
-                    preview.innerHTML = DOMPurify.sanitize(marked.parse(updatedNote.content || content));
+                    const textWithHighlights = convertHighlightsToHTML(updatedNote.content || content);
+                    preview.innerHTML = DOMPurify.sanitize(marked.parse(textWithHighlights));
                 }
 
                 const titleText = item.querySelector('.note-title-text');
@@ -1581,14 +1796,42 @@
             }
         });
 
-        // Handle audio note buttons
+        // Handle audio note buttons with text highlighting
         document.querySelectorAll('.audio-note-btn').forEach(function(btn) {
+            let audioElement = null;
+            let isPlaying = false;
+            
             btn.addEventListener('click', async function(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
                 const noteId = this.dataset.noteId;
                 const originalText = this.innerHTML;
+                
+                // If audio is already playing, toggle pause/play
+                if (audioElement && !audioElement.ended) {
+                    if (audioElement.paused) {
+                        audioElement.play();
+                        this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                    } else {
+                        audioElement.pause();
+                        this.innerHTML = '<i class="bi bi-pause-fill me-2"></i>Paused';
+                    }
+                    return;
+                }
+                
+                // Find the note content element
+                const noteContentDiv = document.querySelector(`#noteContent-${noteId} .note-preview`);
+                if (!noteContentDiv) {
+                    alert('Note content not found. Please view the note first.');
+                    return;
+                }
+                
+                // Ensure note is visible (expand collapse)
+                const collapseElement = document.getElementById(`noteContent-${noteId}`);
+                if (collapseElement && !collapseElement.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(collapseElement, { toggle: true });
+                }
                 
                 // Show loading state
                 this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
@@ -1610,25 +1853,100 @@
                         throw new Error(json.message || 'Failed to generate audio');
                     }
 
-                    // Create audio element and play
+                    // Store original HTML if not already wrapped
+                    if (!noteContentDiv.dataset.originalHtml) {
+                        noteContentDiv.dataset.originalHtml = noteContentDiv.innerHTML;
+                    }
+                    
+                    // Wrap words in spans for highlighting (only if not already wrapped)
+                    if (!noteContentDiv.querySelector('.audio-word')) {
+                        wrapWordsForHighlighting(noteContentDiv);
+                    }
+
+                    // Create audio element
                     const audio = new Audio(json.audioUrl);
+                    audioElement = audio; // Store reference
+                    
+                    // Set up highlighting
+                    let wordSpans = noteContentDiv.querySelectorAll('.audio-word');
+                    let currentWordIndex = -1;
+                    
+                    // Function to highlight word based on audio time
+                    function updateHighlight() {
+                        if (!audio.duration || wordSpans.length === 0) return;
+                        
+                        const progress = audio.currentTime / audio.duration;
+                        const targetIndex = Math.floor(progress * wordSpans.length);
+                        
+                        if (targetIndex !== currentWordIndex && targetIndex < wordSpans.length) {
+                            // Remove previous highlights
+                            wordSpans.forEach(span => {
+                                span.classList.remove('current', 'highlighted');
+                            });
+                            
+                            // Highlight current word
+                            if (targetIndex >= 0) {
+                                wordSpans[targetIndex].classList.add('current');
+                                
+                                // Highlight previous words (fade effect)
+                                for (let i = Math.max(0, targetIndex - 5); i < targetIndex; i++) {
+                                    wordSpans[i].classList.add('highlighted');
+                                }
+                                
+                                // Scroll to current word
+                                wordSpans[targetIndex].scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center'
+                                });
+                            }
+                            
+                            currentWordIndex = targetIndex;
+                        }
+                    }
+                    
+                    // Update highlight on timeupdate
+                    audio.addEventListener('timeupdate', updateHighlight);
+                    
+                    // Reset highlights when audio ends
+                    audio.addEventListener('ended', () => {
+                        wordSpans.forEach(span => {
+                            span.classList.remove('current', 'highlighted');
+                        });
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
+                        currentWordIndex = -1;
+                        audioElement = null;
+                        isPlaying = false;
+                    });
+                    
+                    // Reset highlights on pause
+                    audio.addEventListener('pause', () => {
+                        wordSpans.forEach(span => {
+                            span.classList.remove('current');
+                        });
+                    });
+                    
+                    // Play audio
                     audio.play().catch(err => {
                         console.error('Error playing audio:', err);
                         alert('Error playing audio. Please check your browser settings.');
+                        this.innerHTML = originalText;
+                        this.style.pointerEvents = 'auto';
                     });
 
                     // Update button state
                     this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                    isPlaying = true;
                     
-                    // Reset button when audio ends
-                    audio.addEventListener('ended', () => {
-                        this.innerHTML = originalText;
-                        this.style.pointerEvents = 'auto';
-                    });
-
+                    // Clean up on error
                     audio.addEventListener('error', () => {
                         this.innerHTML = originalText;
                         this.style.pointerEvents = 'auto';
+                        wordSpans.forEach(span => {
+                            span.classList.remove('current', 'highlighted');
+                        });
+                        audioElement = null;
+                        isPlaying = false;
                         alert('Error loading audio file.');
                     });
 
@@ -1640,11 +1958,123 @@
                 }
             });
         });
+        
+        /**
+         * Wraps words in spans for audio highlighting
+         * Handles both plain text and HTML content
+         */
+        function wrapWordsForHighlighting(element) {
+            let wordIndex = 0;
+            
+            // Recursively process all text nodes while preserving HTML structure
+            function processTextNode(textNode) {
+                const text = textNode.textContent;
+                if (!text.trim()) {
+                    return; // Skip empty text nodes
+                }
+                
+                // Split text into words while preserving whitespace and newlines
+                const words = text.split(/(\s+)/);
+                const fragment = document.createDocumentFragment();
+                
+                words.forEach(word => {
+                    if (word.trim() === '') {
+                        // Preserve whitespace (including newlines) as text node
+                        fragment.appendChild(document.createTextNode(word));
+                    } else {
+                        // Wrap word in span
+                        const span = document.createElement('span');
+                        span.className = 'audio-word';
+                        span.setAttribute('data-word-index', wordIndex++);
+                        span.textContent = word;
+                        fragment.appendChild(span);
+                    }
+                });
+                
+                // Replace the text node with the fragment
+                if (textNode.parentNode) {
+                    textNode.parentNode.replaceChild(fragment, textNode);
+                }
+            }
+            
+            // Traverse DOM tree and process all text nodes while preserving structure
+            function traverse(node) {
+                const children = Array.from(node.childNodes);
+                
+                children.forEach(child => {
+                    if (child.nodeType === Node.TEXT_NODE) {
+                        // Process text node
+                        processTextNode(child);
+                    } else if (child.nodeType === Node.ELEMENT_NODE) {
+                        // Skip script, style, code, and pre elements to preserve formatting
+                        const tagName = child.tagName.toLowerCase();
+                        if (tagName === 'script' || tagName === 'style' || 
+                            tagName === 'code' || tagName === 'pre') {
+                            return;
+                        }
+                        // Recursively process child elements to preserve structure
+                        traverse(child);
+                    }
+                });
+            }
+            
+            // Start traversal from the element
+            traverse(element);
+        }
 
         // Image upload modal state
         let currentImageUploadNoteId = null;
         let currentImageUploadTextarea = null;
         let imageUploadModal = null;
+        
+        // Image URL mapping: stores imageId -> URL for conversion
+        // This allows us to display short [img:alt-text:id] in textarea but convert to full URL when rendering
+        const imageUrlMap = new Map();
+        
+        // Function to update textarea display to show shortened image syntax
+        // Converts [img:alt-text:id|url] to [img:alt-text:id] for display
+        function updateImageSyntaxDisplay(textarea) {
+            if (!textarea) return;
+            
+            const value = textarea.value;
+            // Replace [img:alt-text:id|url] with [img:alt-text:id] for display
+            // Store the URL mapping while hiding it from view
+            const updatedValue = value.replace(/\[img:([^:|]+):([^|]+)\|([^\]]+)\]/g, function(match, altText, imageId, url) {
+                // Store URL mapping
+                imageUrlMap.set(imageId.toString(), url);
+                // Return shortened version for display
+                return `[img:${altText}:${imageId}]`;
+            });
+            
+            if (updatedValue !== value) {
+                const cursorPos = textarea.selectionStart;
+                const scrollTop = textarea.scrollTop;
+                textarea.value = updatedValue;
+                
+                // Restore cursor position (adjust for length difference)
+                const lengthDiff = updatedValue.length - value.length;
+                const newCursorPos = Math.max(0, cursorPos + lengthDiff);
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
+                textarea.scrollTop = scrollTop;
+            }
+        }
+        
+        // Function to restore full image syntax with URLs before saving
+        // Converts [img:alt-text:id] back to [img:alt-text:id|url] using URL mapping
+        function restoreImageSyntaxForSave(text) {
+            if (!text) return text;
+            
+            // Replace [img:alt-text:id] with [img:alt-text:id|url] using URL mapping
+            return text.replace(/\[img:([^:]+):([^\]]+)\]/g, function(match, altText, imageId) {
+                const url = imageUrlMap.get(imageId.toString());
+                if (url) {
+                    // Return full format with URL
+                    return `[img:${altText}:${imageId}|${url}]`;
+                }
+                // If URL not found, return as-is (might be old format or missing mapping)
+                return match;
+            });
+        }
 
         // Initialize image upload modal after DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
@@ -1784,19 +2214,33 @@
                     throw new Error(json.message || 'Failed to upload image');
                 }
 
-                // Insert markdown image syntax at cursor position
+                // Insert shortened image syntax at cursor position
+                // Format: [img:alt-text:id|url] - stores both id and url, but displays only id in textarea
+                // The URL is stored for conversion but hidden from user view
                 const altText = imageAltTextInput.value.trim() || json.altText || 'Image';
-                const imageMarkdown = `![${altText}](${json.imageUrl})`;
+                const imageId = json.imageId || Date.now(); // Fallback to timestamp if no imageId
+                const imageUrl = json.imageUrl;
+                
+                // Store URL mapping for this imageId
+                imageUrlMap.set(imageId.toString(), imageUrl);
+                
+                // Store full syntax with URL (needed for conversion)
+                // Format: [img:alt-text:id|url] - URL is stored but will be hidden in display
+                const imageFullSyntax = `[img:${altText}:${imageId}|${imageUrl}]`;
                 
                 // Insert at cursor position
                 const start = currentImageUploadTextarea.selectionStart;
                 const end = currentImageUploadTextarea.selectionEnd;
                 const textBefore = currentImageUploadTextarea.value.substring(0, start);
                 const textAfter = currentImageUploadTextarea.value.substring(end);
-                const newText = textBefore + imageMarkdown + textAfter;
+                const newText = textBefore + imageFullSyntax + textAfter;
                 
                 currentImageUploadTextarea.value = newText;
-                const newCursorPos = start + imageMarkdown.length;
+                
+                // Update display to show shortened version
+                updateImageSyntaxDisplay(currentImageUploadTextarea);
+                
+                const newCursorPos = start + imageFullSyntax.length;
                 currentImageUploadTextarea.setSelectionRange(newCursorPos, newCursorPos);
                 currentImageUploadTextarea.focus();
                 

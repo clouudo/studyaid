@@ -3130,7 +3130,8 @@ class LmController
     }
 
     /**
-     * Handles chatbot interaction for document hub: processes question across multiple documents using RAG
+     * Handles chatbot interaction for document hub: processes question across all user documents using RAG
+     * No document selection required - automatically retrieves relevant chunks from all user documents
      */
     public function sendDocumentHubChat()
     {
@@ -3144,56 +3145,58 @@ class LmController
             $this->sendJsonError('Question is required.');
         }
 
-        if (!isset($data['fileIds']) || empty($data['fileIds']) || !is_array($data['fileIds'])) {
-            $this->sendJsonError('At least one document must be selected.');
-        }
-
         $question = trim($data['question']);
-        $selectedFileIds = $data['fileIds'];
 
         try {
-            // Validate file IDs belong to user
-            $validFileIds = [];
-            foreach($selectedFileIds as $fileId) {
-                $file = $this->lmModel->getFile($userId, (int)$fileId);
-                if($file) {
-                    $validFileIds[] = (int)$fileId;
-                }
-            }
-
-            if (empty($validFileIds)) {
-                $this->sendJsonError('No valid files found.');
+            // Validate question is not empty
+            if (empty(trim($question))) {
+                $this->sendJsonError('Question cannot be empty.');
             }
 
             // Generate embedding for the question
             $queryEmbedding = $this->gemini->generateEmbedding($question);
 
             if (empty($queryEmbedding)) {
-                $this->sendJsonError('Could not generate embedding for the question.');
+                error_log("Document Hub Chat - Failed to generate embedding for question: " . substr($question, 0, 100));
+                $this->sendJsonError('Could not generate embedding for the question. Please check your API configuration and try again.');
             }
 
-            // Find relevant chunks using RAG
+            // Get all chunks from all user documents
+            $allChunks = $this->lmModel->getChunksForUserFiles($userId);
+
+            // Find relevant chunks using RAG across all documents
             $similarities = [];
             $similarityThreshold = 0.15; // Lower threshold for more sensitive search
             
-            foreach ($validFileIds as $fileId) {
-                $chunks = $this->lmModel->getChunksByFile($fileId);
+            if (empty($allChunks)) {
+                // If no chunks exist, check if user has any files with extracted text
+                $allFiles = $this->lmModel->getFilesForUser($userId);
+                $hasContent = false;
+                foreach ($allFiles as $file) {
+                    if (!empty($file['extracted_text'])) {
+                        $hasContent = true;
+                        break;
+                    }
+                }
                 
-                if (empty($chunks)) {
-                    // If no chunks exist, fall back to extracted text
-                    $file = $this->lmModel->getFile($userId, $fileId);
-                    if ($file && !empty($file['extracted_text'])) {
+                if (!$hasContent) {
+                    $this->sendJsonError('No documents found in your knowledge base. Please upload some documents first.');
+                }
+                
+                // Fallback: use extracted text from all files if no chunks available
+                foreach ($allFiles as $file) {
+                    if (!empty($file['extracted_text'])) {
                         $similarities[] = [
-                            'fileId' => $fileId,
+                            'fileId' => $file['fileID'],
                             'chunkText' => $file['extracted_text'],
-                            'similarity' => 1.0, // Use full text if no chunks
+                            'similarity' => 0.5, // Lower similarity for fallback
                         ];
                     }
-                    continue;
                 }
-
-                foreach ($chunks as $chunk) {
-                    $chunkEmbedding = json_decode($chunk['embedding'], true);
+            } else {
+                // Process chunks with embeddings
+                foreach ($allChunks as $chunk) {
+                    $chunkEmbedding = json_decode($chunk['embedding'] ?? '[]', true);
                     
                     if (empty($chunkEmbedding) || !is_array($chunkEmbedding)) {
                         continue;
@@ -3203,7 +3206,8 @@ class LmController
                     
                     if ($similarity >= $similarityThreshold) {
                         $similarities[] = [
-                            'fileId' => $fileId,
+                            'fileId' => $chunk['fileID'],
+                            'fileName' => $chunk['fileName'] ?? 'Unknown',
                             'chunkText' => $chunk['chunkText'] ?? '',
                             'similarity' => $similarity,
                         ];
@@ -3223,21 +3227,25 @@ class LmController
             $context = '';
             if (!empty($topChunks)) {
                 foreach ($topChunks as $chunk) {
+                    // Include file name for context if available
+                    if (isset($chunk['fileName'])) {
+                        $context .= "[From: " . $chunk['fileName'] . "]\n";
+                    }
                     $context .= $chunk['chunkText'] . "\n\n";
                 }
             } else {
-                // Fallback: combine all extracted text if no relevant chunks found
-                foreach ($validFileIds as $fileId) {
-            $file = $this->lmModel->getFile($userId, $fileId);
-                    if ($file && !empty($file['extracted_text'])) {
-                        $context .= "Document: " . ($file['name'] ?? 'Unknown') . "\n";
+                // Fallback: use extracted text from all files if no relevant chunks found
+                $allFiles = $this->lmModel->getFilesForUser($userId);
+                foreach ($allFiles as $file) {
+                    if (!empty($file['extracted_text'])) {
+                        $context .= "[From: " . ($file['name'] ?? 'Unknown') . "]\n";
                         $context .= $file['extracted_text'] . "\n\n";
                     }
                 }
             }
 
             if (empty($context)) {
-                $this->sendJsonError('No content found in selected documents.');
+                $this->sendJsonError('No content found in your documents. Please upload some documents with text content first.');
             }
 
             // Generate chatbot response using combined context

@@ -946,11 +946,22 @@
 
             // Synthesize Document Handler - Opens Form Modal when card is clicked
             document.getElementById('reportTool').addEventListener('click', function(e) {
-                // Check if files are selected - do nothing if no documents selected
+                // Check if files are selected
                 const fileIds = Array.from(selectedFiles);
                 
                 if (fileIds.length === 0) {
-                    return; // Exit silently without showing any modal
+                    // Hide cancel button for informational messages
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'No Documents Selected',
+                        message: 'Please select at least one document to synthesize.',
+                        confirmText: 'OK',
+                        cancelText: '',
+                        onConfirm: function() {
+                            // Modal will close automatically
+                        }
+                    });
+                    return;
                 }
 
                 // Reset form
@@ -1064,23 +1075,7 @@
 
             // Document Hub Chatbot Handler
             document.getElementById('chatbotTool').addEventListener('click', function(e) {
-                const fileIds = Array.from(selectedFiles);
-                
-                if (fileIds.length === 0) {
-                    // Hide cancel button for informational messages
-                    document.getElementById('confirmCancelBtn').style.display = 'none';
-                    showConfirmModal({
-                        title: 'No Documents Selected',
-                        message: 'Please select at least one document to use the chatbot.',
-                        confirmText: 'OK',
-                        cancelText: '',
-                        onConfirm: function() {
-                            // Modal will close automatically
-                        }
-                    });
-                    return;
-                }
-
+                // No document selection required - chatbot uses RAG to search all user documents
                 document.getElementById('chatbotPanel').style.display = 'block';
                 document.getElementById('resultsPanel').style.display = 'none';
                 document.getElementById('knowledgeBasePanel').style.display = 'none';
@@ -1140,29 +1135,14 @@
                 const question = chatbotQuestionInput.value.trim();
                 if (!question) return;
 
-                const fileIds = Array.from(selectedFiles);
-                if (fileIds.length === 0) {
-                    // Hide cancel button for informational messages
-                    document.getElementById('confirmCancelBtn').style.display = 'none';
-                    showConfirmModal({
-                        title: 'No Documents Selected',
-                        message: 'Please select at least one document.',
-                        confirmText: 'OK',
-                        cancelText: '',
-                        onConfirm: function() {
-                            // Modal will close automatically
-                        }
-                    });
-                    return;
-                }
-
+                // No document selection required - RAG will search all user documents automatically
                 addChatMessage(question, true);
                 chatbotQuestionInput.value = '';
 
                 // Show loading indicator
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'message bot';
-                loadingDiv.innerHTML = '<div class="message-header"><i class="bi bi-robot"></i><span>StudyAid Bot</span></div><div class="message-content"><i class="bi bi-hourglass-split me-2"></i>Thinking...</div>';
+                loadingDiv.innerHTML = '<div class="message-header"><i class="bi bi-robot"></i><span>StudyAid Bot</span></div><div class="message-content"><i class="bi bi-hourglass-split me-2"></i>Searching your documents...</div>';
                 chatContainer.appendChild(loadingDiv);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -1173,8 +1153,7 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            question: question,
-                            fileIds: fileIds
+                            question: question
                         })
                     });
 
