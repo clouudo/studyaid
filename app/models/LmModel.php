@@ -2273,7 +2273,7 @@ class LmModel
             $stmt->execute();
             
             if ((int)$stmt->fetchColumn() === 0) {
-                // Table doesn't exist, create it
+                // Table doesn't exist, create it with instruction column
                 $conn->exec("
                     CREATE TABLE `homework_helper` (
                         `homeworkID` INT(11) NOT NULL AUTO_INCREMENT,
@@ -2285,6 +2285,7 @@ class LmModel
                         `question` TEXT DEFAULT NULL,
                         `answer` TEXT DEFAULT NULL,
                         `status` ENUM('pending', 'processing', 'completed', 'no_question') DEFAULT 'pending',
+                        `instruction` TEXT DEFAULT NULL,
                         `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         PRIMARY KEY (`homeworkID`),
@@ -2293,6 +2294,15 @@ class LmModel
                         CONSTRAINT `homework_helper_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ");
+            } else {
+                // Table exists, check if instruction column exists
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'homework_helper' AND COLUMN_NAME = 'instruction'");
+                $stmt->execute();
+                
+                if ((int)$stmt->fetchColumn() === 0) {
+                    // Column doesn't exist, add it
+                    $conn->exec("ALTER TABLE homework_helper ADD COLUMN instruction TEXT DEFAULT NULL AFTER status");
+                }
             }
         } catch (\Throwable $e) {
             error_log('Homework Helper schema ensure failed: ' . $e->getMessage());

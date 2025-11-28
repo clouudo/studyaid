@@ -124,7 +124,12 @@ if (!isset($homeworkEntries)) {
             cursor: pointer;
         }
         
-        .dropdown-item:active, .dropdown-item.active {
+        .dropdown-item:hover, .dropdown-item:focus {
+            background-color: var(--sa-accent);
+            color: var(--sa-primary);
+        }
+        
+        .dropdown-item:active {
             background-color: var(--sa-primary);
             color: white;
         }
@@ -207,6 +212,28 @@ if (!isset($homeworkEntries)) {
             margin-bottom: 0.5rem;
             display: block;
         }
+
+        /* Collapsible Homework Header */
+        .homework-header {
+            user-select: none;
+            padding: 4px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .homework-header:hover {
+            background-color: rgba(111, 66, 193, 0.05);
+        }
+
+        .collapse-icon {
+            display: inline-block;
+            transition: transform 0.3s ease;
+            color: var(--sa-primary);
+        }
+
+        .homework-header[aria-expanded="true"] .collapse-icon {
+            transform: rotate(90deg);
+        }
     </style>
 </head>
 
@@ -271,10 +298,11 @@ if (!isset($homeworkEntries)) {
                             <?php else: ?>
                                 <?php foreach ($homeworkEntries as $entry): ?>
                                     <div class="list-group-item">
-                                        <!-- Header Row -->
-                                        <div class="d-flex justify-content-between align-items-start mb-3">
-                                            <div class="flex-grow-1">
+                                        <!-- Header Row (Clickable) -->
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1 homework-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#homework-content-<?= $entry['homeworkID'] ?>" aria-expanded="false" aria-controls="homework-content-<?= $entry['homeworkID'] ?>">
                                                 <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <i class="bi bi-chevron-right collapse-icon" style="transition: transform 0.3s ease;"></i>
                                                     <strong class="h6 mb-0"><?= htmlspecialchars($entry['fileName']) ?></strong>
                                                     <?php
                                                     $statusClass = 'bg-secondary';
@@ -287,12 +315,12 @@ if (!isset($homeworkEntries)) {
                                                         <?= ucfirst(str_replace('_', ' ', $entry['status'])) ?>
                                                     </span>
                                                 </div>
-                                                <small class="text-muted d-block">
+                                                <small class="text-muted d-block ms-4">
                                                     <i class="bi bi-calendar me-1"></i>
                                                     <?= date('Y-m-d H:i:s', strtotime($entry['createdAt'])) ?>
                                                 </small>
                                                 <?php if (!empty($entry['instruction'])): ?>
-                                                    <div class="mt-1 text-muted small">
+                                                    <div class="mt-1 text-muted small ms-4">
                                                         <i class="bi bi-info-circle me-1"></i>
                                                         Instruction: <?= htmlspecialchars($entry['instruction']) ?>
                                                     </div>
@@ -300,59 +328,60 @@ if (!isset($homeworkEntries)) {
                                             </div>
                                             
                                             <!-- Actions Dropdown -->
-                                            <div class="dropdown">
+                                            <div class="dropdown" onclick="event.stopPropagation();">
                                                 <button class="action-btn" type="button" id="dropdownAction<?= $entry['homeworkID'] ?>" data-bs-toggle="dropdown" aria-expanded="false">
                                                     <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownAction<?= $entry['homeworkID'] ?>">
-                                                    <li><button class="dropdown-item active" type="button" onclick="switchView(<?= $entry['homeworkID'] ?>, 'answer', this)">Answer</button></li>
-                                                    <li><button class="dropdown-item" type="button" onclick="switchView(<?= $entry['homeworkID'] ?>, 'text', this)">Extracted Text</button></li>
-                                                    <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item" href="<?= VIEW_HOMEWORK_FILE ?>&id=<?= $entry['homeworkID'] ?>" target="_blank">View Original File</a></li>
                                                 </ul>
                                             </div>
                                         </div>
 
-                                        <!-- Content Display Area -->
-                                        <?php if ($entry['status'] === 'completed' || $entry['status'] === 'no_question'): ?>
-                                            <div id="content-wrapper-<?= $entry['homeworkID'] ?>">
-                                                
-                                                <!-- Answer View -->
-                                                <div id="answer-content-<?= $entry['homeworkID'] ?>" class="view-section">
-                                                    <span class="view-label">Answer</span>
-                                                    <?php if ($entry['status'] === 'no_question'): ?>
-                                                        <div class="alert alert-warning mb-0">
-                                                            <i class="bi bi-exclamation-triangle me-2"></i>
-                                                            No question found.
+                                        <!-- Content Display Area (Collapsible) -->
+                                        <div class="collapse" id="homework-content-<?= $entry['homeworkID'] ?>">
+                                            <div class="mt-3">
+                                                <?php if ($entry['status'] === 'completed' || $entry['status'] === 'no_question'): ?>
+                                                    <div id="content-wrapper-<?= $entry['homeworkID'] ?>">
+                                                        
+                                                        <!-- Answer View -->
+                                                        <div id="answer-content-<?= $entry['homeworkID'] ?>" class="view-section">
+                                                            <span class="view-label">Answer</span>
+                                                            <?php if ($entry['status'] === 'no_question'): ?>
+                                                                <div class="alert alert-warning mb-0">
+                                                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                                                    No question found.
+                                                                </div>
+                                                            <?php else: ?>
+                                                                <div class="answer-content mt-0">
+                                                                    <div id="answer-text-<?= $entry['homeworkID'] ?>">
+                                                                        <?= $entry['answer'] ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
                                                         </div>
-                                                    <?php else: ?>
-                                                        <div class="answer-content mt-0">
-                                                            <div id="answer-text-<?= $entry['homeworkID'] ?>">
-                                                                <?= $entry['answer'] ?>
+
+                                                        <!-- Extracted Text View -->
+                                                        <div id="text-content-<?= $entry['homeworkID'] ?>" class="view-section d-none">
+                                                            <span class="view-label">Extracted Text</span>
+                                                            <div class="p-3 bg-light rounded border" style="max-height: 300px; overflow-y: auto;">
+                                                                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;"><?= htmlspecialchars($entry['extractedText'] ?? 'No text extracted.') ?></pre>
                                                             </div>
                                                         </div>
-                                                    <?php endif; ?>
-                                                </div>
-
-                                                <!-- Extracted Text View -->
-                                                <div id="text-content-<?= $entry['homeworkID'] ?>" class="view-section d-none">
-                                                    <span class="view-label">Extracted Text</span>
-                                                    <div class="p-3 bg-light rounded border" style="max-height: 300px; overflow-y: auto;">
-                                                        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;"><?= htmlspecialchars($entry['extractedText'] ?? 'No text extracted.') ?></pre>
                                                     </div>
-                                                </div>
-                                            </div>
 
-                                        <?php elseif ($entry['status'] === 'processing'): ?>
-                                            <div class="text-center py-3">
-                                                <div class="loading-spinner" style="border-color: var(--sa-primary); border-top-color: transparent;"></div>
-                                                <p class="text-muted mt-2 mb-0">Processing your file...</p>
+                                                <?php elseif ($entry['status'] === 'processing'): ?>
+                                                    <div class="text-center py-3">
+                                                        <div class="loading-spinner" style="border-color: var(--sa-primary); border-top-color: transparent;"></div>
+                                                        <p class="text-muted mt-2 mb-0">Processing your file...</p>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="alert alert-secondary mb-0">
+                                                        Status: <?= htmlspecialchars($entry['status']) ?>
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
-                                        <?php else: ?>
-                                            <div class="alert alert-secondary mb-0">
-                                                Status: <?= htmlspecialchars($entry['status']) ?>
-                                            </div>
-                                        <?php endif; ?>
+                                        </div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -386,21 +415,6 @@ if (!isset($homeworkEntries)) {
             }, 5000);
         }
 
-        // Switch View Function
-        function switchView(id, type, btnElement) {
-            // Hide all sections for this entry
-            document.getElementById(`answer-content-${id}`).classList.add('d-none');
-            document.getElementById(`question-content-${id}`).classList.add('d-none');
-            document.getElementById(`text-content-${id}`).classList.add('d-none');
-            
-            // Show selected section
-            document.getElementById(`${type}-content-${id}`).classList.remove('d-none');
-            
-            // Update Dropdown Active State
-            const dropdown = btnElement.closest('.dropdown-menu');
-            dropdown.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('active'));
-            btnElement.classList.add('active');
-        }
 
         // File input handling
         const uploadArea = document.getElementById('uploadArea');
@@ -513,13 +527,64 @@ if (!isset($homeworkEntries)) {
         document.addEventListener('DOMContentLoaded', () => {
             const answerElements = document.querySelectorAll('[id^="answer-text-"]');
             answerElements.forEach(element => {
-                if (element.textContent.trim()) {
-                    try {
-                        element.innerHTML = marked.parse(element.textContent);
-                    } catch (e) {
-                        console.error('Markdown parsing error:', e);
-                    }
+                // Skip if element is empty or already contains HTML tags (already processed)
+                if (!element.textContent.trim() || element.children.length > 0) {
+                    return;
                 }
+                
+                try {
+                    // Get the raw text content
+                    let markdownText = element.textContent;
+                    
+                    // Trim leading and trailing whitespace/newlines
+                    markdownText = markdownText.trim();
+                    
+                    // Fix lines that start with markdown syntax but have leading whitespace
+                    // This ensures headings, lists, etc. are recognized even with leading spaces
+                    const lines = markdownText.split('\n');
+                    const cleanedLines = lines.map(line => {
+                        const trimmed = line.trimStart();
+                        // If line starts with markdown syntax (#, -, *, >, etc.) after whitespace,
+                        // remove the leading whitespace to ensure proper parsing
+                        if (trimmed.match(/^(#{1,6}\s|[-*+]\s|>\s|\d+\.\s)/)) {
+                            return trimmed;
+                        }
+                        // Preserve intentional indentation for code blocks and nested content
+                        return line;
+                    });
+                    
+                    markdownText = cleanedLines.join('\n');
+                    
+                    // Parse markdown with options
+                    const html = marked.parse(markdownText, {
+                        gfm: true,
+                        breaks: false,
+                        headerIds: true,
+                        mangle: false
+                    });
+                    
+                    element.innerHTML = html;
+                } catch (e) {
+                    console.error('Markdown parsing error:', e);
+                }
+            });
+
+            // Handle collapse icon rotation for homework entries
+            const collapseElements = document.querySelectorAll('[id^="homework-content-"]');
+            collapseElements.forEach(collapseElement => {
+                collapseElement.addEventListener('show.bs.collapse', function() {
+                    const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+                    if (header) {
+                        header.setAttribute('aria-expanded', 'true');
+                    }
+                });
+                
+                collapseElement.addEventListener('hide.bs.collapse', function() {
+                    const header = document.querySelector(`[data-bs-target="#${this.id}"]`);
+                    if (header) {
+                        header.setAttribute('aria-expanded', 'false');
+                    }
+                });
             });
         });
     </script>

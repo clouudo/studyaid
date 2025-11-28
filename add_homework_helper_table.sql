@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `homework_helper` (
   `question` TEXT DEFAULT NULL,
   `answer` TEXT DEFAULT NULL,
   `status` ENUM('pending', 'processing', 'completed', 'no_question') DEFAULT 'pending',
+  `instruction` TEXT DEFAULT NULL,
   `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`homeworkID`),
