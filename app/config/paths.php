@@ -17,12 +17,12 @@ define('CSS_PATH', PUBLIC_PATH . 'css/');
 define('JS_PATH', PUBLIC_PATH . 'js/');
 define('ASSET_PATH', PUBLIC_PATH . 'asset/');
 
-// Images
-define('IMG_VISIBLE', ASSET_PATH . 'visible.png');
-define('IMG_INVISIBLE', ASSET_PATH . 'invisible.png');
-define('IMG_LOGO', ASSET_PATH . 'logo.png');
-define('IMG_SETTING', ASSET_PATH . 'setting.png');
-define('IMG_CARET_DOWN', ASSET_PATH . 'down-chevron.png');
+// Images - using absolute URLs for better compatibility
+define('IMG_VISIBLE', APP_URL . 'public/asset/visible.png');
+define('IMG_INVISIBLE', APP_URL . 'public/asset/invisible.png');
+define('IMG_LOGO', APP_URL . 'public/asset/logo.png');
+define('IMG_SETTING', APP_URL . 'public/asset/setting.png');
+define('IMG_CARET_DOWN', APP_URL . 'public/asset/down-chevron.png');
 
 // ============================================================================
 // AUTH ROUTES
@@ -60,7 +60,6 @@ define('GENERATE_SUMMARY', BASE_PATH . 'lm/generateSummary');
 define('DELETE_SUMMARY', BASE_PATH . 'lm/deleteSummary');
 define('SAVE_SUMMARY_AS_FILE', BASE_PATH . 'lm/saveSummaryAsFile');
 define('EXPORT_SUMMARY_PDF', BASE_PATH . 'lm/exportSummaryAsPdf');
-define('EXPORT_SUMMARY_DOCX', BASE_PATH . 'lm/exportSummaryAsDocx');
 define('EXPORT_SUMMARY_TXT', BASE_PATH . 'lm/exportSummaryAsTxt');
 define('AUDIO_SUMMARY', BASE_PATH . 'lm/audioSummary');
 
@@ -72,7 +71,6 @@ define('UPDATE_NOTE', BASE_PATH . 'lm/updateNote');
 define('DELETE_NOTE', BASE_PATH . 'lm/deleteNote');
 define('SAVE_NOTE_AS_FILE', BASE_PATH . 'lm/saveNoteAsFile');
 define('EXPORT_NOTE_PDF', BASE_PATH . 'lm/exportNoteAsPdf');
-define('EXPORT_NOTE_DOCX', BASE_PATH . 'lm/exportNoteAsDocx');
 define('EXPORT_NOTE_TXT', BASE_PATH . 'lm/exportNoteAsTxt');
 define('AUDIO_NOTE', BASE_PATH . 'lm/audioNote');
 define('UPLOAD_NOTE_IMAGE', BASE_PATH . 'lm/uploadNoteImage');
@@ -103,12 +101,17 @@ define('GENERATE_QUIZ', BASE_PATH . 'lm/generateQuiz');
 define('SUBMIT_QUIZ', BASE_PATH . 'lm/submitQuiz');
 define('DELETE_QUIZ', BASE_PATH . 'lm/deleteQuiz');
 define('GENERATE_FLASHCARDS', BASE_PATH . 'lm/generateFlashcards');
-define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/sendQuestionChat');
+define('SEND_CHAT_MESSAGE', BASE_PATH . 'lm/chat');
 
 //Document Hub
 define('DOCUMENT_HUB', BASE_PATH . 'lm/documentHub');
 define('SAVE_CHECKED_DOCUMENTS', BASE_PATH . 'lm/saveCheckedDocuments');
 define('SEARCH_KNOWLEDGE_BASE', BASE_PATH . 'lm/searchKnowledgeBase');
+
+//Homework Helper
+define('HOMEWORK_HELPER', BASE_PATH . 'lm/homeworkHelper');
+define('PROCESS_HOMEWORK', BASE_PATH . 'lm/processHomework');
+define('VIEW_HOMEWORK_FILE', BASE_PATH . 'lm/viewHomeworkFile');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');
@@ -143,6 +146,7 @@ define('VIEW_FLASHCARD', LEARNING_VIEWS_PATH . 'flashcard.php');
 define('VIEW_NAVBAR', LEARNING_VIEWS_PATH . 'navbar.php');
 define('VIEW_CONFIRM', LEARNING_VIEWS_PATH . 'confirm.php');
 define('VIEW_DOCUMENT_HUB', LEARNING_VIEWS_PATH . 'multidoc.php');
+define('VIEW_HOMEWORK_HELPER', LEARNING_VIEWS_PATH . 'homeworkHelper.php');
 // ============================================================================
 // URL PATTERNS FOR isActive() FUNCTION
 // ============================================================================
@@ -159,3 +163,4 @@ define('URL_FLASHCARD', 'index.php?url=lm/flashcard');
 define('URL_QUIZ', 'index.php?url=lm/quiz');
 define('URL_DOCUMENT_HUB', 'index.php?url=lm/documentHub');
 define('URL_DISPLAY_DOCUMENT', 'index.php?url=lm/displayDocument');
+define('URL_HOMEWORK_HELPER', 'index.php?url=lm/homeworkHelper');

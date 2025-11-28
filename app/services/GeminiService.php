@@ -38,11 +38,12 @@ class GeminiService
     {
         $model = $this->models['default'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-        Format the following content into organised and structured content. 
-        Do not change the content of the original text.
-        Do not add any extra text and only organise the content into logical chapters and sections.
-        Return the content in markdown format.
-        PROMPT;
+Format the following content into well-structured and logically organized chapters and sections.
+Preserve all original content exactly as-is.
+Do not include any additional explanations or text.
+Organize hierarchically using headings and subheadings where appropriate.
+Output should be plain text formatted with markdown-style headers such as #, ##, ###, etc.
+PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $content;
         return $this->generateText($model, $prompt);
     }
@@ -57,7 +58,7 @@ class GeminiService
     public function generateNotes(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
-        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Notes should be concise and short.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         return $this->generateText($model, $prompt);
     }
 
@@ -65,36 +66,33 @@ class GeminiService
     {
         $model = $this->models['mindmap'] ?? $this->defaultModel;
         $schema = <<<PROMPT
-Create a mindmap in Markdown format optimized for Markmap.js visualization.
-
-Rules:
-
-1. Heading Structure
-
-   * Use # for the main topic, then ##, ###, ####, etc. (no skipped levels).
-
-   * Each idea should be a **heading**, not a paragraph.
-
-2. Style & Formatting
-
-   * Use **bold** for key terms and *italic* for emphasis.
-
-   * Keep headings short and meaningful.
-
-   * Avoid lists (-, *) — use subheadings instead.
-
-3. Content
-
-   * Organize ideas hierarchically (3-5 main sections, each with 2-4 subsections).
-
-   * For structured data, use markdown tables under headings.
-
-4. Output
-
-   * Output only the Markdown (no explanations or extra text).
-
-   * Start directly with #Main Topic.
-PROMPT;
+        Create a simple and concise mindmap in Markdown format optimized for Markmap.js visualization.
+        
+        Rules:
+        
+        1. **Structure**
+           * Use # for main topic, then only ## and ### (maximum 3 levels).
+           * No more than 5 main branches (##).
+           * Each main branch should have 1–3 sub-branches (###).
+        
+        2. **Formatting**
+           * Write short, clear headings (< 6 words if possible).
+           * Use **bold** for key terms.
+           * Avoid paragraphs or long sentences — keep statements minimal.
+        
+        3. **Content**
+           * Focus on core ideas, do not add extended explanations.
+           * Replace bulleted lists with hierarchical subheadings.
+           * For comparisons or structured data, use inline text instead of tables.
+        
+        4. **Length**
+           * Keep total number of nodes below 25.
+           * Aim for ~10–15 nodes for brevity.
+        
+        5. **Output Format**
+           * Return only valid Markdown with no extra text before/after.
+           * Start directly with # [Main Topic].
+        PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $sourceText;
         $markdown = $this->generateText($model, $prompt);
         
@@ -167,7 +165,7 @@ PROMPT;
         string $sourceText,
         array $distribution,
         int $totalQuestions,
-        string $questionDifficulty = 'medium',
+        string $questionDifficulty = 'remember',
         ?string $instructions = null
     ): string {
         $model = $this->models['quiz'] ?? $this->defaultModel;
@@ -183,6 +181,17 @@ PROMPT;
             }
         }
         $typeLines = implode("\n", $typeBreakdown);
+
+        // Map Bloom's taxonomy level to description
+        $bloomDescriptions = [
+            'remember' => 'Remember: Questions should test recall of facts, terms, basic concepts, and definitions. Focus on memorization and recognition.',
+            'understand' => 'Understand: Questions should test comprehension, interpretation, explanation, and classification of concepts.',
+            'apply' => 'Apply: Questions should test the ability to use information in new situations, solve problems, and implement procedures.',
+            'analysis' => 'Analysis: Questions should test the ability to break down information, identify relationships, compare and contrast, and analyze structure.',
+            'evaluate' => 'Evaluate: Questions should test the ability to justify decisions, critique arguments, assess value, and make judgments.',
+            'create' => 'Create: Questions should test the ability to produce new or original work, design solutions, construct theories, and synthesize information.'
+        ];
+        $bloomDescription = $bloomDescriptions[$questionDifficulty] ?? $bloomDescriptions['remember'];
 
         $schema = <<<PROMPT
 You are an educational quiz generator. Create {$totalQuestions} questions using the provided document content.
@@ -211,7 +220,7 @@ Return JSON ONLY in this structure:
 PROMPT;
 
         $prompt = $schema . "\n"
-            . "Question Difficulty: {$questionDifficulty}\n"
+            . "Bloom's Taxonomy Level: {$bloomDescription}\n"
             . "Total Questions: {$totalQuestions}\n"
             . ($instructions ? ("Constraints: {$instructions}\n") : '')
             . "\nContent:\n{$sourceText}";
@@ -262,7 +271,7 @@ PROMPT;
         string $expectedAnswer,
         string $userAnswer,
         string $type = 'short_answer',
-        string $difficulty = 'medium'
+        string $bloomLevel = 'remember'
     ): array {
         $model = $this->models['quiz'] ?? $this->defaultModel;
         if (trim($userAnswer) === '') {
@@ -273,12 +282,29 @@ PROMPT;
             ];
         }
 
+        // Map Bloom's taxonomy level to description
+        $bloomDescriptions = [
+            'remember' => 'Remember: Evaluate based on recall of facts, terms, basic concepts, and definitions.',
+            'understand' => 'Understand: Evaluate based on comprehension, interpretation, explanation, and classification.',
+            'apply' => 'Apply: Evaluate based on ability to use information in new situations and solve problems.',
+            'analysis' => 'Analysis: Evaluate based on ability to break down information, identify relationships, and analyze structure.',
+            'evaluate' => 'Evaluate: Evaluate based on ability to justify decisions, critique arguments, and make judgments.',
+            'create' => 'Create: Evaluate based on ability to produce new or original work and synthesize information.'
+        ];
+        $bloomDescription = $bloomDescriptions[$bloomLevel] ?? $bloomDescriptions['remember'];
+
         $prompt = <<<PROMPT
-You are grading a student's response for a {$type} question (difficulty: {$difficulty}).
+You are grading a student's response for a {$type} question.
+Bloom's Taxonomy Level: {$bloomDescription}
+
 Compare the student's answer with the expected answer. Provide:
-- score: value between 0 and 1 (two decimal places) representing correctness.
+- score: value between 0 and 1 (two decimal places) representing correctness based on the Bloom's taxonomy level.
 - isCorrect: true if score >= 0.6, false otherwise.
-- suggestion: short constructive feedback referencing missing information or improvements. If answer is excellent, acknowledge it.
+- suggestion: Provide constructive feedback that:
+  1. References the expected answer content
+  2. Points out what is missing or could be improved
+  3. If the answer is excellent, acknowledge it
+  4. Be specific and helpful for learning
 
 Return JSON ONLY:
 {
@@ -390,17 +416,23 @@ PROMPT;
                 case 'short_answer':
                 case 'long_answer':
                     // Use AI evaluation for open-ended questions
+                    // Get Bloom's taxonomy level from question config or default to 'remember'
+                    $bloomLevel = $question['bloomLevel'] ?? 'remember';
+                    // Convert correctAnswer to string if it's an array
+                    $correctAnswerStr = is_array($correctAnswer) ? implode(' ', $correctAnswer) : (string)$correctAnswer;
                     $evaluation = $this->evaluateOpenAnswer(
                         $question['question'] ?? '',
-                        $correctAnswer,
-                        is_array($userAnswer) ? json_encode($userAnswer) : $userAnswer,
+                        $correctAnswerStr,
+                        is_array($userAnswer) ? implode(' ', $userAnswer) : (string)$userAnswer,
                         $questionType,
-                        'medium'
+                        $bloomLevel
                     );
                     $isCorrect = $evaluation['isCorrect'];
-                    if (!$isCorrect && !empty($evaluation['suggestion'])) {
-                        $suggestions[] = "Question {$questionId}: " . $evaluation['suggestion'];
-                        $suggestion = $evaluation['suggestion'];
+                    // Always include suggestion for short/long answer questions (even if correct, for feedback)
+                    $suggestion = $evaluation['suggestion'] ?? '';
+                    // Add to suggestions array for both correct and incorrect answers
+                    if (!empty($suggestion)) {
+                        $suggestions[] = "Question {$questionId}: " . $suggestion;
                     }
                     break;
 
@@ -601,5 +633,67 @@ PROMPT;
             . "Relevant Content:\n{$sourceText}\n\n"
             . "Synthesize the document now:";
         return $this->generateText($model, $prompt);
+    }
+
+    /**
+     * Answer homework question from extracted text or image
+     * Returns array with 'hasQuestion' (bool) and 'answer' (string)
+     */
+    public function answerHomeworkQuestion(string $extractedText): array
+    {
+        $model = $this->models['default'] ?? $this->defaultModel;
+        
+        $prompt = <<<PROMPT
+You are a helpful homework assistant. Analyze the following content from an uploaded image or PDF.
+
+INSTRUCTIONS:
+1. First, identify if there is a question or problem to solve in the content.
+2. If NO question is found, respond with exactly: "NO_QUESTION_FOUND"
+3. If a question IS found:
+   - Extract and clearly state the question
+   - Provide a detailed, step-by-step answer
+   - Explain your reasoning
+   - Use clear formatting (markdown is acceptable)
+   - Be thorough but concise
+
+Content to analyze:
+{$extractedText}
+
+Respond only in question and answer format.
+Format example:
+###Question1: (QUESTION)
+###Answer: (ANSWER)
+Now analyze and respond only in markdown format:
+PROMPT;
+
+        try {
+            $response = $this->generateText($model, $prompt);
+            
+            // Check if no question was found
+            if (stripos($response, 'NO_QUESTION_FOUND') !== false || 
+                stripos($response, 'no question found') !== false ||
+                stripos($response, 'no question') !== false) {
+                return [
+                    'hasQuestion' => false,
+                    'answer' => 'No question found.',
+                    'question' => null
+                ];
+            }
+            
+            // Extract question if possible (look for patterns like "Question:", "Problem:", etc.)
+            $question = null;
+            if (preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:]\s*(.+?)(?:\n|$)/i', $extractedText, $matches)) {
+                $question = trim($matches[1]);
+            }
+            
+            return [
+                'hasQuestion' => true,
+                'answer' => $response,
+                'question' => $question
+            ];
+        } catch (\Exception $e) {
+            error_log('Gemini API - Error answering homework question: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to process homework question: ' . $e->getMessage(), 0, $e);
+        }
     }
 }

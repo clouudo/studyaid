@@ -619,22 +619,43 @@
         // Function to save mindmap to database
         async function saveMindmapToDatabase() {
             if (!currentViewedMindmapId) {
-                alert('No mindmap loaded.');
+                document.getElementById('confirmCancelBtn').style.display = 'none';
+                showConfirmModal({
+                    title: 'Error',
+                    message: 'No mindmap loaded. Please generate or select a mindmap first.',
+                    confirmText: 'OK',
+                    onConfirm: function() {
+                        document.getElementById('confirmCancelBtn').style.display = '';
+                    }
+                });
                 return;
             }
 
             if (!markdownEditor || !markdownEditor.value.trim()) {
-                alert('Markdown cannot be empty.');
+                document.getElementById('confirmCancelBtn').style.display = 'none';
+                showConfirmModal({
+                    title: 'Error',
+                    message: 'Markdown cannot be empty. Please enter some content before saving.',
+                    confirmText: 'OK',
+                    onConfirm: function() {
+                        document.getElementById('confirmCancelBtn').style.display = '';
+                    }
+                });
                 return;
             }
 
+            const originalText = saveMindmapBtn.textContent;
+            
             try {
-                const originalText = saveMindmapBtn.textContent;
                 saveMindmapBtn.disabled = true;
                 saveMindmapBtn.textContent = 'Saving...';
 
                 const markdownToSave = markdownEditor.value.trim();
                 const fileId = '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>';
+
+                if (!fileId) {
+                    throw new Error('File ID is missing. Please refresh the page and try again.');
+                }
 
                 const response = await fetch('<?= UPDATE_MINDMAP_STRUCTURE ?>?file_id=' + encodeURIComponent(fileId), {
                     method: 'POST',
@@ -647,6 +668,21 @@
                         markdown: markdownToSave
                     })
                 });
+
+                // Check response status
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('HTTP error response:', response.status, text);
+                    throw new Error(`Server error (${response.status}). Please try again.`);
+                }
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned an invalid response. Please try again.');
+                }
 
                 const json = await response.json();
 
@@ -665,9 +701,20 @@
                 }, 2000);
             } catch (error) {
                 console.error('Error saving mindmap:', error);
-                alert('Error saving mindmap: ' + error.message);
-                saveMindmapBtn.disabled = false;
-                updateSaveButtonState();
+                
+                // Show error using confirm modal
+                document.getElementById('confirmCancelBtn').style.display = 'none';
+                showConfirmModal({
+                    title: 'Error Saving Mindmap',
+                    message: error.message || 'An unexpected error occurred while saving the mindmap. Please try again.',
+                    confirmText: 'OK',
+                    onConfirm: function() {
+                        document.getElementById('confirmCancelBtn').style.display = '';
+                        saveMindmapBtn.disabled = false;
+                        saveMindmapBtn.textContent = originalText;
+                        updateSaveButtonState();
+                    }
+                });
             }
         }
 
@@ -1090,6 +1137,13 @@
             // Clear container
             container.innerHTML = '';
 
+            // Inject frontmatter to collapse nodes by default if not present
+            // initialExpandLevel: 2 means show Root + Level 1 children, collapse deeper levels
+            let processedMarkdown = markdown;
+            if (markdown && !markdown.trim().startsWith('---')) {
+                processedMarkdown = "---\nmarkmap:\n  initialExpandLevel: 2\n---\n" + markdown;
+            }
+
             // Create markmap div using DOM methods to avoid template literal issues
             const markmapDiv = document.createElement('div');
             markmapDiv.className = 'markmap';
@@ -1097,7 +1151,7 @@
             // Create script element for template
             const scriptEl = document.createElement('script');
             scriptEl.type = 'text/template';
-            scriptEl.textContent = markdown;
+            scriptEl.textContent = processedMarkdown;
 
             markmapDiv.appendChild(scriptEl);
             container.appendChild(markmapDiv);

@@ -878,6 +878,33 @@ ALTER TABLE `summary`
 --
 ALTER TABLE `useranswer`
   ADD CONSTRAINT `useranswer_ibfk_1` FOREIGN KEY (`questionID`) REFERENCES `question` (`questionID`) ON DELETE CASCADE ON UPDATE CASCADE;
+--
+-- Table structure for table `homework_helper`
+--
+
+CREATE TABLE `homework_helper` (
+  `homeworkID` int(11) NOT NULL AUTO_INCREMENT,
+  `userID` int(11) NOT NULL,
+  `fileName` varchar(255) NOT NULL,
+  `fileType` varchar(50) NOT NULL,
+  `filePath` text NOT NULL,
+  `extractedText` text DEFAULT NULL,
+  `question` text DEFAULT NULL,
+  `answer` text DEFAULT NULL,
+  `status` enum('pending','processing','completed','no_question') DEFAULT 'pending',
+  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`homeworkID`),
+  KEY `idx_userID` (`userID`),
+  KEY `idx_createdAt` (`createdAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Constraints for table `homework_helper`
+--
+ALTER TABLE `homework_helper`
+  ADD CONSTRAINT `homework_helper_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

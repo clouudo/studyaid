@@ -288,11 +288,13 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
+            position: relative;
+            z-index: 1;
         }
 
         .action-btn:hover {
-            background-color: var(--sa-accent);
-            color: var(--sa-primary);
+            background-color: #e7d5ff;
+            color: #6f42c1;
         }
 
         /* Quiz Builder Layout */
@@ -427,7 +429,7 @@
         }
 
         .dropdown-menu li + li {
-            border-top: 1px solid #f0e6ff;
+            border-top: none;
         }
 
         .list-group-item .dropdown.show .dropdown-menu {
@@ -435,6 +437,20 @@
             width: 180px !important;
             min-width: 180px !important;
             max-width: 180px !important;
+        }
+
+        #quizList .list-group-item .dropdown {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        #quizList .list-group-item:hover .dropdown {
+            z-index: 11;
+        }
+
+        #quizList .list-group-item .dropdown-menu {
+            z-index: 1050 !important;
         }
 
         .dropdown {
@@ -542,6 +558,18 @@
                                             </div>
                                         <?php endforeach; ?>
                                         <small class="text-muted d-block">Allocate all questions before generating.</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label d-block">Bloom's Taxonomy Level</label>
+                                        <select name="questionDifficulty" class="form-select" id="bloomTaxonomySelect" required>
+                                            <option value="remember" selected>Remember - Recall facts and basic concepts</option>
+                                            <option value="understand">Understand - Explain ideas or concepts</option>
+                                            <option value="apply">Apply - Use information in new situations</option>
+                                            <option value="analysis">Analysis - Draw connections among ideas</option>
+                                            <option value="evaluate">Evaluate - Justify a stand or decision</option>
+                                            <option value="create">Create - Produce new or original work</option>
+                                        </select>
+                                        <small class="text-muted d-block">Select the cognitive level for quiz questions.</small>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label d-block">Exam Mode</label>
@@ -725,8 +753,8 @@
         .list-group-item { 
             overflow: visible; 
         }
-        .dropdown-menu { 
-            z-index: 1060; 
+        #quizList .list-group-item .dropdown-menu { 
+            z-index: 1050 !important; 
         }
     </style>
     <script>
@@ -756,7 +784,7 @@
 
             setTimeout(function() {
                 snackbar.classList.remove('show');
-            }, 3000);
+            }, 5000);
         }
 
         // Confirmation dialog function (kept for backward compatibility, but uses modal)
@@ -1171,9 +1199,9 @@
                     formData.append('totalQuestions', totalQuestions);
                     formData.append('questionDistribution', JSON.stringify(buildDistributionPayload()));
                     
-                    // Get questionDifficulty with null check and default
-                    const questionDifficultyInput = document.querySelector('input[name="questionDifficulty"]:checked');
-                    const questionDifficulty = questionDifficultyInput ? questionDifficultyInput.value : 'medium';
+                    // Get questionDifficulty (Bloom's taxonomy) with null check and default
+                    const questionDifficultySelect = document.querySelector('select[name="questionDifficulty"]');
+                    const questionDifficulty = questionDifficultySelect ? questionDifficultySelect.value : 'remember';
                     formData.append('questionDifficulty', questionDifficulty);
                     
                     // Get examMode with null check and default
@@ -1516,12 +1544,15 @@
             function buildReviewCard(question, feedback = null, index = 0) {
                 const type = normalizeType(question.type);
                 const isCorrect = feedback ? feedback.isCorrect : false;
-                const correctAnswer = Array.isArray(question.answer) ? question.answer : [question.answer ?? ''];
+                // Use correctAnswer from feedback if available (for long answer questions), otherwise use question.answer
+                const correctAnswer = feedback && feedback.correctAnswer !== undefined ?
+                    (Array.isArray(feedback.correctAnswer) ? feedback.correctAnswer : [feedback.correctAnswer ?? '']) :
+                    (Array.isArray(question.answer) ? question.answer : [question.answer ?? '']);
                 const userAnswer = feedback && feedback.userAnswer !== undefined ?
-                    (Array.isArray(feedback.userAnswer) ? feedback.userAnswer : [feedback.userAnswer]) :
+                    (Array.isArray(feedback.userAnswer) ? feedback.userAnswer : [feedback.userAnswer ?? '']) :
                     [];
-                const suggestion = feedback ? feedback.suggestion : '';
-                const explanation = question.explanation || '';
+                const suggestion = feedback ? (feedback.suggestion || '') : '';
+                const explanation = feedback && feedback.explanation ? feedback.explanation : (question.explanation || '');
 
                 const stateBadge = feedback ?
                     `<span class="badge ${isCorrect ? 'bg-success' : 'bg-danger'} px-3 py-2">
@@ -1600,18 +1631,10 @@
                                         <i class="bi bi-person-fill me-2" style="color: var(--sa-primary);"></i>
                                         <p class="text-muted mb-0 small fw-semibold">Your Answer</p>
                                     </div>
-                                    <p class="mb-0" style="white-space: pre-wrap;">${userAnswer.length > 0 ? userAnswer.join('\n') : 'Not answered'}</p>
-                                    ${suggestion ? `
-                                        <div class="mt-3 pt-3 border-top">
-                                            <div class="d-flex align-items-start mb-2">
-                                                <i class="bi bi-lightbulb-fill me-2 mt-1" style="color: var(--sa-primary);"></i>
-                                                <p class="text-muted mb-0 small fw-semibold">AI Suggestion</p>
-                                            </div>
-                                            <p class="mb-0 small" style="white-space: pre-wrap;">${suggestion}</p>
-                                        </div>
-                                    ` : ''}
+                                    <p class="mb-0" style="white-space: pre-wrap;">${userAnswer.length > 0 ? userAnswer.filter(a => a !== null && a !== undefined && a !== '').join('\n') : 'Not answered'}</p>
                                 </div>
                             </div>
+                            
                             <div class="col-12 col-md-6">
                                 <div class="answer-panel success">
                                     <div class="d-flex align-items-center mb-2">
@@ -1619,6 +1642,11 @@
                                         <p class="text-muted mb-0 small fw-semibold">Expected Answer</p>
                                     </div>
                                     <p class="mb-0" style="white-space: pre-wrap;">${correctAnswer.join('\n')}</p>
+                                    ${suggestion ? `
+                                        <div class="mt-3 pt-3 border-top">
+                                            <p class="mb-0" style="white-space: pre-wrap; color: #495057;">${suggestion}</p>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1687,8 +1715,24 @@
                     } else {
                         questions.forEach((question, index) => {
                             const feedbackEntry = feedback[index] ?? null;
-                            if (feedbackEntry && !feedbackEntry.userAnswer && answers[index] !== undefined) {
-                                feedbackEntry.userAnswer = answers[index];
+                            // Ensure userAnswer is set from answers array if not in feedback
+                            if (feedbackEntry) {
+                                if (!feedbackEntry.userAnswer && answers[index] !== undefined) {
+                                    feedbackEntry.userAnswer = answers[index];
+                                }
+                                // Ensure userAnswer is an array for consistency
+                                if (feedbackEntry.userAnswer !== undefined && !Array.isArray(feedbackEntry.userAnswer)) {
+                                    feedbackEntry.userAnswer = [feedbackEntry.userAnswer];
+                                }
+                            } else if (answers[index] !== undefined) {
+                                // Create feedback entry if it doesn't exist but answer does
+                                const tempFeedback = {
+                                    userAnswer: Array.isArray(answers[index]) ? answers[index] : [answers[index]],
+                                    isCorrect: false,
+                                    suggestion: ''
+                                };
+                                html += buildReviewCard(question, tempFeedback, index);
+                                return;
                             }
                             html += buildReviewCard(question, previewOnly ? null : feedbackEntry, index);
                         });
@@ -1776,12 +1820,16 @@
                     if (startBtn.disabled) return;
                     persistCurrentAnswer();
                     const quizTitle = startBtn.closest('tr')?.querySelector('.quiz-title')?.textContent?.trim() || 'this quiz';
-                    showConfirmation(
-                        `Are you sure you want to start "${quizTitle}"? Once you begin, you'll need to complete all questions before submitting.`,
-                        () => {
+                    showConfirmModal({
+                        message: 'Are you sure you want to start the quiz "' + quizTitle + '"? Once you begin, you\'ll need to complete all questions before submitting.',
+                        title: 'Start Quiz',
+                        confirmText: 'Start',
+                        cancelText: 'Cancel',
+                        danger: false,
+                        onConfirm: () => {
                             launchQuiz(startBtn.dataset.quizId);
                         }
-                    );
+                    });
                     return;
                 }
                 const reviewBtn = event.target.closest('.review-quiz-btn');

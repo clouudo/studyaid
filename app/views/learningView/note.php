@@ -588,7 +588,6 @@
                                                         <i class="bi bi-volume-up me-2"></i>Listen to Audio
                                                     </a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="pdf" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
-                                                    <li><a class="dropdown-item export-note-btn" href="#" data-export-type="docx" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as DOCX</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="txt" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
                                                     <li>
                                                         <hr class="dropdown-divider">
@@ -1200,8 +1199,6 @@
                     let exportUrl = '';
                     if (exportType === 'pdf') {
                         exportUrl = '<?= EXPORT_NOTE_PDF ?>';
-                    } else if (exportType === 'docx') {
-                        exportUrl = '<?= EXPORT_NOTE_DOCX ?>';
                     } else if (exportType === 'txt') {
                         exportUrl = '<?= EXPORT_NOTE_TXT ?>';
                     }
@@ -1255,8 +1252,6 @@
                             if (!blob.type.includes('pdf') && !contentType.includes('pdf')) {
                                 throw new Error('Invalid PDF file received');
                             }
-                        } else if (exportType === 'docx') {
-                            extension = 'docx';
                         } else if (exportType === 'txt') {
                             extension = 'txt';
                         }

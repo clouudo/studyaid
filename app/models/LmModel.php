@@ -1353,15 +1353,45 @@ class LmModel
     /**
      * Save flashcards to database
      */
-    public function saveFlashcards(int $fileId, string $title, string $term, string $definition): int
+    /**
+     * Saves flashcards as comma-separated strings (one row per title/set)
+     * Uses "," as separator between cards (format: "term1","term2","term3")
+     * @param int $fileId
+     * @param string $title
+     * @param array $terms Array of term strings
+     * @param array $definitions Array of definition strings
+     * @return int The flashcard ID
+     */
+    public function saveFlashcards(int $fileId, string $title, array $terms, array $definitions): int
     {
         try {
             $conn = $this->db->connect();
+            
+            // Escape quotes and commas in terms, then wrap each in quotes and join with ","
+            $escapedTerms = array_map(function($term) {
+                // Escape quotes and commas within the content
+                $term = str_replace('\\', '\\\\', $term); // Escape backslashes first
+                $term = str_replace('"', '\\"', $term);  // Escape quotes
+                $term = str_replace(',', '\\,', $term);   // Escape commas
+                return '"' . $term . '"';
+            }, $terms);
+            $termString = implode(',', $escapedTerms);
+            
+            // Escape quotes and commas in definitions, then wrap each in quotes and join with ","
+            $escapedDefinitions = array_map(function($def) {
+                // Escape quotes and commas within the content
+                $def = str_replace('\\', '\\\\', $def); // Escape backslashes first
+                $def = str_replace('"', '\\"', $def);    // Escape quotes
+                $def = str_replace(',', '\\,', $def);    // Escape commas
+                return '"' . $def . '"';
+            }, $definitions);
+            $definitionString = implode(',', $escapedDefinitions);
+            
             $stmt = $conn->prepare("INSERT INTO flashcard (fileID, title, term, definition) VALUES (:fileID, :title, :term, :definition)");    
             $stmt->bindParam(':fileID', $fileId);
             $stmt->bindParam(':title', $title);
-            $stmt->bindParam(':term', $term);
-            $stmt->bindParam(':definition', $definition);
+            $stmt->bindParam(':term', $termString);
+            $stmt->bindParam(':definition', $definitionString);
             $stmt->execute();
             $lastId = (int)$conn->lastInsertId();
             if ($lastId === 0) {
@@ -1376,6 +1406,7 @@ class LmModel
 
     /**
      * Get all flashcards for a specific file, grouped by title (one entry per title/set)
+     * Now calculates card count from JSON arrays
      */
     public function getFlashcardsByFile(int $fileId)
     {
@@ -1387,15 +1418,98 @@ class LmModel
                 fileID,
                 MAX(createdAt) as createdAt,
                 MIN(flashcardID) as flashcardID,
-                COUNT(*) as cardCount
+                term,
+                definition
             FROM flashcard 
             WHERE fileID = :fileID 
-            GROUP BY title, fileID
+            GROUP BY title, fileID, term, definition
             ORDER BY createdAt DESC
         ");
         $stmt->bindParam(':fileID', $fileId);
         $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Calculate card count from comma-separated strings
+        foreach ($results as &$result) {
+            $termString = $result['term'] ?? '';
+            $definitionString = $result['definition'] ?? '';
+            
+            // Parse comma-separated strings (format: "term1","term2","term3")
+            $termString = trim($termString, '"');
+            $definitionString = trim($definitionString, '"');
+            
+            $termCount = 0;
+            $defCount = 0;
+            
+            if (!empty($termString)) {
+                // Count cards by counting opening quotes (each opening quote = one card)
+                // Format: "term1","term2","term3"
+                $inQuotes = false;
+                $escaped = false;
+                $cardCount = 0;
+                
+                for ($i = 0; $i < strlen($termString); $i++) {
+                    $char = $termString[$i];
+                    
+                    if ($escaped) {
+                        $escaped = false;
+                        continue;
+                    }
+                    
+                    if ($char === '\\') {
+                        $escaped = true;
+                        continue;
+                    }
+                    
+                    if ($char === '"') {
+                        if (!$inQuotes) {
+                            // Opening quote - start of a new card
+                            $cardCount++;
+                        }
+                        $inQuotes = !$inQuotes;
+                    }
+                }
+                $termCount = $cardCount;
+            }
+            
+            if (!empty($definitionString)) {
+                // Count cards by counting opening quotes (each opening quote = one card)
+                // Format: "def1","def2","def3"
+                $inQuotes = false;
+                $escaped = false;
+                $cardCount = 0;
+                
+                for ($i = 0; $i < strlen($definitionString); $i++) {
+                    $char = $definitionString[$i];
+                    
+                    if ($escaped) {
+                        $escaped = false;
+                        continue;
+                    }
+                    
+                    if ($char === '\\') {
+                        $escaped = true;
+                        continue;
+                    }
+                    
+                    if ($char === '"') {
+                        if (!$inQuotes) {
+                            // Opening quote - start of a new card
+                            $cardCount++;
+                        }
+                        $inQuotes = !$inQuotes;
+                    }
+                }
+                $defCount = $cardCount;
+            }
+            
+            $result['cardCount'] = max($termCount, $defCount, 1);
+            
+            // Remove term and definition from result (not needed in list)
+            unset($result['term'], $result['definition']);
+        }
+        
+        return $results;
     }
 
     /**
@@ -2135,5 +2249,170 @@ class LmModel
             error_log('Error getting chunks for user files: ' . $e->getMessage());
             return [];
         }
+    }
+
+    // ============================================================================
+    // HOMEWORK HELPER PAGE (homeworkHelper.php)
+    // ============================================================================
+
+    /**
+     * Ensures homework_helper table exists in database
+     */
+    private function ensureHomeworkHelperSchema(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+
+        try {
+            $conn = $this->db->connect();
+            
+            // Check if table exists
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'homework_helper'");
+            $stmt->execute();
+            
+            if ((int)$stmt->fetchColumn() === 0) {
+                // Table doesn't exist, create it with instruction column
+                $conn->exec("
+                    CREATE TABLE `homework_helper` (
+                        `homeworkID` INT(11) NOT NULL AUTO_INCREMENT,
+                        `userID` INT(11) NOT NULL,
+                        `fileName` VARCHAR(255) NOT NULL,
+                        `fileType` VARCHAR(50) NOT NULL,
+                        `filePath` TEXT NOT NULL,
+                        `extractedText` TEXT DEFAULT NULL,
+                        `question` TEXT DEFAULT NULL,
+                        `answer` TEXT DEFAULT NULL,
+                        `status` ENUM('pending', 'processing', 'completed', 'no_question') DEFAULT 'pending',
+                        `instruction` TEXT DEFAULT NULL,
+                        `createdAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`homeworkID`),
+                        KEY `idx_userID` (`userID`),
+                        KEY `idx_createdAt` (`createdAt`),
+                        CONSTRAINT `homework_helper_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            } else {
+                // Table exists, check if instruction column exists
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'homework_helper' AND COLUMN_NAME = 'instruction'");
+                $stmt->execute();
+                
+                if ((int)$stmt->fetchColumn() === 0) {
+                    // Column doesn't exist, add it
+                    $conn->exec("ALTER TABLE homework_helper ADD COLUMN instruction TEXT DEFAULT NULL AFTER status");
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('Homework Helper schema ensure failed: ' . $e->getMessage());
+        }
+
+        $checked = true;
+    }
+
+    /**
+     * Save homework helper entry
+     */
+    public function saveHomeworkHelper(int $userId, string $fileName, string $fileType, string $filePath, ?string $extractedText = null, ?string $question = null, ?string $answer = null, string $status = 'pending', ?string $instruction = null): int
+    {
+        $this->ensureHomeworkHelperSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("INSERT INTO homework_helper (userID, fileName, fileType, filePath, extractedText, question, answer, status, instruction) VALUES (:userID, :fileName, :fileType, :filePath, :extractedText, :question, :answer, :status, :instruction)");
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->bindParam(':fileName', $fileName);
+        $stmt->bindParam(':fileType', $fileType);
+        $stmt->bindParam(':filePath', $filePath);
+        $stmt->bindParam(':extractedText', $extractedText);
+        $stmt->bindParam(':question', $question);
+        $stmt->bindParam(':answer', $answer);
+        $stmt->bindParam(':status', $status);
+        $stmt->bindParam(':instruction', $instruction);
+        $stmt->execute();
+        return (int)$conn->lastInsertId();
+    }
+
+    /**
+     * Update homework helper entry
+     */
+    public function updateHomeworkHelper(int $homeworkId, ?string $extractedText = null, ?string $question = null, ?string $answer = null, ?string $status = null): bool
+    {
+        $conn = $this->db->connect();
+        $updates = [];
+        $params = [':homeworkID' => $homeworkId];
+
+        if ($extractedText !== null) {
+            $updates[] = "extractedText = :extractedText";
+            $params[':extractedText'] = $extractedText;
+        }
+        if ($question !== null) {
+            $updates[] = "question = :question";
+            $params[':question'] = $question;
+        }
+        if ($answer !== null) {
+            $updates[] = "answer = :answer";
+            $params[':answer'] = $answer;
+        }
+        if ($status !== null) {
+            $updates[] = "status = :status";
+            $params[':status'] = $status;
+        }
+
+        if (empty($updates)) {
+            return false;
+        }
+
+        $query = "UPDATE homework_helper SET " . implode(', ', $updates) . " WHERE homeworkID = :homeworkID";
+        $stmt = $conn->prepare($query);
+        
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        
+        return $stmt->execute();
+    }
+
+    /**
+     * Get all homework helper entries for a user
+     */
+    public function getHomeworkHelpersByUser(int $userId): array
+    {
+        $this->ensureHomeworkHelperSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE userID = :userID ORDER BY createdAt DESC");
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get homework helper entry by ID
+     */
+    public function getHomeworkHelperById(int $homeworkId, int $userId): ?array
+    {
+        $this->ensureHomeworkHelperSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT * FROM homework_helper WHERE homeworkID = :homeworkID AND userID = :userID");
+        $stmt->bindParam(':homeworkID', $homeworkId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $result ?: null;
+    }
+
+    /**
+     * Get storage client (for controller use)
+     */
+    public function getStorage()
+    {
+        return $this->storage;
+    }
+
+    /**
+     * Get bucket name (for controller use)
+     */
+    public function getBucketName()
+    {
+        return $this->bucketName;
     }
 }
