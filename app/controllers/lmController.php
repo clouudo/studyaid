@@ -3719,4 +3719,42 @@ class LmController
             die('Error retrieving file: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Deletes a homework helper entry
+     */
+    public function deleteHomework()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $homeworkId = isset($_POST['homework_id']) ? (int)$_POST['homework_id'] : 0;
+
+        if ($homeworkId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Homework ID not provided.']);
+            exit();
+        }
+
+        try {
+            // Verify ownership before deletion
+            $homework = $this->lmModel->getHomeworkHelperById($homeworkId, $userId);
+            if (!$homework) {
+                echo json_encode(['success' => false, 'message' => 'Homework entry not found or access denied.']);
+                exit();
+            }
+
+            $success = $this->lmModel->deleteHomeworkHelper($homeworkId, $userId);
+            
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Homework entry deleted successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete homework entry.']);
+            }
+        } catch (\Exception $e) {
+            error_log('Error deleting homework: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'An error occurred while deleting the homework entry.']);
+        }
+        exit();
+    }
 }

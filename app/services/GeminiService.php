@@ -680,31 +680,43 @@ PROMPT;
      * Answer homework question from extracted text or image
      * Returns array with 'hasQuestion' (bool) and 'answer' (string)
      */
-    public function answerHomeworkQuestion(string $extractedText): array
+    public function answerHomeworkQuestion(string $extractedText, ?string $instructions = null): array
     {
         $model = $this->models['default'] ?? $this->defaultModel;
         
+        // Build instruction section if provided
+        $userInstructions = '';
+        if (!empty($instructions)) {
+            $userInstructions = "\n\nUSER INSTRUCTIONS (follow these specific instructions):\n{$instructions}\n";
+        }
+        
         $prompt = <<<PROMPT
-You are a helpful homework assistant. Analyze the following content from an uploaded image or PDF.
+You are a helpful homework assistant. Analyze the following content from an uploaded document (image or PDF).
 
-INSTRUCTIONS:
-1. First, identify if there is a question or problem to solve in the content.
-2. If NO question is found, respond with exactly: "NO_QUESTION_FOUND"
-3. If a question IS found:
-   - Extract and clearly state the question
+YOUR TASK:
+1. First, carefully examine the content to identify if there is a question, problem, or exercise to solve.
+2. If NO question or problem is found in the content, respond with EXACTLY: "NO_QUESTION_FOUND"
+3. If a question or problem IS found:
+   - Extract and clearly state the question/problem
    - Provide a detailed, step-by-step answer
-   - Explain your reasoning
-   - Use clear formatting (markdown is acceptable)
+   - Explain your reasoning thoroughly
+   - Use clear formatting with markdown
    - Be thorough but concise
-
-Content to analyze:
+{$userInstructions}
+CONTENT TO ANALYZE:
 {$extractedText}
 
-Respond only in question and answer format.
-Format example:
-###Question1: (QUESTION)
-###Answer: (ANSWER)
-Now analyze and respond only in markdown format:
+RESPONSE FORMAT:
+- If no question found: respond ONLY with "NO_QUESTION_FOUND"
+- If question found, use this format:
+
+### Question:
+[State the question or problem clearly]
+
+### Answer:
+[Provide your detailed answer with step-by-step explanation]
+
+Now analyze and respond:
 PROMPT;
 
         try {
@@ -713,17 +725,22 @@ PROMPT;
             // Check if no question was found
             if (stripos($response, 'NO_QUESTION_FOUND') !== false || 
                 stripos($response, 'no question found') !== false ||
-                stripos($response, 'no question') !== false) {
+                (stripos($response, 'no question') !== false && stripos($response, 'no question') < 50)) {
                 return [
                     'hasQuestion' => false,
-                    'answer' => 'No question found.',
+                    'answer' => 'No question found in the uploaded document. Please upload a document that contains questions or problems to solve.',
                     'question' => null
                 ];
             }
             
             // Extract question if possible (look for patterns like "Question:", "Problem:", etc.)
             $question = null;
-            if (preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:]\s*(.+?)(?:\n|$)/i', $extractedText, $matches)) {
+            // Try to extract from AI response first
+            if (preg_match('/###?\s*Question[:\s]*\n?(.+?)(?=###?\s*Answer|$)/is', $response, $matches)) {
+                $question = trim($matches[1]);
+            }
+            // Fallback: try to extract from original text
+            if (empty($question) && preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:\s]+(.+?)(?:\n|$)/i', $extractedText, $matches)) {
                 $question = trim($matches[1]);
             }
             

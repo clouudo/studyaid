@@ -2480,6 +2480,43 @@ class LmModel
     }
 
     /**
+     * Delete homework helper entry by ID
+     */
+    public function deleteHomeworkHelper(int $homeworkId, int $userId): bool
+    {
+        $this->ensureHomeworkHelperSchema();
+        $conn = $this->db->connect();
+        
+        // First, get the file path to delete from GCS
+        $homework = $this->getHomeworkHelperById($homeworkId, $userId);
+        if (!$homework) {
+            return false;
+        }
+        
+        // Delete file from GCS if it exists
+        if (!empty($homework['filePath'])) {
+            try {
+                $bucket = $this->storage->bucket($this->bucketName);
+                $object = $bucket->object($homework['filePath']);
+                if ($object->exists()) {
+                    $object->delete();
+                }
+            } catch (\Exception $e) {
+                error_log('Error deleting homework file from GCS: ' . $e->getMessage());
+                // Continue with database deletion even if GCS deletion fails
+            }
+        }
+        
+        // Delete from database
+        $stmt = $conn->prepare("DELETE FROM homework_helper WHERE homeworkID = :homeworkID AND userID = :userID");
+        $stmt->bindParam(':homeworkID', $homeworkId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Get storage client (for controller use)
      */
     public function getStorage()
