@@ -2409,7 +2409,17 @@ class LmController
         $fileId = $this->resolveFileId();
         $totalQuestions = isset($_POST['totalQuestions']) ? (int)$_POST['totalQuestions'] : 5;
         $examMode = isset($_POST['examMode']) && $_POST['examMode'] == '1' ? 1 : 0;
-        $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'remember';
+        
+        // Handle bloomLevels (new per-type format) or questionDifficulty (legacy)
+        $bloomLevelsRaw = $_POST['bloomLevels'] ?? null;
+        if ($bloomLevelsRaw) {
+            $bloomLevels = is_array($bloomLevelsRaw) ? $bloomLevelsRaw : json_decode($bloomLevelsRaw, true);
+            $bloomLevels = is_array($bloomLevels) ? $bloomLevels : ['multiple_choice' => 'remember'];
+        } else {
+            // Legacy: use single questionDifficulty for all types
+            $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'remember';
+            $bloomLevels = $questionDifficulty;
+        }
         
         // Handle questionDistribution (from frontend) or questionTypes (legacy)
         $distributionRaw = $_POST['questionDistribution'] ?? null;
@@ -2456,7 +2466,7 @@ class LmController
             // Get instructions if provided
             $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : null;
             
-            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $questionDifficulty, $instructions);
+            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $bloomLevels, $instructions);
             if (empty($quizDataJson)) {
                 $this->sendJsonError('Failed to generate quiz.');
             }
@@ -2475,8 +2485,8 @@ class LmController
             }
 
             $title = $this->gemini->generateTitle($file['name']);
-            // Store Bloom's taxonomy level in questionConfig
-            $questionConfig = ['bloomLevel' => $questionDifficulty];
+            // Store Bloom's taxonomy levels in questionConfig
+            $questionConfig = ['bloomLevels' => $bloomLevels];
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $questionConfig, $examMode);
 
             foreach ($quizData as $question) {

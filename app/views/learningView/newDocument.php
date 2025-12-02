@@ -465,7 +465,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-file-earmark-plus me-2"></i>
                             New Document Details
                         </h5>
                     </div>
@@ -477,7 +476,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                                 <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here..." required>
                             </div>
-                            
                             <div class="mb-4">
                                 <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
                                 <div class="folder-select-wrapper">

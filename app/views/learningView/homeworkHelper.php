@@ -270,7 +270,7 @@ if (!isset($homeworkEntries)) {
                             
                             <div class="mt-3">
                                 <label for="homeworkInstruction" class="form-label">Instructions (Optional)</label>
-                                <textarea class="form-control" id="homeworkInstruction" name="instruction" rows="2" placeholder="e.g., Solve only question 3, or Explain the concept of..."></textarea>
+                                <textarea class="form-control" id="homeworkInstruction" name="instruction" rows="2" placeholder="Describe your instruction"></textarea>
                             </div>
 
                             <div class="text-center mt-3">
@@ -334,7 +334,6 @@ if (!isset($homeworkEntries)) {
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownAction<?= $entry['homeworkID'] ?>">
                                                     <li><a class="dropdown-item" href="<?= VIEW_HOMEWORK_FILE ?>&id=<?= $entry['homeworkID'] ?>" target="_blank" onclick="event.stopPropagation();"><i class="bi bi-file-earmark me-2"></i>View Original File</a></li>
-                                                    <li><hr class="dropdown-divider"></li>
                                                     <li>
                                                         <button type="button" class="dropdown-item text-danger delete-homework-btn" 
                                                            data-homework-id="<?= $entry['homeworkID'] ?>"

@@ -268,7 +268,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-folder-plus me-2"></i>
                             New Folder Details
                         </h5>
                     </div>

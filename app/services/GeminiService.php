@@ -165,22 +165,13 @@ PROMPT;
         string $sourceText,
         array $distribution,
         int $totalQuestions,
-        string $questionDifficulty = 'remember',
+        $bloomLevels = 'remember',
         ?string $instructions = null
     ): string {
         $model = $this->models['quiz'] ?? $this->defaultModel;
         $generationConfig = array_merge($this->generationConfig, [
             'maxOutputTokens' => 8192,
         ]);
-
-        $typeBreakdown = [];
-        foreach ($distribution as $type => $count) {
-            if ($count > 0) {
-                $label = ucfirst(str_replace('_', ' ', $type));
-                $typeBreakdown[] = "{$label}: {$count}";
-            }
-        }
-        $typeLines = implode("\n", $typeBreakdown);
 
         // Map Bloom's taxonomy level to description
         $bloomDescriptions = [
@@ -191,7 +182,41 @@ PROMPT;
             'evaluate' => 'Evaluate: Questions should test the ability to justify decisions, critique arguments, assess value, and make judgments.',
             'create' => 'Create: Questions should test the ability to produce new or original work, design solutions, construct theories, and synthesize information.'
         ];
-        $bloomDescription = $bloomDescriptions[$questionDifficulty] ?? $bloomDescriptions['remember'];
+
+        // Handle both legacy single string and new per-type array format
+        $isPerTypeBloom = is_array($bloomLevels);
+        
+        $typeBreakdown = [];
+        foreach ($distribution as $type => $count) {
+            if ($count > 0) {
+                $label = ucfirst(str_replace('_', ' ', $type));
+                if ($isPerTypeBloom && isset($bloomLevels[$type])) {
+                    $level = $bloomLevels[$type];
+                    $levelLabel = ucfirst($level);
+                    $typeBreakdown[] = "{$label}: {$count} questions at {$levelLabel} level";
+                } else {
+                    $typeBreakdown[] = "{$label}: {$count}";
+                }
+            }
+        }
+        $typeLines = implode("\n", $typeBreakdown);
+
+        // Build Bloom's taxonomy instructions
+        $bloomInstructions = "";
+        if ($isPerTypeBloom) {
+            $bloomInstructions = "Bloom's Taxonomy Levels per Question Type:\n";
+            foreach ($distribution as $type => $count) {
+                if ($count > 0) {
+                    $level = $bloomLevels[$type] ?? 'remember';
+                    $label = ucfirst(str_replace('_', ' ', $type));
+                    $bloomInstructions .= "- {$label}: {$bloomDescriptions[$level]}\n";
+                }
+            }
+        } else {
+            // Legacy single level for all questions
+            $bloomDescription = $bloomDescriptions[$bloomLevels] ?? $bloomDescriptions['remember'];
+            $bloomInstructions = "Bloom's Taxonomy Level: {$bloomDescription}\n";
+        }
 
         $schema = <<<PROMPT
 You are an educational quiz generator. Create {$totalQuestions} questions using the provided document content.
@@ -220,7 +245,7 @@ Return JSON ONLY in this structure:
 PROMPT;
 
         $prompt = $schema . "\n"
-            . "Bloom's Taxonomy Level: {$bloomDescription}\n"
+            . $bloomInstructions
             . "Total Questions: {$totalQuestions}\n"
             . ($instructions ? ("Constraints: {$instructions}\n") : '')
             . "\nContent:\n{$sourceText}";
