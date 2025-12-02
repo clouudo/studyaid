@@ -699,7 +699,7 @@
                                                 style="margin-left: 0;">
                                                 <i class="bi bi-chevron-right modal-folder-chevron me-1 expand-folder-btn" style="font-size: 0.8rem; cursor: pointer;"></i>
                                                 <i class="bi bi-folder-fill me-2 text-warning"></i>
-                                                <strong class="expand-folder-btn" style="cursor: pointer;">${escapeHtml(folder.name)}</strong>
+                                                <strong class="expand-folder-btn" style="cursor: pointer;" >${escapeHtml(folder.name)}</strong>
                                                 <small class="text-muted ms-2">(${folderFiles.length} file${folderFiles.length !== 1 ? 's' : ''})</small>
                                             </label>
                                         </div>
@@ -741,7 +741,7 @@
                 // Add root-level files (files without folders)
                 const rootFiles = ALL_FILES.filter(f => !f.folderID);
                 if (rootFiles.length > 0) {
-                    html += '<div class="mt-2"><strong>Root Documents</strong></div>';
+                    html += '<div class="mt-2"><strong>Home Documents</strong></div>';
                     rootFiles.forEach(file => {
                         const isChecked = selectedFiles.has(file.fileID.toString());
                         html += `
