@@ -19,12 +19,6 @@
             --sa-card-border: #ede1ff;
         }
 
-        .selection-panel {
-            background-color: white;
-            border-left: 1px solid var(--sa-card-border);
-            height: 100vh;
-            overflow-y: auto;
-        }
 
         .content-panel {
             background-color: #f8f9fa;
@@ -276,6 +270,71 @@
             border-color: var(--sa-primary);
             box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.25);
         }
+        
+        /* Modal checklist styles */
+        #modalDocumentChecklist {
+            font-size: 0.9rem;
+        }
+        
+        #modalDocumentChecklist .form-check {
+            padding: 0.25rem 0;
+        }
+        
+        #modalDocumentChecklist .form-check-label {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        #modalDocumentChecklist .modal-folder-children {
+            margin-top: 0.5rem;
+            border-left: 2px solid var(--sa-accent);
+            padding-left: 1rem;
+        }
+        
+        #modalDocumentChecklist .modal-document-checkbox:checked + label {
+            color: var(--sa-primary);
+            font-weight: 500;
+        }
+        
+        #modalDocumentChecklist .modal-folder-checkbox:checked + label {
+            color: var(--sa-primary-dark);
+        }
+        
+        /* Fix checkbox z-index and pointer events */
+        #modalDocumentChecklist .form-check-input {
+            position: relative;
+            z-index: 10;
+            pointer-events: auto;
+            cursor: pointer;
+            margin-top: 0.25rem;
+        }
+        
+        #modalDocumentChecklist .form-check-label {
+            position: relative;
+            z-index: 1;
+            pointer-events: none;
+            cursor: default;
+        }
+        
+        #modalDocumentChecklist .form-check-label .expand-folder-btn {
+            pointer-events: auto;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        #modalDocumentChecklist .expand-folder-btn:hover {
+            opacity: 0.7;
+        }
+        
+        /* Ensure checkbox is always clickable and visible */
+        #modalDocumentChecklist .form-check-input:hover {
+            z-index: 11;
+        }
+        
+        #modalDocumentChecklist .form-check-input:focus {
+            z-index: 11;
+            box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.25);
+        }
     </style>
 </head>
 
@@ -287,7 +346,7 @@
         <main class="content-panel flex-grow-1 p-4">
             <div class="container-fluid">
                 <h3 class="mb-4" style="color: var(--sa-primary);">Document Hub</h3>
-                <p class="text-muted mb-4">Select documents or folders from the right panel, then choose a tool to generate content.</p>
+                <p class="text-muted mb-4">Choose a tool to generate content. Document selection is available in each tool's modal.</p>
 
                 <div class="row g-4">
                     <!-- Synthesize Document -->
@@ -409,83 +468,6 @@
                 </div>
             </div>
         </main>
-
-        <!-- Right Side: Document & Folder Selection -->
-        <aside class="selection-panel p-3" style="width: 400px;">
-            <div class="card h-100">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0" style="color: var(--sa-primary);">Select Documents <small class="text-muted">(Max 3)</small></h5>
-                        <span class="badge bg-primary selected-count" id="selectedCount">0</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <input type="text" class="form-control" id="searchDocuments" placeholder="Search documents...">
-                    </div>
-
-                    <div class="mb-3">
-                        <button class="btn btn-sm btn-outline-primary w-100" id="selectAllBtn">Select All</button>
-                        <button class="btn btn-sm btn-outline-secondary w-100 mt-2" id="clearSelectionBtn">Clear Selection</button>
-                    </div>
-
-                    <hr>
-
-                    <div id="documentList" style="max-height: calc(100vh - 300px); overflow-y: auto;">
-                        <!-- Folders will be rendered here -->
-                        <?php if (!empty($allUserFolders)): ?>
-                            <?php foreach ($allUserFolders as $folder): ?>
-                                <?php if ($folder['parentFolderId'] == null): ?>
-                                    <div class="folder-container mb-2">
-                                        <div class="folder-item d-flex align-items-center" data-folder-id="<?= $folder['folderID'] ?>">
-                                            <input type="checkbox" class="form-check-input me-2 folder-checkbox"
-                                                id="folder_<?= $folder['folderID'] ?>"
-                                                data-folder-id="<?= $folder['folderID'] ?>">
-                                            <i class="bi bi-folder me-2"></i>
-                                            <span class="folder-toggle flex-grow-1"><?= htmlspecialchars($folder['name']) ?></span>
-                                            <i class="bi bi-chevron-right folder-chevron"></i>
-                                        </div>
-                                        <div class="folder-children" id="folder_children_<?= $folder['folderID'] ?>">
-                                            <?php foreach ($fileList as $file): ?>
-                                                <?php if ($file['folderID'] == $folder['folderID']): ?>
-                                                    <div class="document-item d-flex align-items-center" data-file-id="<?= $file['fileID'] ?>">
-                                                        <input type="checkbox" class="form-check-input me-2 document-checkbox"
-                                                            id="file_<?= $file['fileID'] ?>"
-                                                            data-file-id="<?= $file['fileID'] ?>">
-                                                        <i class="bi bi-file-text me-2"></i>
-                                                        <span><?= htmlspecialchars($file['name']) ?></span>
-                                                    </div>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-
-                        <!-- Documents (root level) -->
-                        <?php if (!empty($fileList)): ?>
-                            <?php foreach ($fileList as $file): ?>
-                                <?php if ($file['folderID'] == null): ?>
-                                    <div class="document-item d-flex align-items-center" data-file-id="<?= $file['fileID'] ?>">
-                                        <input type="checkbox" class="form-check-input me-2 document-checkbox"
-                                            id="file_<?= $file['fileID'] ?>"
-                                            data-file-id="<?= $file['fileID'] ?>">
-                                        <i class="bi bi-file-text me-2"></i>
-                                        <span><?= htmlspecialchars($file['name']) ?></span>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="text-muted text-center py-4">
-                                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-                                <p class="mt-2">No documents available</p>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </aside>
     </div>
 
     <!-- Synthesize Document Form Modal -->
@@ -515,13 +497,16 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Selected Documents</label>
-                            <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto; background-color: #f8f9fa;">
-                                <div id="selectedDocumentsList">
-                                    <span class="text-muted">No documents selected</span>
+                            <label class="form-label" for="modalDocumentChecklist">
+                                Selected Documents 
+                                <small class="selected-count-badge text-muted ms-2">(0/3)</small>
+                            </label>
+                            <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto; background-color: #f8f9fa;">
+                                <div id="modalDocumentChecklist">
+                                    <!-- Hierarchical checklist will be populated here -->
                                 </div>
                             </div>
-                            <small class="form-text text-muted">Documents that will be included in the synthesized document</small>
+                            <small class="form-text text-muted">Select documents from the checklist above</small>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -537,40 +522,352 @@
 
     <?php include VIEW_CONFIRM; ?>
 
+    <!-- Loading Modal for Document Synthesis -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content loading-modal-content">
+                <div class="modal-body loading-modal-body">
+                    <div class="loading-icon-wrapper">
+                        <div class="spinner-border text-primary loading-spinner" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <p class="loading-message" id="loadingMessage">Generating your document...</p>
+                    <p class="loading-submessage text-muted">This may take a few moments. Please wait.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Loading Modal Styles */
+        .loading-modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .loading-modal-body {
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .loading-icon-wrapper {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-spinner {
+            width: 4rem;
+            height: 4rem;
+            border-width: 0.4rem;
+        }
+
+        .loading-message {
+            color: #212529;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            line-height: 1.6;
+        }
+
+        .loading-submessage {
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        /* Prevent closing loading modal by clicking backdrop */
+        #loadingModal {
+            pointer-events: auto;
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
     <script>
-        // Pass checked documents from PHP to JavaScript
-        const CHECKED_DOCUMENTS = <?= json_encode($checkedDocuments ?? []) ?>;
-        const SAVE_CHECKED_DOCUMENTS_URL = '<?= SAVE_CHECKED_DOCUMENTS ?>';
+        // Pass data from PHP to JavaScript
+        const ALL_FOLDERS = <?= json_encode($allUserFolders ?? []) ?>;
+        const ALL_FILES = <?= json_encode($fileList ?? []) ?>;
         
         document.addEventListener('DOMContentLoaded', function() {
             let selectedFiles = new Set();
             let selectedFolders = new Set();
             const MAX_SELECTION = 3; // Maximum number of documents that can be selected
 
-            // Initialize Bootstrap modal
+            // Initialize Bootstrap modals
             const reportFormModal = new bootstrap.Modal(document.getElementById('reportFormModal'));
-
-            // Function to populate selected documents list in form modal
-            function populateSelectedDocumentsList() {
-                const listContainer = document.getElementById('selectedDocumentsList');
-                const fileIds = Array.from(selectedFiles);
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+            
+            // Function to show loading modal
+            function showLoadingModal(message = 'Generating your document...') {
+                document.getElementById('loadingMessage').textContent = message;
+                loadingModal.show();
+            }
+            
+            // Function to hide loading modal
+            function hideLoadingModal() {
+                loadingModal.hide();
+            }
+            
+            // Set up folder expansion listener using event delegation on document
+            // This works for dynamically created elements
+            document.addEventListener('click', function(e) {
+                // Only handle clicks within the modal checklist
+                const checklistContainer = document.getElementById('modalDocumentChecklist');
+                if (!checklistContainer || !checklistContainer.contains(e.target)) {
+                    return;
+                }
                 
-                if (fileIds.length === 0) {
-                    listContainer.innerHTML = '<span class="text-muted">No documents selected</span>';
+                // Check if clicking on expand button (chevron or folder name)
+                const expandBtn = e.target.closest('.expand-folder-btn');
+                if (!expandBtn) return;
+                
+                // Don't trigger if clicking checkbox
+                if (e.target.type === 'checkbox' || e.target.closest('input[type="checkbox"]')) {
+                    return;
+                }
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const label = expandBtn.closest('.modal-folder-label');
+                if (!label) return;
+                
+                // Find the checkbox by the label's 'for' attribute
+                const checkboxId = label.getAttribute('for');
+                const checkbox = document.getElementById(checkboxId);
+                if (!checkbox) return;
+                
+                const folderId = checkbox.dataset.folderId;
+                const folderChildren = document.getElementById(`modal_folder_children_${folderId}`);
+                const chevron = label.querySelector('.modal-folder-chevron');
+                
+                if (folderChildren) {
+                    const currentDisplay = window.getComputedStyle(folderChildren).display;
+                    const isVisible = currentDisplay !== 'none';
+                    folderChildren.style.display = isVisible ? 'none' : 'block';
+                    
+                    // Update chevron icon
+                    if (chevron) {
+                        if (isVisible) {
+                            chevron.classList.remove('bi-chevron-down');
+                            chevron.classList.add('bi-chevron-right');
+                        } else {
+                            chevron.classList.remove('bi-chevron-right');
+                            chevron.classList.add('bi-chevron-down');
+                        }
+                    }
+                }
+            });
+
+            // Function to build hierarchical folder/file structure for modal checklist
+            function buildModalChecklist() {
+                const checklistContainer = document.getElementById('modalDocumentChecklist');
+                
+                if (!ALL_FOLDERS || ALL_FOLDERS.length === 0 && (!ALL_FILES || ALL_FILES.length === 0)) {
+                    checklistContainer.innerHTML = '<span class="text-muted">No documents available</span>';
                     return;
                 }
 
-                let html = '<ul class="list-unstyled mb-0">';
-                fileIds.forEach(fileId => {
-                    const fileItem = document.querySelector(`[data-file-id="${fileId}"]`);
-                    if (fileItem) {
-                        const fileName = fileItem.querySelector('span').textContent.trim();
-                        html += `<li class="mb-1"><i class="bi bi-file-text text-primary"></i> ${fileName}</li>`;
-                    }
+                let html = '';
+                
+                // Helper function to build folder tree recursively
+                function buildFolderTree(parentId = null, level = 0) {
+                    let folderHtml = '';
+                    const paddingLeft = level * 20;
+                    
+                    ALL_FOLDERS.forEach(folder => {
+                        if (folder.parentFolderId == parentId) {
+                            const folderId = folder.folderID;
+                            const folderFiles = ALL_FILES.filter(f => f.folderID == folderId);
+                            
+                            folderHtml += `
+                                <div class="mb-2" style="padding-left: ${paddingLeft}px;">
+                                    <div class="d-flex align-items-center">
+                                        <input class="form-check-input modal-folder-checkbox" type="checkbox" 
+                                            id="modal_folder_${folderId}" 
+                                            data-folder-id="${folderId}"
+                                            data-level="${level}"
+                                            style="flex-shrink: 0; margin-right: 0.5rem;">
+                                        <div class="flex-grow-1">
+                                            <label class="form-check-label d-flex align-items-center modal-folder-label" 
+                                                for="modal_folder_${folderId}"
+                                                style="margin-left: 0;">
+                                                <i class="bi bi-chevron-right modal-folder-chevron me-1 expand-folder-btn" style="font-size: 0.8rem; cursor: pointer;"></i>
+                                                <i class="bi bi-folder-fill me-2 text-warning"></i>
+                                                <strong class="expand-folder-btn" style="cursor: pointer;" >${escapeHtml(folder.name)}</strong>
+                                                <small class="text-muted ms-2">(${folderFiles.length} file${folderFiles.length !== 1 ? 's' : ''})</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="modal-folder-children ms-4" id="modal_folder_children_${folderId}" style="display: none;">
+                            `;
+                            
+                            // Add files in this folder
+                            folderFiles.forEach(file => {
+                                const isChecked = selectedFiles.has(file.fileID.toString());
+                                folderHtml += `
+                                    <div class="d-flex align-items-center mt-1">
+                                        <input class="form-check-input modal-document-checkbox" type="checkbox" 
+                                            id="modal_file_${file.fileID}" 
+                                            data-file-id="${file.fileID}"
+                                            ${isChecked ? 'checked' : ''}
+                                            style="flex-shrink: 0; margin-right: 0.5rem;">
+                                        <label class="form-check-label d-flex align-items-center" for="modal_file_${file.fileID}" style="margin-left: 0;">
+                                            <i class="bi bi-file-text me-2 text-primary"></i>
+                                            ${escapeHtml(file.name)}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            
+                            // Recursively add child folders
+                            folderHtml += buildFolderTree(folderId, level + 1);
+                            
+                            folderHtml += '</div></div>';
+                        }
+                    });
+                    
+                    return folderHtml;
+                }
+                
+                // Build root folders
+                html += buildFolderTree(null, 0);
+                
+                // Add root-level files (files without folders)
+                const rootFiles = ALL_FILES.filter(f => !f.folderID);
+                if (rootFiles.length > 0) {
+                    html += '<div class="mt-2"><strong>Home Documents</strong></div>';
+                    rootFiles.forEach(file => {
+                        const isChecked = selectedFiles.has(file.fileID.toString());
+                        html += `
+                            <div class="d-flex align-items-center mt-1">
+                                <input class="form-check-input modal-document-checkbox" type="checkbox" 
+                                    id="modal_file_${file.fileID}" 
+                                    data-file-id="${file.fileID}"
+                                    ${isChecked ? 'checked' : ''}
+                                    style="flex-shrink: 0; margin-right: 0.5rem;">
+                                <label class="form-check-label d-flex align-items-center" for="modal_file_${file.fileID}" style="margin-left: 0;">
+                                    <i class="bi bi-file-text me-2 text-primary"></i>
+                                    ${escapeHtml(file.name)}
+                                </label>
+                            </div>
+                        `;
+                    });
+                }
+                
+                checklistContainer.innerHTML = html || '<span class="text-muted">No documents available</span>';
+                
+                // Attach event listeners to new checkboxes
+                attachModalChecklistListeners();
+            }
+            
+            // Helper function to escape HTML
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            // Function to attach event listeners to modal checklist
+            function attachModalChecklistListeners() {
+                // Handle folder checkbox clicks (for selecting all files)
+                document.querySelectorAll('.modal-folder-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', function(e) {
+                        e.stopPropagation();
+                        const folderId = this.dataset.folderId;
+                        const folderChildren = document.getElementById(`modal_folder_children_${folderId}`);
+                        const isChecked = this.checked;
+                        
+                        // Select/deselect all files in folder
+                        if (folderChildren) {
+                            const fileCheckboxes = folderChildren.querySelectorAll('.modal-document-checkbox');
+                            const filesToSelect = Array.from(fileCheckboxes);
+                            
+                            if (isChecked) {
+                                // Check if selecting all files in folder would exceed limit
+                                const currentCount = selectedFiles.size;
+                                const folderFileCount = filesToSelect.length;
+                                
+                                if (currentCount + folderFileCount > MAX_SELECTION) {
+                                    this.checked = false;
+                                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                                    showConfirmModal({
+                                        title: 'Selection Limit Reached',
+                                        message: `Selecting all files in this folder would exceed the maximum limit of ${MAX_SELECTION} documents. Please select individual files instead.`,
+                                        confirmText: 'OK',
+                                        onConfirm: function() {}
+                                    });
+                                    return;
+                                }
+                                
+                                // Select all files in folder
+                                filesToSelect.forEach(fileCb => {
+                                    fileCb.checked = true;
+                                    selectedFiles.add(fileCb.dataset.fileId);
+                                });
+                            } else {
+                                // Deselect all files in folder
+                                filesToSelect.forEach(fileCb => {
+                                    fileCb.checked = false;
+                                    selectedFiles.delete(fileCb.dataset.fileId);
+                                });
+                            }
+                        }
+                        
+                        updateModalSelectedCount();
+                    });
                 });
-                html += '</ul>';
-                listContainer.innerHTML = html;
+                
+                // Handle document checkbox clicks
+                document.querySelectorAll('.modal-document-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', function(e) {
+                        const fileId = this.dataset.fileId;
+                        
+                        if (this.checked) {
+                            if (selectedFiles.size >= MAX_SELECTION) {
+                                this.checked = false;
+                                document.getElementById('confirmCancelBtn').style.display = 'none';
+                                showConfirmModal({
+                                    title: 'Selection Limit Reached',
+                                    message: `You can only select a maximum of ${MAX_SELECTION} documents.`,
+                                    confirmText: 'OK',
+                                    onConfirm: function() {}
+                                });
+                                return;
+                            }
+                            selectedFiles.add(fileId);
+                        } else {
+                            selectedFiles.delete(fileId);
+                        }
+                        
+                        updateModalSelectedCount();
+                    });
+                });
+            }
+            
+            // Function to update selected count in modal
+            function updateModalSelectedCount() {
+                const count = selectedFiles.size;
+                const countSpan = document.querySelector('label[for="modalDocumentChecklist"] .selected-count-badge');
+                if (countSpan) {
+                    countSpan.textContent = `(${count}/${MAX_SELECTION})`;
+                    // Update color based on count
+                    if (count >= MAX_SELECTION) {
+                        countSpan.classList.remove('text-muted', 'text-primary');
+                        countSpan.classList.add('text-danger');
+                    } else if (count > 0) {
+                        countSpan.classList.remove('text-muted', 'text-danger');
+                        countSpan.classList.add('text-primary');
+                    } else {
+                        countSpan.classList.remove('text-primary', 'text-danger');
+                        countSpan.classList.add('text-muted');
+                    }
+                }
             }
 
             // Function to update description based on document type
@@ -587,357 +884,6 @@
                 }
             }
 
-                // Update selected count
-            function updateSelectedCount() {
-                // Only count files since folders now select their files
-                const total = selectedFiles.size;
-                const countElement = document.getElementById('selectedCount');
-                countElement.textContent = total;
-                
-                // Update count badge color based on limit
-                if (total >= MAX_SELECTION) {
-                    countElement.style.backgroundColor = '#dc3545'; // Red when at limit
-                } else {
-                    countElement.style.backgroundColor = '#6f42c1'; // Purple when under limit
-                }
-                
-                // Enable/disable checkboxes based on limit
-                const allCheckboxes = document.querySelectorAll('.document-checkbox, .folder-checkbox');
-                allCheckboxes.forEach(checkbox => {
-                    if (total >= MAX_SELECTION && !checkbox.checked) {
-                        checkbox.disabled = true;
-                        checkbox.style.opacity = '0.5';
-                        checkbox.style.cursor = 'not-allowed';
-                    } else {
-                        checkbox.disabled = false;
-                        checkbox.style.opacity = '1';
-                        checkbox.style.cursor = 'pointer';
-                    }
-                });
-            }
-
-
-
-            // Function to save checked documents to session
-            function saveCheckedDocumentsToSession() {
-                const checkedFileIds = Array.from(selectedFiles).map(id => parseInt(id));
-                
-                fetch(SAVE_CHECKED_DOCUMENTS_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ fileIds: checkedFileIds })
-                }).catch(error => {
-                    console.error('Error saving checked documents:', error);
-                });
-            }
-
-            // Function to update folder checkbox state based on child files
-            function updateFolderCheckboxState(folderId) {
-                const folderChildren = document.getElementById('folder_children_' + folderId);
-                if (!folderChildren) return;
-                
-                const folderCheckbox = document.querySelector(`.folder-checkbox[data-folder-id="${folderId}"]`);
-                const folderItem = folderCheckbox ? folderCheckbox.closest('.folder-item') : null;
-                const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
-                
-                if (fileCheckboxes.length === 0) return;
-                
-                const checkedCount = Array.from(fileCheckboxes).filter(cb => cb.checked).length;
-                const allChecked = checkedCount === fileCheckboxes.length;
-                const someChecked = checkedCount > 0 && checkedCount < fileCheckboxes.length;
-                
-                if (folderCheckbox) {
-                    if (allChecked) {
-                        folderCheckbox.checked = true;
-                        folderCheckbox.indeterminate = false;
-                        if (folderItem) folderItem.classList.add('selected');
-                        selectedFolders.add(folderId);
-                    } else if (someChecked) {
-                        folderCheckbox.checked = false;
-                        folderCheckbox.indeterminate = true;
-                        if (folderItem) folderItem.classList.add('selected');
-                        selectedFolders.delete(folderId);
-                    } else {
-                        folderCheckbox.checked = false;
-                        folderCheckbox.indeterminate = false;
-                        if (folderItem) folderItem.classList.remove('selected');
-                        selectedFolders.delete(folderId);
-                    }
-                }
-            }
-
-            // Restore checked documents from session (after functions are defined)
-            if (CHECKED_DOCUMENTS && CHECKED_DOCUMENTS.length > 0) {
-                CHECKED_DOCUMENTS.forEach(fileId => {
-                    const checkbox = document.querySelector(`.document-checkbox[data-file-id="${fileId}"]`);
-                    if (checkbox) {
-                        const fileItem = checkbox.closest('.document-item');
-                        checkbox.checked = true;
-                        selectedFiles.add(fileId.toString());
-                        if (fileItem) {
-                            fileItem.classList.add('selected');
-                        }
-                        
-                        // Update parent folder checkbox state if this file is in a folder
-                        const folderContainer = fileItem ? fileItem.closest('.folder-children') : null;
-                        if (folderContainer) {
-                            const folderId = folderContainer.id.replace('folder_children_', '');
-                            updateFolderCheckboxState(folderId);
-                        }
-                    }
-                });
-                updateSelectedCount();
-            }
-
-            // Handle document checkbox
-            document.addEventListener('change', function(e) {
-                if (e.target.classList.contains('document-checkbox')) {
-                    const fileId = e.target.dataset.fileId;
-                    const item = e.target.closest('.document-item');
-                    const folderContainer = item ? item.closest('.folder-children') : null;
-                    const folderId = folderContainer ? folderContainer.id.replace('folder_children_', '') : null;
-
-                    if (e.target.checked) {
-                        // Check if adding this file would exceed the limit
-                        if (selectedFiles.size >= MAX_SELECTION) {
-                            e.target.checked = false;
-                            // Hide cancel button for informational messages
-                            document.getElementById('confirmCancelBtn').style.display = 'none';
-                            showConfirmModal({
-                                title: 'Selection Limit Reached',
-                                message: `You can only select a maximum of ${MAX_SELECTION} documents.`,
-                                confirmText: 'OK',
-                                cancelText: '',
-                                onConfirm: function() {
-                                    // Modal will close automatically
-                                }
-                            });
-                            return;
-                        }
-                        selectedFiles.add(fileId);
-                        item.classList.add('selected');
-                    } else {
-                        selectedFiles.delete(fileId);
-                        item.classList.remove('selected');
-                    }
-                    
-                    // Update parent folder checkbox state if this file is in a folder
-                    if (folderId) {
-                        updateFolderCheckboxState(folderId);
-                    }
-                    
-                    updateSelectedCount();
-                    saveCheckedDocumentsToSession();
-                }
-
-                if (e.target.classList.contains('folder-checkbox')) {
-                    const folderId = e.target.dataset.folderId;
-                    const item = e.target.closest('.folder-item');
-                    const folderChildren = document.getElementById('folder_children_' + folderId);
-
-                    if (e.target.checked) {
-                        // Count how many files are in this folder
-                        let filesInFolder = 0;
-                        if (folderChildren) {
-                            filesInFolder = folderChildren.querySelectorAll('.document-checkbox').length;
-                        }
-                        
-                        // Check if adding all files in this folder would exceed the limit
-                        if (selectedFiles.size + filesInFolder > MAX_SELECTION) {
-                            e.target.checked = false;
-                            // Hide cancel button for informational messages
-                            document.getElementById('confirmCancelBtn').style.display = 'none';
-                            showConfirmModal({
-                                title: 'Selection Limit Reached',
-                                message: `Selecting this folder would exceed the maximum limit of ${MAX_SELECTION} documents. Please deselect some documents first.`,
-                                confirmText: 'OK',
-                                cancelText: '',
-                                onConfirm: function() {
-                                    // Modal will close automatically
-                                }
-                            });
-                            return;
-                        }
-                        
-                        selectedFolders.add(folderId);
-                        item.classList.add('selected');
-                        
-                        // Select all files within this folder
-                        if (folderChildren) {
-                            const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
-                            fileCheckboxes.forEach(checkbox => {
-                                const fileId = checkbox.dataset.fileId;
-                                const fileItem = checkbox.closest('.document-item');
-                                
-                                checkbox.checked = true;
-                                selectedFiles.add(fileId);
-                                if (fileItem) {
-                                    fileItem.classList.add('selected');
-                                }
-                            });
-                        }
-                    } else {
-                        selectedFolders.delete(folderId);
-                        item.classList.remove('selected');
-                        
-                        // Deselect all files within this folder
-                        if (folderChildren) {
-                            const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
-                            fileCheckboxes.forEach(checkbox => {
-                                const fileId = checkbox.dataset.fileId;
-                                const fileItem = checkbox.closest('.document-item');
-                                
-                                checkbox.checked = false;
-                                selectedFiles.delete(fileId);
-                                if (fileItem) {
-                                    fileItem.classList.remove('selected');
-                                }
-                            });
-                        }
-                    }
-                    updateSelectedCount();
-                    saveCheckedDocumentsToSession();
-                }
-            });
-
-            // Handle folder toggle
-            document.querySelectorAll('.folder-toggle').forEach(toggle => {
-                toggle.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const folderItem = this.closest('.folder-item');
-                    const folderId = folderItem.dataset.folderId;
-                    const children = document.getElementById('folder_children_' + folderId);
-                    const chevron = folderItem.querySelector('.folder-chevron');
-
-                    if (children) {
-                        children.classList.toggle('show');
-                        chevron.classList.toggle('bi-chevron-down');
-                        chevron.classList.toggle('bi-chevron-right');
-                    }
-                });
-            });
-
-            // Select All button (limited to MAX_SELECTION)
-            document.getElementById('selectAllBtn').addEventListener('click', function() {
-                // First, expand all folders so their files are visible
-                document.querySelectorAll('.folder-children').forEach(children => {
-                    children.classList.add('show');
-                    const folderId = children.id.replace('folder_children_', '');
-                    const folderItem = document.querySelector(`[data-folder-id="${folderId}"]`);
-                    if (folderItem) {
-                        const chevron = folderItem.querySelector('.folder-chevron');
-                        if (chevron) {
-                            chevron.classList.remove('bi-chevron-right');
-                            chevron.classList.add('bi-chevron-down');
-                        }
-                    }
-                });
-                
-                // Clear current selections
-                selectedFiles.clear();
-                selectedFolders.clear();
-                
-                // Collect all available files
-                const allFiles = [];
-                
-                // Collect files from folders
-                document.querySelectorAll('.folder-children').forEach(folderChildren => {
-                    const fileCheckboxes = folderChildren.querySelectorAll('.document-checkbox');
-                    fileCheckboxes.forEach(checkbox => {
-                        const fileId = checkbox.dataset.fileId;
-                        const fileItem = checkbox.closest('.document-item');
-                        allFiles.push({ fileId, checkbox, fileItem, folderId: folderChildren.id.replace('folder_children_', '') });
-                    });
-                });
-                
-                // Collect root-level files
-                document.querySelectorAll('.document-item').forEach(item => {
-                    const folderContainer = item.closest('.folder-children');
-                    if (!folderContainer) {
-                        const checkbox = item.querySelector('.document-checkbox');
-                        if (checkbox) {
-                            const fileId = checkbox.dataset.fileId;
-                            allFiles.push({ fileId, checkbox, fileItem: item, folderId: null });
-                        }
-                    }
-                });
-                
-                // Select only up to MAX_SELECTION files
-                let selectedCount = 0;
-                const selectedFolderIds = new Set();
-                
-                for (const file of allFiles) {
-                    if (selectedCount >= MAX_SELECTION) break;
-                    
-                    file.checkbox.checked = true;
-                    selectedFiles.add(file.fileId);
-                    if (file.fileItem) {
-                        file.fileItem.classList.add('selected');
-                    }
-                    
-                    if (file.folderId) {
-                        selectedFolderIds.add(file.folderId);
-                    }
-                    
-                    selectedCount++;
-                }
-                
-                // Update folder checkboxes based on selected files
-                selectedFolderIds.forEach(folderId => {
-                    updateFolderCheckboxState(folderId);
-                });
-                
-                // Ensure count is updated
-                updateSelectedCount();
-                saveCheckedDocumentsToSession();
-                
-                if (selectedCount < allFiles.length) {
-                    // Hide cancel button for informational messages
-                    document.getElementById('confirmCancelBtn').style.display = 'none';
-                    showConfirmModal({
-                        title: 'Selection Limit',
-                        message: `Only ${selectedCount} document(s) selected (maximum ${MAX_SELECTION}).`,
-                        confirmText: 'OK',
-                        cancelText: '',
-                        onConfirm: function() {
-                            // Modal will close automatically
-                        }
-                    });
-                }
-            });
-
-            // Clear Selection button
-            document.getElementById('clearSelectionBtn').addEventListener('click', function() {
-                selectedFiles.clear();
-                selectedFolders.clear();
-                document.querySelectorAll('.document-checkbox, .folder-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-                document.querySelectorAll('.document-item, .folder-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-                updateSelectedCount();
-                saveCheckedDocumentsToSession();
-            });
-
-            // Search functionality
-            document.getElementById('searchDocuments').addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                document.querySelectorAll('.document-item, .folder-item').forEach(item => {
-                    const text = item.textContent.toLowerCase();
-                    item.style.display = text.includes(searchTerm) ? 'block' : 'none';
-                });
-            });
-
-            // Update document list and description when form modal is shown
-            document.getElementById('reportFormModal').addEventListener('show.bs.modal', function() {
-                populateSelectedDocumentsList();
-                
-                // Set initial description based on selected document type
-                updateDescriptionByReportType();
-            });
 
             // Update description when document type changes
             document.getElementById('reportType').addEventListener('change', function() {
@@ -946,29 +892,24 @@
 
             // Synthesize Document Handler - Opens Form Modal when card is clicked
             document.getElementById('reportTool').addEventListener('click', function(e) {
-                // Check if files are selected
-                const fileIds = Array.from(selectedFiles);
-                
-                if (fileIds.length === 0) {
-                    // Hide cancel button for informational messages
-                    document.getElementById('confirmCancelBtn').style.display = 'none';
-                    showConfirmModal({
-                        title: 'No Documents Selected',
-                        message: 'Please select at least one document to synthesize.',
-                        confirmText: 'OK',
-                        cancelText: '',
-                        onConfirm: function() {
-                            // Modal will close automatically
-                        }
-                    });
-                    return;
-                }
-
-                // Reset form
+                // Reset form and clear selections
                 document.getElementById('reportGenerationForm').reset();
+                selectedFiles.clear();
                 
-                // Show the form modal (populateSelectedDocumentsList and description update will be called by the show.bs.modal event)
+                // Build the checklist in the modal
+                buildModalChecklist();
+                updateModalSelectedCount();
+                updateDescriptionByReportType();
+                
+                // Show the form modal
                 reportFormModal.show();
+            });
+            
+            // When modal is shown, ensure checklist is built
+            document.getElementById('reportFormModal').addEventListener('show.bs.modal', function() {
+                buildModalChecklist();
+                updateModalSelectedCount();
+                updateDescriptionByReportType();
             });
 
             // Form Submission Handler
@@ -979,9 +920,24 @@
                 const reportDescription = document.getElementById('reportDescription').value.trim();
                 const reportType = document.getElementById('reportType').value;
                 const fileIds = Array.from(selectedFiles);
+                
+                // Validate that at least one document is selected
+                if (fileIds.length === 0) {
+                    document.getElementById('confirmCancelBtn').style.display = 'none';
+                    showConfirmModal({
+                        title: 'No Documents Selected',
+                        message: 'Please select at least one document to synthesize.',
+                        confirmText: 'OK',
+                        onConfirm: function() {}
+                    });
+                    return;
+                }
 
                 // Close form modal
                 reportFormModal.hide();
+                
+                // Show loading modal
+                showLoadingModal('Generating your document...');
 
                 // Prepare request data
                 const requestData = {
@@ -1005,6 +961,9 @@
                     return response.json();
                 })
                 .then(data => {
+                    // Hide loading modal
+                    hideLoadingModal();
+                    
                     if (data.success) {
                         console.log('Document synthesized successfully');
                         
@@ -1053,6 +1012,9 @@
                     }
                 })
                 .catch(error => {
+                    // Hide loading modal
+                    hideLoadingModal();
+                    
                     console.error('Error synthesizing document:', error);
                     // Hide cancel button for informational messages
                     document.getElementById('confirmCancelBtn').style.display = 'none';

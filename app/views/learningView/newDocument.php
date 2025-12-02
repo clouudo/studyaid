@@ -502,7 +502,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             </div>
 
                             <div class="d-flex gap-3 justify-content-center mt-4">
-                                <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
+                                <button type="button" class="btn btn-cancel px-5" onclick="resetForm()">Reset</button>
                                 <button type="submit" class="btn btn-create px-5">Create</button>
                             </div>
                         </form>
