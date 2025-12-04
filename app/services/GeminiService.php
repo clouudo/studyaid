@@ -25,7 +25,22 @@ class GeminiService
     private function generateText(string $model, string $prompt, ?array $generationConfig = null): string
     {
         try {
-            $response = $this->client->generativeModel($model)->generateContent($prompt);
+            $generativeModel = $this->client->generativeModel($model);
+            
+            // Apply generation config if provided
+            if ($generationConfig !== null) {
+                $config = new GenerationConfig(
+                    candidateCount: 1,
+                    stopSequences: [],
+                    maxOutputTokens: $generationConfig['maxOutputTokens'] ?? null,
+                    temperature: $generationConfig['temperature'] ?? null,
+                    topP: $generationConfig['topP'] ?? null,
+                    topK: $generationConfig['topK'] ?? null
+                );
+                $generativeModel = $generativeModel->withGenerationConfig($config);
+            }
+            
+            $response = $generativeModel->generateContent($prompt);
             return $response->text();
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating text: ' . $e->getMessage());
@@ -692,13 +707,19 @@ PROMPT;
     public function synthesizeDocument(string $sourceText, string $instructions): string
     {
         $model = $this->models['synthesize'] ?? $this->defaultModel;
+        
+        // Increased output capacity for synthesize document (supports up to 5 documents)
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 32768, // Increased from 8192 for larger synthesized documents
+        ]);
+        
         $prompt = $instructions . "\n\n"
             . "IMPORTANT: Use ONLY the following relevant content retrieved from the selected documents. "
             . "This content has been selected because it matches your query. "
             . "Base your synthesized document strictly on this content and do not include information not found in it.\n\n"
             . "Relevant Content:\n{$sourceText}\n\n"
             . "Synthesize the document now:";
-        return $this->generateText($model, $prompt);
+        return $this->generateText($model, $prompt, $generationConfig);
     }
 
     /**

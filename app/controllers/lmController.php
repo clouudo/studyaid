@@ -269,6 +269,7 @@ class LmController
             $errors = [];
 
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
+            $isSingleFile = !is_array($files['name']);
             
             for ($i = 0; $i < $fileCount; $i++) {
                 $file = $this->normalizeFileArray($files, $i);
@@ -290,7 +291,13 @@ class LmController
                 }
 
                 try {
-                    $this->processFileUpload($file, $userId, $folderId, $documentName);
+                    // For single file upload, use file's original name if no custom name provided
+                    $fileNameToUse = $documentName;
+                    if ($isSingleFile && (empty($documentName) || $documentName === null)) {
+                        $fileNameToUse = null; // Will use file's original name in processFileUpload
+                    }
+                    
+                    $this->processFileUpload($file, $userId, $folderId, $fileNameToUse);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$file['name']}: " . $e->getMessage();
@@ -298,7 +305,7 @@ class LmController
                 }
 
                 // Break loop if single file (non-array)
-                if (!is_array($files['name'])) {
+                if ($isSingleFile) {
                     break;
                 }
             }
@@ -3282,6 +3289,12 @@ class LmController
             echo json_encode(['success' => false, 'message' => 'No files selected.']);
             exit();
         }
+        
+        // Require at least 2 documents for synthesis
+        if (count($data['fileIds']) < 2) {
+            echo json_encode(['success' => false, 'message' => 'Please select at least 2 documents to synthesize.']);
+            exit();
+        }
         if (!isset($data['description']) || empty(trim($data['description']))) {
             echo json_encode(['success' => false, 'message' => 'Document description is required.']);
             exit();
@@ -3347,7 +3360,8 @@ class LmController
                 return $b['similarity'] <=> $a['similarity'];
             });
 
-            $topK = min(15, count($similarities));
+            // Increased chunk limit for up to 5 documents (6 chunks per document average)
+            $topK = min(30, count($similarities));
             $topChunks = array_slice($similarities, 0, $topK);
 
             if (empty($topChunks)) {
@@ -3377,7 +3391,8 @@ class LmController
             $documentTypeNames = [
                 'studyGuide' => 'Study Guide',
                 'briefDocument' => 'Brief Document',
-                'keyPoints' => 'Key Points'
+                'keyPoints' => 'Key Points',
+                'customize' => 'Custom Document'
             ];
 
             $documentTypeName = $documentTypeNames[$documentType] ?? 'Document';

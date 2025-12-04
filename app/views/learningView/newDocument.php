@@ -473,8 +473,8 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <input type="hidden" name="folderSelect" id="folderSelect">
 
                             <div class="mb-4">
-                                <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here..." required>
+                                <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-muted">(optional)</span></label>
+                                <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here (defaults to file name if not provided)">
                             </div>
                             <div class="mb-4">
                                 <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
@@ -772,15 +772,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
 
-            if (getDocumentSelection().mode === 'single') {
-                if (!documentName) {
-                    e.preventDefault();
-                    showSnackbar('Please enter a document name.', 'error');
-                    document.getElementById('documentName').focus();
-                    return false;
-                }
-            }
-
             if (!files || files.length === 0) {
                 e.preventDefault();
                 showSnackbar('Please select at least one file to upload.', 'error');
@@ -801,7 +792,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 return false;
             }
 
-            if (documentName.length > 255) {
+            if (documentName && documentName.length > 255) {
                 e.preventDefault();
                 showSnackbar('Document name must be less than 255 characters.', 'error');
                 document.getElementById('documentName').focus();

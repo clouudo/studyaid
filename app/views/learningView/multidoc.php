@@ -488,6 +488,7 @@
                                 <option value="studyGuide">Study Guide</option>
                                 <option value="briefDocument">Brief Document</option>
                                 <option value="keyPoints">Key Points</option>
+                                <option value="customize">Customize</option>
                             </select>
                         </div>
 
@@ -593,7 +594,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             let selectedFiles = new Set();
             let selectedFolders = new Set();
-            const MAX_SELECTION = 3; // Maximum number of documents that can be selected
+            const MAX_SELECTION = 5; // Maximum number of documents that can be selected
 
             // Initialize Bootstrap modals
             const reportFormModal = new bootstrap.Modal(document.getElementById('reportFormModal'));
@@ -881,6 +882,8 @@
                     reportDescriptionElement.value = 'You are a highly capable research assistant and tutor. Create a detailed study guide designed to review understanding of the sources. Create a quiz with ten short-answer questions (2-3 sentences each) and include a separate answer key. Suggest five essay format questions, but do not supply answers. Also conclude with a comprehensive glossary of key terms with definitions.';
                 } else if (reportType === 'keyPoints') {
                     reportDescriptionElement.value = 'Generate key points from the selected documents.';
+                } else if (reportType === 'customize') {
+                    reportDescriptionElement.value = '';
                 }
             }
 
@@ -921,12 +924,12 @@
                 const reportType = document.getElementById('reportType').value;
                 const fileIds = Array.from(selectedFiles);
                 
-                // Validate that at least one document is selected
-                if (fileIds.length === 0) {
+                // Validate that at least 2 documents are selected
+                if (fileIds.length < 2) {
                     document.getElementById('confirmCancelBtn').style.display = 'none';
                     showConfirmModal({
-                        title: 'No Documents Selected',
-                        message: 'Please select at least one document to synthesize.',
+                        title: 'Insufficient Documents Selected',
+                        message: 'Please select at least 2 documents to synthesize.',
                         confirmText: 'OK',
                         onConfirm: function() {}
                     });
