@@ -123,6 +123,11 @@
 
                             <?php if (!empty($documentData['extracted_text'])): ?>
                                 <div id="document-content"><?php echo htmlspecialchars($documentData['extracted_text']); ?></div>
+                            <?php else: ?>
+                                <div class="text-center text-muted py-5">
+                                    <i class="bi bi-file-text" style="font-size: 3rem; opacity: 0.3;"></i>
+                                    <p class="mt-3 mb-0">No text content available for this document.</p>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
