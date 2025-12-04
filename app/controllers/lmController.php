@@ -3516,7 +3516,7 @@ class LmController
 
             // Calculate similarity for each chunk
             $similarities = [];
-            $similarityThreshold = 0.15; // Using same threshold as other RAG searches
+            $similarityThreshold = 0.4; // Minimum 40% similarity required to display results
             
             foreach ($allChunks as $chunk) {
                 $chunkEmbedding = json_decode($chunk['embedding'], true);
