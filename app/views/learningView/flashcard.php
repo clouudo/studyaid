@@ -455,6 +455,9 @@ if (isset($flashcards) && is_array($flashcards)) {
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
 
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
                 <!-- Creation Row -->
                 <div class="row g-4">
                     <div class="col-12 col-xl-6">
@@ -464,11 +467,16 @@ if (isset($flashcards) && is_array($flashcards)) {
                                 <small class="text-muted">Let StudyAid create flashcards from your document.</small>
                             </div>
                             <div class="card-body">
+                                <?php if (!$hasExtractedText): ?>
+                                    <div class="alert alert-warning mb-3">
+                                        <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                                    </div>
+                                <?php endif; ?>
                                 <form id="generateFlashcardForm" action="<?= GENERATE_FLASHCARDS ?>" method="POST">
                                     <input type="hidden" name="file_id" value="<?php echo $currentFileId; ?>">
                                     <label for="flashcardAmountRange" class="form-label">Number of Flashcards</label>
                                     <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center mb-2">
-                                        <input type="range" class="form-range" min="1" max="25" value="15" name="flashcardAmount" id="flashcardAmountRange">
+                                        <input type="range" class="form-range" min="1" max="25" value="15" name="flashcardAmount" id="flashcardAmountRange" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                         <div>
                                             <span class="badge rounded-pill" style="background-color: #e7d5ff; color: #5a32a3; font-size: 1rem;">
                                                 <span id="flashcardAmountValue">15</span> cards
@@ -478,18 +486,18 @@ if (isset($flashcards) && is_array($flashcards)) {
                                     <small class="text-muted d-block mb-3">Drag the slider to choose anywhere between 1 and 25 flashcards.</small>
                                     <label class="form-label d-block">Level of Difficulty</label>
                             <div class="btn-group mb-3" role="group" aria-label="Level of Difficulty">
-                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="easy" id="easy">
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="easy" id="easy" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                 <label class="btn btn-outline-secondary" for="easy">Easy</label>
-                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" checked value="medium" id="medium">
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" checked value="medium" id="medium" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                 <label class="btn btn-outline-secondary" for="medium">Medium (Default)</label>
-                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="hard" id="hard">
+                                <input type="radio" class="btn-check" name="flashcardType" autcomplete="off" value="hard" id="hard" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                 <label class="btn btn-outline-secondary" for="hard">Hard</label>
                             </div>
                             <div class="mb-3">
                                 <label for="flashcardInstructions" class="form-label">Instructions (optional)</label>
-                                        <input type="text" id="flashcardInstructions" name="instructions" class="form-control" placeholder="Describe your instruction">
+                                        <input type="text" id="flashcardInstructions" name="instructions" class="form-control" placeholder="Describe your instruction" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                     </div>
-                                    <button type="submit" id="genFlashcards" class="btn btn-primary">Generate Flashcard</button>
+                                    <button type="submit" id="genFlashcards" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Flashcard</button>
                                 </form>
                             </div>
                         </div>

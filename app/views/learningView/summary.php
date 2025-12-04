@@ -505,16 +505,24 @@
                     <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Generate Summary with AI</h5>
                     </div>
                     <div class="card-body">
+                        <?php if (!$hasExtractedText): ?>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                            </div>
+                        <?php endif; ?>
                         <form id="generateSummaryForm" action="<?= GENERATE_SUMMARY ?>" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
-                            <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
-                            <button type="submit" id="genSummary" class="btn btn-primary">Generate Summary</button>
+                            <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
+                            <button type="submit" id="genSummary" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Summary</button>
                         </form>
                     </div>
                 </div>

@@ -577,10 +577,18 @@
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Quiz Builder Row -->
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
                 <div class="row g-4 mb-4 align-items-stretch">
                     <div class="col-12 col-lg-5 quiz-builder-left">
                         <div class="card h-100" id="generateQuizCard">
                             <div class="card-body">
+                                <?php if (!$hasExtractedText): ?>
+                                    <div class="alert alert-warning mb-3">
+                                        <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                                    </div>
+                                <?php endif; ?>
                                 <?php $defaultQuestionTotal = 10; ?>
                                 <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
                                     <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
@@ -589,7 +597,7 @@
                                             <span>Total Questions</span>
                                             <span id="questionCountLabel" class="badge rounded-pill" style="background-color: var(--sa-accent); color: var(--sa-primary-dark); font-size: 1rem; min-width: 48px;"><?php echo $defaultQuestionTotal; ?></span>
                                         </label>
-                                        <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>">
+                                        <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Question Distribution</label>
@@ -648,7 +656,7 @@
                                                         <small class="text-muted"><?= $meta['hint'] ?></small>
                                                     </div>
                                                     <div class="question-type-controls">
-                                                        <input type="number" class="form-control question-type-input" min="0" max="25" value="<?= $defaultValue ?>" data-question-type="<?= $typeKey ?>" style="width: 80px; text-align: center;">
+                                                        <input type="number" class="form-control question-type-input" min="0" max="25" value="<?= $defaultValue ?>" data-question-type="<?= $typeKey ?>" style="width: 80px; text-align: center;" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                                     </div>
                                                 </div>
                                                 <div class="bloom-taxonomy-section <?= $defaultValue > 0 ? 'active' : '' ?>" data-bloom-section="<?= $typeKey ?>">
@@ -656,7 +664,7 @@
                                                         <i class="bi bi-mortarboard-fill"></i>
                                                         Bloom's Level
                                                     </label>
-                                                    <select class="bloom-select w-100" data-bloom-type="<?= $typeKey ?>">
+                                                    <select class="bloom-select w-100" data-bloom-type="<?= $typeKey ?>" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                                         <?php foreach ($bloomLevels as $levelKey => $level): ?>
                                                             <option value="<?= $levelKey ?>" <?= $levelKey === 'remember' ? 'selected' : '' ?>>
                                                                 <?= $level['label'] ?> - <?= $level['desc'] ?>
@@ -675,9 +683,9 @@
                                         <label class="form-label d-block">Exam Mode</label>
                                         
                                         <div class="btn-group" role="group">
-                                            <input type="radio" class="btn-check" name="examMode" id="examModeOff" value="0" checked>
+                                            <input type="radio" class="btn-check" name="examMode" id="examModeOff" value="0" checked <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                             <label class="btn btn-outline-secondary" for="examModeOff">Practice</label>
-                                            <input type="radio" class="btn-check" name="examMode" id="examModeOn" value="1">
+                                            <input type="radio" class="btn-check" name="examMode" id="examModeOn" value="1" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                             <label class="btn btn-outline-secondary" for="examModeOn">Exam Mode</label>
                                             
                                         </div>
@@ -686,9 +694,9 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Instructions (optional)</label>
-                                        <input type="text" name="instructions" class="form-control" placeholder="Describe your instruction">
+                                        <input type="text" name="instructions" class="form-control" placeholder="Describe your instruction" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                     </div>
-                                    <button type="submit" id="genQuiz" class="btn btn-primary">Generate Quiz</button>
+                                    <button type="submit" id="genQuiz" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Quiz</button>
                                 </form>
                             </div>
                         </div>

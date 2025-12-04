@@ -20,7 +20,7 @@ define('ASSET_PATH', PUBLIC_PATH . 'asset/');
 // Images - using absolute URLs for better compatibility
 define('IMG_VISIBLE', APP_URL . 'public/asset/visible.png');
 define('IMG_INVISIBLE', APP_URL . 'public/asset/invisible.png');
-define('IMG_LOGO', APP_URL . 'public/asset/logo.png');
+define('IMG_LOGO', APP_URL . 'public/asset/logo.jpeg');
 define('IMG_SETTING', APP_URL . 'public/asset/setting.png');
 define('IMG_CARET_DOWN', APP_URL . 'public/asset/down-chevron.png');
 
