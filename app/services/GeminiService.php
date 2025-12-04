@@ -51,7 +51,7 @@ PROMPT;
     public function generateSummary(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['summary'] ?? $this->defaultModel;
-        $prompt = "Summarize the following content into a short paragraph.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Summarize the following content into 3 short paragraphs.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         return $this->generateText($model, $prompt);
     }
 

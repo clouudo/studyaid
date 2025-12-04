@@ -500,17 +500,21 @@ class LmController
         $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
 
         if ($folderId === 0) {
+            $_SESSION['error'] = "Folder ID not provided.";
             echo json_encode(['success' => false, 'message' => 'Folder ID not provided.']);
             exit();
         }
 
         try {
             if ($this->lmModel->deleteFolder($folderId, $userId)) {
+                $_SESSION['message'] = "Folder deleted successfully.";
                 echo json_encode(['success' => true, 'message' => 'Folder deleted successfully.']);
             } else {
+                $_SESSION['error'] = "Failed to delete folder.";
                 echo json_encode(['success' => false, 'message' => 'Failed to delete folder.']);
             }
         } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
         exit();
