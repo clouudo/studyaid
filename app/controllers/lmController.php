@@ -791,6 +791,77 @@ class LmController
     }
 
     /**
+     * Generate audio for document (TTS, returns cached if available)
+     */
+    public function audioDocument(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($fileId === 0) {
+            $this->sendJsonError('File ID not provided.');
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file) {
+                $this->sendJsonError('File not found.');
+            }
+
+            // Check if audio already exists for this specific file - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForDocument($fileId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($file['extracted_text']);
+            
+            // Validate cleaned text is not empty
+            if (empty(trim($cleanText))) {
+                $this->sendJsonError('No text content available for audio generation after cleaning.');
+            }
+            
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                // Log detailed error information for debugging
+                error_log("[AudioDocument] Failed to generate audio. File ID: {$fileId}, Text length: " . strlen($cleanText));
+                error_log("[AudioDocument] PiperService returned: " . ($localAudioPath ?? 'null'));
+                
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this file)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForDocument($fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
      * Generate audio for summary (TTS, returns cached if available)
      */
     public function audioSummary(){
