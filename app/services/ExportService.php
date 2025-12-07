@@ -359,6 +359,10 @@ class ExportService
      */
     private function processMarkdownImages($content)
     {
+        // Convert custom image format [img:alt:id|url] to standard markdown ![alt](url)
+        // Handles format: [img:altText:timestamp|url]
+        $content = preg_replace('/\[img:(.*?):.*?\|(.*?)\]/', '![$1]($2)', $content);
+
         // Find all markdown image syntax: ![alt](url)
         return preg_replace_callback('/!\[([^\]]*)\]\(([^)]+)\)/', function($matches) {
             $altText = $matches[1];
