@@ -1139,8 +1139,16 @@ ob_start();
                         url: url, 
                         type: 'POST', 
                         data: data,
+                        dataType: 'json',
                         success: function(response) { 
-                            location.reload(); 
+                            if (response.success) {
+                                showSnackbar(response.message, 'success');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 500);
+                            } else {
+                                showSnackbar(response.message || 'Failed to delete folder.', 'error');
+                            }
                         },
                         error: function() { 
                             showSnackbar('An error occurred during the deletion.', 'error');

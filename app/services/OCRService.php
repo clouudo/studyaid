@@ -162,77 +162,87 @@ class OCRService
                 throw new \Exception("Google Vision client not initialized. Please check your credentials.");
             }
 
-            $imageData = file_get_contents($imagePath);
-            if ($imageData === false) {
-                throw new \Exception("Failed to read image file: {$imagePath}");
-            }
+            // Preprocess image for better OCR results
+            $processedImagePath = $this->preprocessImage($imagePath);
+            
+            try {
+                $imageData = file_get_contents($processedImagePath);
+                if ($imageData === false) {
+                    throw new \Exception("Failed to read image file: {$imagePath}");
+                }
 
-            // Create Image object
-            $image = new Image();
-            $image->setContent($imageData);
+                // Create Image object
+                $image = new Image();
+                $image->setContent($imageData);
 
-            // Create Feature for text detection
-            $feature = new Feature();
-            $feature->setType(\Google\Cloud\Vision\V1\Feature\Type::TEXT_DETECTION);
+                // Create Feature for text detection
+                $feature = new Feature();
+                $feature->setType(\Google\Cloud\Vision\V1\Feature\Type::TEXT_DETECTION);
 
-            // Create AnnotateImageRequest
-            $request = new AnnotateImageRequest();
-            $request->setImage($image);
-            $request->setFeatures([$feature]);
+                // Create AnnotateImageRequest
+                $request = new AnnotateImageRequest();
+                $request->setImage($image);
+                $request->setFeatures([$feature]);
 
-            // Create BatchAnnotateImagesRequest
-            $batchRequest = new BatchAnnotateImagesRequest();
-            $batchRequest->setRequests([$request]);
+                // Create BatchAnnotateImagesRequest
+                $batchRequest = new BatchAnnotateImagesRequest();
+                $batchRequest->setRequests([$request]);
 
-            // Call the API
-            $response = $this->googleVisionClient->batchAnnotateImages($batchRequest);
-            $responses = $response->getResponses();
+                // Call the API
+                $response = $this->googleVisionClient->batchAnnotateImages($batchRequest);
+                $responses = $response->getResponses();
 
-            if (empty($responses)) {
-                throw new \Exception("No response from Google Vision API.");
-            }
+                if (empty($responses)) {
+                    throw new \Exception("No response from Google Vision API.");
+                }
 
-            $annotateResponse = $responses[0];
-            $textAnnotations = $annotateResponse->getTextAnnotations();
+                $annotateResponse = $responses[0];
+                $textAnnotations = $annotateResponse->getTextAnnotations();
 
-            if (empty($textAnnotations)) {
-                throw new \Exception("No text detected by Google Vision.");
-            }
+                if (empty($textAnnotations)) {
+                    throw new \Exception("No text detected by Google Vision.");
+                }
 
-            // First annotation contains the full text
-            $fullText = $textAnnotations[0]->getDescription();
-            $lines = [];
+                // First annotation contains the full text
+                $fullText = $textAnnotations[0]->getDescription();
+                $lines = [];
 
-            // Process individual text annotations (skip first as it's the full text)
-            foreach ($textAnnotations as $index => $textAnnotation) {
-                if ($index === 0) continue;
+                // Process individual text annotations (skip first as it's the full text)
+                foreach ($textAnnotations as $index => $textAnnotation) {
+                    if ($index === 0) continue;
 
-                $boundingPoly = $textAnnotation->getBoundingPoly();
-                if ($boundingPoly) {
-                    $vertices = $boundingPoly->getVertices();
-                    if (count($vertices) >= 4) {
-                        $lines[] = [
-                            'text' => $textAnnotation->getDescription(),
-                            'confidence' => 1.0,
-                            'bbox' => [
-                                'x' => $vertices[0]->getX(),
-                                'y' => $vertices[0]->getY(),
-                                'width' => $vertices[2]->getX() - $vertices[0]->getX(),
-                                'height' => $vertices[2]->getY() - $vertices[0]->getY(),
-                            ]
-                        ];
+                    $boundingPoly = $textAnnotation->getBoundingPoly();
+                    if ($boundingPoly) {
+                        $vertices = $boundingPoly->getVertices();
+                        if (count($vertices) >= 4) {
+                            $lines[] = [
+                                'text' => $textAnnotation->getDescription(),
+                                'confidence' => 1.0,
+                                'bbox' => [
+                                    'x' => $vertices[0]->getX(),
+                                    'y' => $vertices[0]->getY(),
+                                    'width' => $vertices[2]->getX() - $vertices[0]->getX(),
+                                    'height' => $vertices[2]->getY() - $vertices[0]->getY(),
+                                ]
+                            ];
+                        }
                     }
                 }
-            }
 
-            return [
-                'success' => true,
-                'text' => $fullText,
-                'confidence' => 0.95,
-                'engine' => 'google_vision',
-                'processing_time' => $this->getProcessingTime(),
-                'lines' => $lines
-            ];
+                return [
+                    'success' => true,
+                    'text' => $fullText,
+                    'confidence' => 0.95,
+                    'engine' => 'google_vision',
+                    'processing_time' => $this->getProcessingTime(),
+                    'lines' => $lines
+                ];
+            } finally {
+                // Clean up processed image file
+                if (isset($processedImagePath) && file_exists($processedImagePath) && $processedImagePath !== $imagePath) {
+                    @unlink($processedImagePath);
+                }
+            }
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -356,12 +366,33 @@ class OCRService
                 /** @var \Imagick $image */
                 $image = new $imagickClass($imagePath);
                 
-                $image->setImageFormat('jpg');
-                $image->setImageCompressionQuality(95);
+                // Store constants to avoid static analysis issues with extension classes
+                $colorspaceGray = constant($imagickClass . '::COLORSPACE_GRAY');
+                $morphologyDilate = constant($imagickClass . '::MORPHOLOGY_DILATE');
+                $morphologyErode = constant($imagickClass . '::MORPHOLOGY_ERODE');
                 
+                // Convert to grayscale for better OCR results
+                $image->transformImageColorspace($colorspaceGray);
+                
+                // Enhance image quality
                 $image->enhanceImage();
                 $image->normalizeImage();
+                
+                // Apply threshold to create binary image (black and white)
+                $image->thresholdImage(0.5);
+                
+                // Apply morphological operations: dilation and erosion
+                // Dilation: expands white regions (text), making characters thicker
+                $image->morphologyImage($morphologyDilate, 1, 'Disk:1');
+                
+                // Erosion: shrinks white regions, cleaning up noise
+                $image->morphologyImage($morphologyErode, 1, 'Disk:1');
+                
+                // Sharpen the image
                 $image->sharpenImage(0, 1);
+                
+                $image->setImageFormat('jpg');
+                $image->setImageCompressionQuality(95);
                 
                 $image->writeImage($tempPath);
                 $image->clear();
@@ -390,8 +421,51 @@ class OCRService
                 }
                 
                 if($sourceImage){
-                    imagejpeg($sourceImage, $tempPath, 95);
+                    // Convert to grayscale
+                    $width = imagesx($sourceImage);
+                    $height = imagesy($sourceImage);
+                    $grayImage = imagecreatetruecolor($width, $height);
+                    
+                    // Convert to grayscale
+                    for($x = 0; $x < $width; $x++){
+                        for($y = 0; $y < $height; $y++){
+                            $rgb = imagecolorat($sourceImage, $x, $y);
+                            $r = ($rgb >> 16) & 0xFF;
+                            $g = ($rgb >> 8) & 0xFF;
+                            $b = $rgb & 0xFF;
+                            $gray = (int)(0.299 * $r + 0.587 * $g + 0.114 * $b);
+                            $grayColor = imagecolorallocate($grayImage, $gray, $gray, $gray);
+                            imagesetpixel($grayImage, $x, $y, $grayColor);
+                        }
+                    }
+                    
+                    // Apply threshold (binarization)
+                    $threshold = 128;
+                    $binaryImage = imagecreatetruecolor($width, $height);
+                    $white = imagecolorallocate($binaryImage, 255, 255, 255);
+                    $black = imagecolorallocate($binaryImage, 0, 0, 0);
+                    
+                    for($x = 0; $x < $width; $x++){
+                        for($y = 0; $y < $height; $y++){
+                            $gray = imagecolorat($grayImage, $x, $y) & 0xFF;
+                            $color = ($gray > $threshold) ? $white : $black;
+                            imagesetpixel($binaryImage, $x, $y, $color);
+                        }
+                    }
+                    
+                    // Apply dilation
+                    $dilatedImage = $this->applyDilation($binaryImage, $width, $height);
+                    imagedestroy($binaryImage);
+                    
+                    // Apply erosion
+                    $finalImage = $this->applyErosion($dilatedImage, $width, $height);
+                    imagedestroy($dilatedImage);
+                    
+                    imagedestroy($grayImage);
                     imagedestroy($sourceImage);
+                    
+                    imagejpeg($finalImage, $tempPath, 95);
+                    imagedestroy($finalImage);
                 } else {
                     copy($imagePath, $tempPath);
                 }
@@ -404,6 +478,86 @@ class OCRService
         }
 
         return $tempPath;
+    }
+
+    /**
+     * Apply dilation morphological operation to enhance text
+     * Dilation expands white regions, making text thicker
+     */
+    private function applyDilation($image, int $width, int $height): \GdImage
+    {
+        $result = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($result, 255, 255, 255);
+        $black = imagecolorallocate($result, 0, 0, 0);
+        
+        // Kernel size for dilation (3x3)
+        $kernelSize = 1;
+        
+        for($x = 0; $x < $width; $x++){
+            for($y = 0; $y < $height; $y++){
+                $maxValue = 0;
+                
+                // Check neighbors in kernel
+                for($kx = -$kernelSize; $kx <= $kernelSize; $kx++){
+                    for($ky = -$kernelSize; $ky <= $kernelSize; $ky++){
+                        $nx = $x + $kx;
+                        $ny = $y + $ky;
+                        
+                        if($nx >= 0 && $nx < $width && $ny >= 0 && $ny < $height){
+                            $pixel = imagecolorat($image, $nx, $ny) & 0xFF;
+                            if($pixel > $maxValue){
+                                $maxValue = $pixel;
+                            }
+                        }
+                    }
+                }
+                
+                $color = ($maxValue > 128) ? $white : $black;
+                imagesetpixel($result, $x, $y, $color);
+            }
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Apply erosion morphological operation to clean up noise
+     * Erosion shrinks white regions, removing small noise
+     */
+    private function applyErosion($image, int $width, int $height): \GdImage
+    {
+        $result = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($result, 255, 255, 255);
+        $black = imagecolorallocate($result, 0, 0, 0);
+        
+        // Kernel size for erosion (3x3)
+        $kernelSize = 1;
+        
+        for($x = 0; $x < $width; $x++){
+            for($y = 0; $y < $height; $y++){
+                $minValue = 255;
+                
+                // Check neighbors in kernel
+                for($kx = -$kernelSize; $kx <= $kernelSize; $kx++){
+                    for($ky = -$kernelSize; $ky <= $kernelSize; $ky++){
+                        $nx = $x + $kx;
+                        $ny = $y + $ky;
+                        
+                        if($nx >= 0 && $nx < $width && $ny >= 0 && $ny < $height){
+                            $pixel = imagecolorat($image, $nx, $ny) & 0xFF;
+                            if($pixel < $minValue){
+                                $minValue = $pixel;
+                            }
+                        }
+                    }
+                }
+                
+                $color = ($minValue > 128) ? $white : $black;
+                imagesetpixel($result, $x, $y, $color);
+            }
+        }
+        
+        return $result;
     }
 
     private function buildTesseractCommand(string $imagePath, string $language, int $psm, int $oem, string $outputBase): string{

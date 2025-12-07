@@ -42,7 +42,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Checks if user is logged in, redirects or returns JSON error if not
+     * Check if user is logged in (redirects or returns JSON error)
      */
     public function checkSession($isJsonResponse = false)
     {
@@ -59,7 +59,7 @@ class LmController
     }
 
     /**
-     * Retrieves current logged-in user information
+     * Get current logged-in user info
      */
     public function getUserInfo()
     {
@@ -69,7 +69,7 @@ class LmController
     }
 
     /**
-     * Resolves file ID from POST request or session, optionally persists to session
+     * Get file ID from POST or session (optionally saves to session)
      */
     private function resolveFileId(bool $persist = true): int
     {
@@ -93,7 +93,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Check if file extension is an image type
+     * Check if file extension is an image
      */
     private function isImageFile(string $extension): bool
     {
@@ -102,7 +102,7 @@ class LmController
     }
 
     /**
-     * Extract text from file using appropriate method (OCR for images, model method for others)
+     * Extract text from file (OCR for images, standard extraction for others)
      */
     private function extractTextFromFile(string $tmpName, string $fileExtension, array $file): string
     {
@@ -138,7 +138,7 @@ class LmController
     }
 
     /**
-     * Normalizes file array from $_FILES structure for single or multiple uploads
+     * Normalize file array from $_FILES (handles single or multiple uploads)
      */
     private function normalizeFileArray(array $files, int $index): ?array
     {
@@ -166,7 +166,7 @@ class LmController
     }
 
     /**
-     * Processes single file upload: extracts text, uploads to GCS, creates chunks and embeddings
+     * Process file upload: extract text, upload to GCS, create chunks and embeddings
      */
     private function processFileUpload(array $file, int $userId, ?int $folderId, ?string $documentName): array
     {
@@ -218,7 +218,7 @@ class LmController
     }
 
     /**
-     * Handles upload response: sets session messages and redirects based on success/failure
+     * Handle upload response: set session messages and redirect
      */
     private function handleUploadResponse(int $uploadedCount, int $failedCount, array $errors, int $userId): void
     {
@@ -251,7 +251,7 @@ class LmController
     }
 
     /**
-     * Handles document upload (POST) or displays upload form (GET)
+     * Handle document upload (POST) or show upload form (GET)
      */
     public function uploadDocument()
     {
@@ -269,6 +269,7 @@ class LmController
             $errors = [];
 
             $fileCount = is_array($files['name']) ? count($files['name']) : 1;
+            $isSingleFile = !is_array($files['name']);
             
             for ($i = 0; $i < $fileCount; $i++) {
                 $file = $this->normalizeFileArray($files, $i);
@@ -290,7 +291,13 @@ class LmController
                 }
 
                 try {
-                    $this->processFileUpload($file, $userId, $folderId, $documentName);
+                    // For single file upload, use file's original name if no custom name provided
+                    $fileNameToUse = $documentName;
+                    if ($isSingleFile && (empty($documentName) || $documentName === null)) {
+                        $fileNameToUse = null; // Will use file's original name in processFileUpload
+                    }
+                    
+                    $this->processFileUpload($file, $userId, $folderId, $fileNameToUse);
                     $uploadedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error uploading {$file['name']}: " . $e->getMessage();
@@ -298,7 +305,7 @@ class LmController
                 }
 
                 // Break loop if single file (non-array)
-                if (!is_array($files['name'])) {
+                if ($isSingleFile) {
                     break;
                 }
             }
@@ -318,7 +325,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all documents and folders with search and folder filtering support
+     * Display all documents and folders (with search and folder filtering)
      */
     public function displayLearningMaterials()
     {
@@ -371,7 +378,7 @@ class LmController
     }
 
     /**
-     * Displays a specific document with its content and metadata
+     * Display document with content and metadata
      */
     public function displayDocument()
     {
@@ -407,7 +414,7 @@ class LmController
     }
 
     /**
-     * Deletes a document from database and storage
+     * Delete document from database and storage
      */
     public function deleteDocument()
     {
@@ -441,7 +448,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays the new folder creation form
+     * Show new folder creation form
      */
     public function newFolder()
     {
@@ -455,7 +462,7 @@ class LmController
     }
 
     /**
-     * Creates a new folder with optional parent folder
+     * Create new folder (with optional parent)
      */
     public function createFolder()
     {
@@ -489,7 +496,7 @@ class LmController
     }
 
     /**
-     * Deletes a folder and its contents
+     * Delete folder and its contents
      */
     public function deleteFolder()
     {
@@ -500,24 +507,28 @@ class LmController
         $folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 0;
 
         if ($folderId === 0) {
+            $_SESSION['error'] = "Folder ID not provided.";
             echo json_encode(['success' => false, 'message' => 'Folder ID not provided.']);
             exit();
         }
 
         try {
             if ($this->lmModel->deleteFolder($folderId, $userId)) {
+                $_SESSION['message'] = "Folder deleted successfully.";
                 echo json_encode(['success' => true, 'message' => 'Folder deleted successfully.']);
             } else {
+                $_SESSION['error'] = "Failed to delete folder.";
                 echo json_encode(['success' => false, 'message' => 'Failed to delete folder.']);
             }
         } catch (\Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
         exit();
     }
 
     /**
-     * Displays the new document upload form
+     * Show new document upload form
      */
     public function newDocument()
     {
@@ -535,7 +546,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Builds folder path breadcrumb array from folder ID to root
+     * Build folder path breadcrumb from folder ID to root
      */
     private function _buildFolderPath($folderId)
     {
@@ -558,7 +569,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Renames a folder via JSON API
+     * Rename folder (JSON API)
      */
     public function renameFolder()
     {
@@ -593,7 +604,7 @@ class LmController
     }
 
     /**
-     * Renames a file/document via JSON API
+     * Rename file (JSON API)
      */
     public function renameFile()
     {
@@ -628,7 +639,7 @@ class LmController
     }
 
     /**
-     * Moves a file/document to another folder via JSON API
+     * Move file to another folder (JSON API)
      */
     public function moveFile()
     {
@@ -658,7 +669,7 @@ class LmController
     }
 
     /**
-     * Moves a folder to another folder via JSON API
+     * Move folder to another folder (JSON API)
      */
     public function moveFolder()
     {
@@ -692,7 +703,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all summaries for a document
+     * Display all summaries for document
      */
     public function summary()
     {
@@ -728,7 +739,7 @@ class LmController
     }
 
     /**
-     * Deletes a summary from database
+     * Delete summary from database
      */
     public function deleteSummary()
     {
@@ -753,7 +764,7 @@ class LmController
     }
 
     /**
-     * Saves a summary as a new document file
+     * Save summary as new document file
      */
     public function saveSummaryAsFile()
     {
@@ -780,7 +791,78 @@ class LmController
     }
 
     /**
-     * Generates audio for summary using TTS, returns cached audio if available
+     * Generate audio for document (TTS, returns cached if available)
+     */
+    public function audioDocument(){
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['file_id']) ? (int)$_POST['file_id'] : 0;
+
+        if ($fileId === 0) {
+            $this->sendJsonError('File ID not provided.');
+        }
+
+        try {
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file) {
+                $this->sendJsonError('File not found.');
+            }
+
+            // Check if audio already exists for this specific file - if found, return it instead of generating new
+            $existingAudioFile = $this->lmModel->getAudioFileForDocument($fileId, $userId);
+            if ($existingAudioFile && !empty($existingAudioFile['audioPath'])) {
+                try {
+                    $audioUrl = $this->lmModel->getAudioSignedUrl($existingAudioFile['audioPath']);
+                    $this->sendJsonSuccess([
+                        'audioUrl' => $audioUrl,
+                        'cached' => true
+                    ]);
+                    return; // Stop execution - don't generate new audio
+                } catch (\Exception $e) {
+                    // If signed URL fails, file might be deleted, so continue to generate new one
+                }
+            }
+
+            // Generate audio locally (only if no existing audio found or existing audio is inaccessible)
+            // Clean markdown symbols before generating audio
+            $cleanText = $this->cleanMarkdownForAudio($file['extracted_text']);
+            
+            // Validate cleaned text is not empty
+            if (empty(trim($cleanText))) {
+                $this->sendJsonError('No text content available for audio generation after cleaning.');
+            }
+            
+            $localAudioPath = $this->PiperService->synthesizeText($cleanText);
+            if (!$localAudioPath || !file_exists($localAudioPath)) {
+                // Log detailed error information for debugging
+                error_log("[AudioDocument] Failed to generate audio. File ID: {$fileId}, Text length: " . strlen($cleanText));
+                error_log("[AudioDocument] PiperService returned: " . ($localAudioPath ?? 'null'));
+                
+                $errorMsg = 'Failed to generate audio file. ';
+                $errorMsg .= 'Please check that Piper TTS is installed and accessible, ';
+                $errorMsg .= 'and that the model file exists at the configured path.';
+                throw new \RuntimeException($errorMsg);
+            }
+
+            // Upload to GCS and save to audio table (unique for this file)
+            $gcsAudioPath = $this->lmModel->uploadAudioFileToGCSForDocument($fileId, $localAudioPath);
+
+            // Get signed URL for streaming
+            $audioUrl = $this->lmModel->getAudioSignedUrl($gcsAudioPath);
+
+            $this->sendJsonSuccess([
+                'audioUrl' => $audioUrl,
+                'cached' => false
+            ]);
+        } catch (\Exception $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
+     * Generate audio for summary (TTS, returns cached if available)
      */
     public function audioSummary(){
         header('Content-Type: application/json');
@@ -852,7 +934,7 @@ class LmController
     }
 
     /**
-     * Generates audio for note using TTS, returns cached audio if available
+     * Generate audio for note (TTS, returns cached if available)
      */
     public function audioNote(){
         header('Content-Type: application/json');
@@ -928,7 +1010,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all notes for a document
+     * Display all notes for document
      */
     public function note()
     {
@@ -964,7 +1046,7 @@ class LmController
     }
 
     /**
-     * Deletes a note from database
+     * Delete note from database
      */
     public function deleteNote()
     {
@@ -989,7 +1071,7 @@ class LmController
     }
 
     /**
-     * Saves a note as a new document file
+     * Save note as new document file
      */
     public function saveNoteAsFile()
     {
@@ -1016,7 +1098,7 @@ class LmController
     }
 
     /**
-     * Uploads an image for a note and returns image URL via JSON API
+     * Upload image for note (returns image URL via JSON)
      */
     public function uploadNoteImage(){
         header('Content-Type: application/json');
@@ -1080,7 +1162,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all mindmaps for a document
+     * Display all mindmaps for document
      */
     public function mindmap()
     {
@@ -1116,7 +1198,7 @@ class LmController
     }
 
     /**
-     * Generates a summary using AI and saves it to database
+     * Generate summary using AI and save to database
      */
     public function generateSummary()
     {
@@ -1163,7 +1245,7 @@ class LmController
     }
 
     /**
-     * Generates notes using AI and saves them to database
+     * Generate notes using AI and save to database
      */
     public function generateNotes()
     {
@@ -1210,7 +1292,7 @@ class LmController
     }
 
     /**
-     * Saves a manually created note to database
+     * Save manually created note to database
      */
     public function saveNote()
     {
@@ -1247,7 +1329,7 @@ class LmController
     }
 
     /**
-     * Updates an existing note's title and content
+     * Update existing note title and content
      */
     public function updateNote()
     {
@@ -1299,7 +1381,7 @@ class LmController
 
 
     /**
-     * Generates a mindmap using AI and saves it to database
+     * Generate mindmap using AI and save to database
      */
     public function generateMindmap()
     {
@@ -1343,7 +1425,7 @@ class LmController
     }
 
     /**
-     * Retrieves a specific mindmap by ID and returns its data
+     * Get mindmap by ID and return data
      */
     public function viewMindmap()
     {
@@ -1371,7 +1453,7 @@ class LmController
     }
 
     /**
-     * Loads mindmap structure (alias of viewMindmap)
+     * Load mindmap structure (alias of viewMindmap)
      */
     public function loadMindmapStructure()
     {
@@ -1379,7 +1461,7 @@ class LmController
     }
 
     /**
-     * Updates mindmap markdown structure in database
+     * Update mindmap markdown structure in database
      */
     public function updateMindmapStructure()
     {
@@ -1418,7 +1500,7 @@ class LmController
     }
 
     /**
-     * Deletes a mindmap from database
+     * Delete mindmap from database
      */
     public function deleteMindmap()
     {
@@ -1443,7 +1525,7 @@ class LmController
     }
 
     /**
-     * Normalizes mindmap payload from database (handles JSON or plain markdown)
+     * Normalize mindmap payload (handles JSON or plain markdown)
      */
     private function normalizeMindmapPayload($rawData): array
     {
@@ -1476,7 +1558,7 @@ class LmController
     }
 
     /**
-     * Builds standardized mindmap response payload with normalized data
+     * Build standardized mindmap response payload
      */
     private function buildMindmapResponse(int $mindmapId, int $fileId, int $userId): array
     {
@@ -1495,7 +1577,7 @@ class LmController
     }
 
     /**
-     * Generates mindmap title using AI from file name and content summary
+     * Generate mindmap title using AI
      */
     private function generateMindmapTitle(string $fileName, string $extractedText): string
     {
@@ -1504,7 +1586,7 @@ class LmController
     }
 
     /**
-     * Saves mindmap data to database and returns mindmap ID
+     * Save mindmap data to database
      */
     private function saveMindmapData(int $fileId, string $title, string $markdown): int
     {
@@ -1514,7 +1596,7 @@ class LmController
     }
 
     /**
-     * Gets JSON request data from POST or JSON body input
+     * Get JSON request data from POST or JSON body
      */
     private function getJsonRequestData(): array
     {
@@ -1524,7 +1606,7 @@ class LmController
     }
 
     /**
-     * Sends JSON success response and exits
+     * Send JSON success response
      */
     private function sendJsonSuccess(array $data = []): void
     {
@@ -1533,7 +1615,7 @@ class LmController
     }
 
     /**
-     * Sends JSON error response and exits
+     * Send JSON error response
      */
     private function sendJsonError(string $message): void
     {
@@ -1542,8 +1624,7 @@ class LmController
     }
 
     /**
-     * Extracts correct answer(s) from options array
-     * Returns string for single answer, array for multiple (checkbox)
+     * Get correct answer(s) from options (string for single, array for multiple)
      */
     private function getCorrectAnswerFromOptions(array $options): string|array
     {
@@ -1581,7 +1662,7 @@ class LmController
     }
 
     /**
-     * Clean markdown symbols from text for audio generation
+     * Remove markdown symbols from text for audio
      */
     private function cleanMarkdownForAudio(string $text): string
     {
@@ -1646,7 +1727,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays the create summary form
+     * Show create summary form
      */
     public function createSummary()
     {
@@ -1664,7 +1745,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Exports a summary as PDF file download
+     * Export summary as PDF
      */
     public function exportSummaryAsPdf()
     {
@@ -1696,7 +1777,7 @@ class LmController
     }
 
     /**
-     * Exports a summary as TXT file download
+     * Export summary as TXT
      */
     public function exportSummaryAsTxt()
     {
@@ -1728,7 +1809,7 @@ class LmController
     }
 
     /**
-     * Exports a note as PDF file download
+     * Export note as PDF
      */
     public function exportNoteAsPdf()
     {
@@ -1760,7 +1841,7 @@ class LmController
     }
 
     /**
-     * Exports a note as TXT file download
+     * Export note as TXT
      */
     public function exportNoteAsTxt()
     {
@@ -1797,7 +1878,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all flashcards for a document
+     * Display all flashcards for document
      */
     public function flashcard()
     {
@@ -1833,7 +1914,7 @@ class LmController
     }
 
     /**
-     * Generates flashcards using AI and saves them to database
+     * Generate flashcards using AI and save to database
      */
     public function generateFlashcards()
     {
@@ -1953,7 +2034,7 @@ class LmController
     }
 
     /**
-     * Retrieves a specific flashcard by ID and returns its data
+     * Get flashcard by ID and return data
      */
     public function getFlashcard()
     {
@@ -2137,7 +2218,7 @@ class LmController
     }
 
     /**
-     * Creates flashcards manually with multiple term/definition pairs
+     * Create flashcards manually with multiple term/definition pairs
      */
     public function createFlashcard()
     {
@@ -2205,8 +2286,7 @@ class LmController
     }
 
     /**
-     * Updates flashcards by deleting all flashcards with the same title and recreating them
-     * Handles multiple term/definition pairs
+     * Update flashcards (deletes old set and recreates)
      */
     public function updateFlashcard()
     {
@@ -2281,7 +2361,7 @@ class LmController
     }
 
     /**
-     * Deletes a single flashcard by ID
+     * Delete flashcard by ID or title
      */
     public function deleteFlashcard()
     {
@@ -2332,7 +2412,7 @@ class LmController
     }
 
     /**
-     * Deletes all flashcards with a specific title for a file
+     * Delete all flashcards by title for file
      */
     public function deleteFlashcards()
     {
@@ -2362,7 +2442,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays all quizzes for a document
+     * Display all quizzes for document
      */
     public function quiz()
     {
@@ -2398,7 +2478,7 @@ class LmController
     }
 
     /**
-     * Generates a quiz using AI and saves it to database
+     * Generate quiz using AI and save to database
      */
     public function generateQuiz()
     {
@@ -2409,7 +2489,17 @@ class LmController
         $fileId = $this->resolveFileId();
         $totalQuestions = isset($_POST['totalQuestions']) ? (int)$_POST['totalQuestions'] : 5;
         $examMode = isset($_POST['examMode']) && $_POST['examMode'] == '1' ? 1 : 0;
-        $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'remember';
+        
+        // Handle bloomLevels (new per-type format) or questionDifficulty (legacy)
+        $bloomLevelsRaw = $_POST['bloomLevels'] ?? null;
+        if ($bloomLevelsRaw) {
+            $bloomLevels = is_array($bloomLevelsRaw) ? $bloomLevelsRaw : json_decode($bloomLevelsRaw, true);
+            $bloomLevels = is_array($bloomLevels) ? $bloomLevels : ['multiple_choice' => 'remember'];
+        } else {
+            // Legacy: use single questionDifficulty for all types
+            $questionDifficulty = isset($_POST['questionDifficulty']) ? trim($_POST['questionDifficulty']) : 'remember';
+            $bloomLevels = $questionDifficulty;
+        }
         
         // Handle questionDistribution (from frontend) or questionTypes (legacy)
         $distributionRaw = $_POST['questionDistribution'] ?? null;
@@ -2456,7 +2546,7 @@ class LmController
             // Get instructions if provided
             $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : null;
             
-            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $questionDifficulty, $instructions);
+            $quizDataJson = $this->gemini->generateMixedQuiz($extractedText, $distribution, $totalQuestions, $bloomLevels, $instructions);
             if (empty($quizDataJson)) {
                 $this->sendJsonError('Failed to generate quiz.');
             }
@@ -2475,8 +2565,8 @@ class LmController
             }
 
             $title = $this->gemini->generateTitle($file['name']);
-            // Store Bloom's taxonomy level in questionConfig
-            $questionConfig = ['bloomLevel' => $questionDifficulty];
+            // Store Bloom's taxonomy levels in questionConfig
+            $questionConfig = ['bloomLevels' => $bloomLevels];
             $quizId = $this->lmModel->saveQuiz($fileId, $totalQuestions, $title, $questionConfig, $examMode);
 
             foreach ($quizData as $question) {
@@ -2508,7 +2598,7 @@ class LmController
     }
 
     /**
-     * Retrieves a specific quiz by ID and returns its data
+     * Get quiz by ID and return data
      */
     public function getQuiz()
     {
@@ -2546,7 +2636,7 @@ class LmController
     }
 
     /**
-     * Views a quiz for taking (checks if already completed)
+     * View quiz for taking (checks if already completed)
      */
     public function viewQuiz()
     {
@@ -2598,7 +2688,7 @@ class LmController
     }
 
     /**
-     * Views a quiz attempt with answers and feedback
+     * View quiz attempt with answers and feedback
      */
     public function viewQuizAttempt()
     {
@@ -2736,7 +2826,7 @@ class LmController
     }
 
     /**
-     * Submits quiz answers, evaluates them, and returns feedback
+     * Submit quiz answers, evaluate them, and return feedback
      */
     public function submitQuiz()
     {
@@ -2846,7 +2936,7 @@ class LmController
     }
 
     /**
-     * Deletes a quiz from database
+     * Delete quiz from database
      */
     public function deleteQuiz()
     {
@@ -2873,7 +2963,7 @@ class LmController
     }
 
     /**
-     * Gets quiz statistics for the current user
+     * Get quiz statistics for current user
      */
     public function getQuizStatistics()
     {
@@ -2896,7 +2986,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays the chatbot interface
+     * Show chatbot interface
      */
     public function chatbot()
     {
@@ -2955,7 +3045,7 @@ class LmController
     }
 
     /**
-     * Handles chatbot interaction: gets user question, generates response, and saves chat
+     * Handle chatbot interaction (get question, generate response, save chat)
      */
     public function chat()
     {
@@ -3076,7 +3166,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays document hub interface for multi-document operations
+     * Show document hub interface for multi-document operations
      */
     public function documentHub()
     {
@@ -3101,7 +3191,7 @@ class LmController
     }
 
     /**
-     * Saves checked documents to session
+     * Save checked documents to session
      */
     public function saveCheckedDocuments()
     {
@@ -3120,7 +3210,7 @@ class LmController
     }
 
     /**
-     * Retrieves checked documents from session
+     * Get checked documents from session
      */
     private function getCheckedDocuments(): array
     {
@@ -3130,8 +3220,7 @@ class LmController
     }
 
     /**
-     * Handles chatbot interaction for document hub: processes question across all user documents using RAG
-     * No document selection required - automatically retrieves relevant chunks from all user documents
+     * Handle document hub chat (processes question across all user documents using RAG)
      */
     public function sendDocumentHubChat()
     {
@@ -3259,7 +3348,7 @@ class LmController
     }
 
     /**
-     * Synthesizes a new document from multiple selected documents using RAG: finds relevant chunks via embeddings and generates document
+     * Synthesize document from multiple selected documents using RAG
      */
     public function synthesizeDocument(){
         header('Content-Type: application/json');
@@ -3269,6 +3358,12 @@ class LmController
 
         if (!isset($data['fileIds']) || empty($data['fileIds'])) {
             echo json_encode(['success' => false, 'message' => 'No files selected.']);
+            exit();
+        }
+        
+        // Require at least 2 documents for synthesis
+        if (count($data['fileIds']) < 2) {
+            echo json_encode(['success' => false, 'message' => 'Please select at least 2 documents to synthesize.']);
             exit();
         }
         if (!isset($data['description']) || empty(trim($data['description']))) {
@@ -3336,7 +3431,8 @@ class LmController
                 return $b['similarity'] <=> $a['similarity'];
             });
 
-            $topK = min(15, count($similarities));
+            // Increased chunk limit for up to 5 documents (6 chunks per document average)
+            $topK = min(30, count($similarities));
             $topChunks = array_slice($similarities, 0, $topK);
 
             if (empty($topChunks)) {
@@ -3366,7 +3462,8 @@ class LmController
             $documentTypeNames = [
                 'studyGuide' => 'Study Guide',
                 'briefDocument' => 'Brief Document',
-                'keyPoints' => 'Key Points'
+                'keyPoints' => 'Key Points',
+                'customize' => 'Custom Document'
             ];
 
             $documentTypeName = $documentTypeNames[$documentType] ?? 'Document';
@@ -3413,10 +3510,7 @@ class LmController
     }
 
     /**
-     * Calculates cosine similarity between two vectors
-     * @param array $vectorA First vector
-     * @param array $vectorB Second vector
-     * @return float Cosine similarity value between 0 and 1
+     * Calculate cosine similarity between two vectors
      */
     private function cosineSimilarity(array $vectorA, array $vectorB): float
     {
@@ -3445,8 +3539,7 @@ class LmController
     }
 
     /**
-     * Knowledge Base Search: Search across all user documents using RAG
-     * Returns top matching chunks with file metadata
+     * Search across all user documents using RAG (returns top matching chunks)
      */
     public function searchKnowledgeBase()
     {
@@ -3494,7 +3587,7 @@ class LmController
 
             // Calculate similarity for each chunk
             $similarities = [];
-            $similarityThreshold = 0.15; // Using same threshold as other RAG searches
+            $similarityThreshold = 0.4; // Minimum 40% similarity required to display results
             
             foreach ($allChunks as $chunk) {
                 $chunkEmbedding = json_decode($chunk['embedding'], true);
@@ -3559,8 +3652,7 @@ class LmController
     // ============================================================================
 
     /**
-     * Displays the homework helper interface
-     * Automatically creates homework_helper table if it doesn't exist
+     * Show homework helper interface (auto-creates table if needed)
      */
     public function homeworkHelper()
     {
@@ -3583,7 +3675,7 @@ class LmController
     }
 
     /**
-     * Processes homework upload: extracts text, identifies question, gets answer from Gemini
+     * Process homework upload (extract text, identify question, get answer)
      */
     public function processHomework()
     {
@@ -3718,5 +3810,43 @@ class LmController
         } catch (\Exception $e) {
             die('Error retrieving file: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Delete homework helper entry
+     */
+    public function deleteHomework()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $homeworkId = isset($_POST['homework_id']) ? (int)$_POST['homework_id'] : 0;
+
+        if ($homeworkId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Homework ID not provided.']);
+            exit();
+        }
+
+        try {
+            // Verify ownership before deletion
+            $homework = $this->lmModel->getHomeworkHelperById($homeworkId, $userId);
+            if (!$homework) {
+                echo json_encode(['success' => false, 'message' => 'Homework entry not found or access denied.']);
+                exit();
+            }
+
+            $success = $this->lmModel->deleteHomeworkHelper($homeworkId, $userId);
+            
+            if ($success) {
+                echo json_encode(['success' => true, 'message' => 'Homework entry deleted successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete homework entry.']);
+            }
+        } catch (\Exception $e) {
+            error_log('Error deleting homework: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'An error occurred while deleting the homework entry.']);
+        }
+        exit();
     }
 }

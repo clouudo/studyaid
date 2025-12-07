@@ -124,9 +124,15 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             background-color: transparent;
             border: 1px solid var(--sa-card-border);
             color: #6c757d;
-            padding: 10px 24px;
+            padding: 10px 0;
             border-radius: 8px;
             font-weight: 600;
+        }
+        
+        .btn-cancel.px-5,
+        .btn-primary.px-5 {
+            padding-left: 3rem;
+            padding-right: 3rem;
         }
         .btn-cancel:hover {
             background-color: #e7d5ff;
@@ -268,7 +274,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-folder-plus me-2"></i>
                             New Folder Details
                         </h5>
                     </div>
@@ -290,8 +295,8 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             </div>
 
                             <div class="d-flex gap-3 justify-content-center mt-4">
-                                <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
-                                <button type="submit" class="btn btn-primary px-5">Create Folder</button>
+                                <button type="button" class="btn btn-cancel px-5" onclick="resetForm()">Reset</button>
+                                <button type="submit" class="btn btn-primary px-5">Create</button>
                             </div>
                         </form>
                     </div>

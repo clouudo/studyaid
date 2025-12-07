@@ -257,6 +257,9 @@
                     <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
 
                 <!-- Generate Mindmap Form -->
                 <div class="card">
@@ -264,10 +267,15 @@
                         <h5 class="mb-0">Generate Mindmap with AI</h5>
                     </div>
                     <div class="card-body">
+                        <?php if (!$hasExtractedText): ?>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                            </div>
+                        <?php endif; ?>
                         <form id="mindmapForm" action="<?= GENERATE_MINDMAP ?>" method="POST">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
 
-                            <button type="submit" id="genMindmap" class="btn btn-primary">Generate Mindmap</button>
+                            <button type="submit" id="genMindmap" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Mindmap</button>
                         </form>
                     </div>
                 </div>

@@ -25,7 +25,22 @@ class GeminiService
     private function generateText(string $model, string $prompt, ?array $generationConfig = null): string
     {
         try {
-            $response = $this->client->generativeModel($model)->generateContent($prompt);
+            $generativeModel = $this->client->generativeModel($model);
+            
+            // Apply generation config if provided
+            if ($generationConfig !== null) {
+                $config = new GenerationConfig(
+                    candidateCount: 1,
+                    stopSequences: [],
+                    maxOutputTokens: $generationConfig['maxOutputTokens'] ?? null,
+                    temperature: $generationConfig['temperature'] ?? null,
+                    topP: $generationConfig['topP'] ?? null,
+                    topK: $generationConfig['topK'] ?? null
+                );
+                $generativeModel = $generativeModel->withGenerationConfig($config);
+            }
+            
+            $response = $generativeModel->generateContent($prompt);
             return $response->text();
         } catch (\Exception $e) {
             error_log('Gemini API - Error generating text: ' . $e->getMessage());
@@ -51,7 +66,7 @@ PROMPT;
     public function generateSummary(string $sourceText, ?string $instructions = null): string
     {
         $model = $this->models['summary'] ?? $this->defaultModel;
-        $prompt = "Summarize the following content into a short paragraph.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Summarize the following content into 3 short paragraphs.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         return $this->generateText($model, $prompt);
     }
 
@@ -165,22 +180,13 @@ PROMPT;
         string $sourceText,
         array $distribution,
         int $totalQuestions,
-        string $questionDifficulty = 'remember',
+        $bloomLevels = 'remember',
         ?string $instructions = null
     ): string {
         $model = $this->models['quiz'] ?? $this->defaultModel;
         $generationConfig = array_merge($this->generationConfig, [
             'maxOutputTokens' => 8192,
         ]);
-
-        $typeBreakdown = [];
-        foreach ($distribution as $type => $count) {
-            if ($count > 0) {
-                $label = ucfirst(str_replace('_', ' ', $type));
-                $typeBreakdown[] = "{$label}: {$count}";
-            }
-        }
-        $typeLines = implode("\n", $typeBreakdown);
 
         // Map Bloom's taxonomy level to description
         $bloomDescriptions = [
@@ -191,7 +197,41 @@ PROMPT;
             'evaluate' => 'Evaluate: Questions should test the ability to justify decisions, critique arguments, assess value, and make judgments.',
             'create' => 'Create: Questions should test the ability to produce new or original work, design solutions, construct theories, and synthesize information.'
         ];
-        $bloomDescription = $bloomDescriptions[$questionDifficulty] ?? $bloomDescriptions['remember'];
+
+        // Handle both legacy single string and new per-type array format
+        $isPerTypeBloom = is_array($bloomLevels);
+        
+        $typeBreakdown = [];
+        foreach ($distribution as $type => $count) {
+            if ($count > 0) {
+                $label = ucfirst(str_replace('_', ' ', $type));
+                if ($isPerTypeBloom && isset($bloomLevels[$type])) {
+                    $level = $bloomLevels[$type];
+                    $levelLabel = ucfirst($level);
+                    $typeBreakdown[] = "{$label}: {$count} questions at {$levelLabel} level";
+                } else {
+                    $typeBreakdown[] = "{$label}: {$count}";
+                }
+            }
+        }
+        $typeLines = implode("\n", $typeBreakdown);
+
+        // Build Bloom's taxonomy instructions
+        $bloomInstructions = "";
+        if ($isPerTypeBloom) {
+            $bloomInstructions = "Bloom's Taxonomy Levels per Question Type:\n";
+            foreach ($distribution as $type => $count) {
+                if ($count > 0) {
+                    $level = $bloomLevels[$type] ?? 'remember';
+                    $label = ucfirst(str_replace('_', ' ', $type));
+                    $bloomInstructions .= "- {$label}: {$bloomDescriptions[$level]}\n";
+                }
+            }
+        } else {
+            // Legacy single level for all questions
+            $bloomDescription = $bloomDescriptions[$bloomLevels] ?? $bloomDescriptions['remember'];
+            $bloomInstructions = "Bloom's Taxonomy Level: {$bloomDescription}\n";
+        }
 
         $schema = <<<PROMPT
 You are an educational quiz generator. Create {$totalQuestions} questions using the provided document content.
@@ -220,7 +260,7 @@ Return JSON ONLY in this structure:
 PROMPT;
 
         $prompt = $schema . "\n"
-            . "Bloom's Taxonomy Level: {$bloomDescription}\n"
+            . $bloomInstructions
             . "Total Questions: {$totalQuestions}\n"
             . ($instructions ? ("Constraints: {$instructions}\n") : '')
             . "\nContent:\n{$sourceText}";
@@ -667,44 +707,62 @@ PROMPT;
     public function synthesizeDocument(string $sourceText, string $instructions): string
     {
         $model = $this->models['synthesize'] ?? $this->defaultModel;
+        
+        // Increased output capacity for synthesize document (supports up to 5 documents)
+        $generationConfig = array_merge($this->generationConfig, [
+            'maxOutputTokens' => 32768, // Increased from 8192 for larger synthesized documents
+        ]);
+        
         $prompt = $instructions . "\n\n"
             . "IMPORTANT: Use ONLY the following relevant content retrieved from the selected documents. "
             . "This content has been selected because it matches your query. "
             . "Base your synthesized document strictly on this content and do not include information not found in it.\n\n"
             . "Relevant Content:\n{$sourceText}\n\n"
             . "Synthesize the document now:";
-        return $this->generateText($model, $prompt);
+        return $this->generateText($model, $prompt, $generationConfig);
     }
 
     /**
      * Answer homework question from extracted text or image
      * Returns array with 'hasQuestion' (bool) and 'answer' (string)
      */
-    public function answerHomeworkQuestion(string $extractedText): array
+    public function answerHomeworkQuestion(string $extractedText, ?string $instructions = null): array
     {
         $model = $this->models['default'] ?? $this->defaultModel;
         
+        // Build instruction section if provided
+        $userInstructions = '';
+        if (!empty($instructions)) {
+            $userInstructions = "\n\nUSER INSTRUCTIONS (follow these specific instructions):\n{$instructions}\n";
+        }
+        
         $prompt = <<<PROMPT
-You are a helpful homework assistant. Analyze the following content from an uploaded image or PDF.
+You are a helpful homework assistant. Analyze the following content from an uploaded document (image or PDF).
 
-INSTRUCTIONS:
-1. First, identify if there is a question or problem to solve in the content.
-2. If NO question is found, respond with exactly: "NO_QUESTION_FOUND"
-3. If a question IS found:
-   - Extract and clearly state the question
+YOUR TASK:
+1. First, carefully examine the content to identify if there is a question, problem, or exercise to solve.
+2. If NO question or problem is found in the content, respond with EXACTLY: "NO_QUESTION_FOUND"
+3. If a question or problem IS found:
+   - Extract and clearly state the question/problem
    - Provide a detailed, step-by-step answer
-   - Explain your reasoning
-   - Use clear formatting (markdown is acceptable)
+   - Explain your reasoning thoroughly
+   - Use clear formatting with markdown
    - Be thorough but concise
-
-Content to analyze:
+{$userInstructions}
+CONTENT TO ANALYZE:
 {$extractedText}
 
-Respond only in question and answer format.
-Format example:
-###Question1: (QUESTION)
-###Answer: (ANSWER)
-Now analyze and respond only in markdown format:
+RESPONSE FORMAT:
+- If no question found: respond ONLY with "NO_QUESTION_FOUND"
+- If question found, use this format:
+
+### Question:
+[State the question or problem clearly]
+
+### Answer:
+[Provide your detailed answer with step-by-step explanation]
+
+Now analyze and respond:
 PROMPT;
 
         try {
@@ -713,17 +771,22 @@ PROMPT;
             // Check if no question was found
             if (stripos($response, 'NO_QUESTION_FOUND') !== false || 
                 stripos($response, 'no question found') !== false ||
-                stripos($response, 'no question') !== false) {
+                (stripos($response, 'no question') !== false && stripos($response, 'no question') < 50)) {
                 return [
                     'hasQuestion' => false,
-                    'answer' => 'No question found.',
+                    'answer' => 'No question found in the uploaded document. Please upload a document that contains questions or problems to solve.',
                     'question' => null
                 ];
             }
             
             // Extract question if possible (look for patterns like "Question:", "Problem:", etc.)
             $question = null;
-            if (preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:]\s*(.+?)(?:\n|$)/i', $extractedText, $matches)) {
+            // Try to extract from AI response first
+            if (preg_match('/###?\s*Question[:\s]*\n?(.+?)(?=###?\s*Answer|$)/is', $response, $matches)) {
+                $question = trim($matches[1]);
+            }
+            // Fallback: try to extract from original text
+            if (empty($question) && preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:\s]+(.+?)(?:\n|$)/i', $extractedText, $matches)) {
                 $question = trim($matches[1]);
             }
             

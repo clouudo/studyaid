@@ -505,16 +505,24 @@
                     <h4 style="color: #212529; font-size: 1.25rem; font-weight: 500; margin-bottom: 20px; cursor: pointer; display: inline-block;" onclick="this.closest('form').submit();"><?php echo htmlspecialchars($file['name'] ?? 'Document'); ?></h4>
                 </form>
                 <?php require_once VIEW_NAVBAR; ?>
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Generate Summary with AI</h5>
                     </div>
                     <div class="card-body">
+                        <?php if (!$hasExtractedText): ?>
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                            </div>
+                        <?php endif; ?>
                         <form id="generateSummaryForm" action="<?= GENERATE_SUMMARY ?>" method="POST" data-action="<?= GENERATE_SUMMARY ?>">
                             <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
                             <label for="instructions" class="form-label">Instructions (optional)</label>
-                            <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions">
-                            <button type="submit" id="genSummary" class="btn btn-primary">Generate Summary</button>
+                            <input type="text" class="form-control mb-3" id="instructions" name="instructions" placeholder="Describe your instructions" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
+                            <button type="submit" id="genSummary" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Summary</button>
                         </form>
                     </div>
                 </div>
@@ -989,14 +997,15 @@
                     const summaryId = this.dataset.summaryId;
                     const originalText = this.innerHTML;
                     
-                    // If audio is already playing, toggle pause/play
-                    if (audioElement && !audioElement.ended) {
+                    // If audio is already created, toggle pause/play
+                    if (audioElement) {
                         if (audioElement.paused) {
-                            audioElement.play();
-                            this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
+                            audioElement.play().catch(err => {
+                                console.error('Error playing audio:', err);
+                                alert('Error playing audio. Please check your browser settings.');
+                            });
                         } else {
                             audioElement.pause();
-                            this.innerHTML = '<i class="bi bi-pause-fill me-2"></i>Paused';
                         }
                         return;
                     }
@@ -1054,9 +1063,12 @@
                         
                         // Function to highlight word based on audio time
                         function updateHighlight() {
-                            if (!audio.duration || wordSpans.length === 0) return;
+                            // Don't update if audio is paused
+                            if (audio.paused || !audio.duration || wordSpans.length === 0) return;
                             
-                            const progress = audio.currentTime / audio.duration;
+                            // Delay highlighting by 1.25 seconds to better sync with audio stream
+                            const delayedTime = Math.max(0, audio.currentTime - 1.25);
+                            const progress = delayedTime / audio.duration;
                             const targetIndex = Math.floor(progress * wordSpans.length);
                             
                             if (targetIndex !== currentWordIndex && targetIndex < wordSpans.length) {
@@ -1088,6 +1100,20 @@
                         // Update highlight on timeupdate
                         audio.addEventListener('timeupdate', updateHighlight);
                         
+                        // Handle playback state changes
+                        audio.addEventListener('play', () => {
+                            this.innerHTML = '<i class="bi bi-pause-fill me-2"></i>Pause';
+                            this.style.pointerEvents = 'auto';
+                        });
+                        
+                        audio.addEventListener('pause', () => {
+                            this.innerHTML = '<i class="bi bi-play-fill me-2"></i>Resume';
+                            // Stop highlighting when paused
+                            wordSpans.forEach(span => {
+                                span.classList.remove('current', 'highlighted');
+                            });
+                        });
+                        
                         // Reset highlights when audio ends
                         audio.addEventListener('ended', () => {
                             wordSpans.forEach(span => {
@@ -1100,24 +1126,14 @@
                             isPlaying = false;
                         });
                         
-                        // Reset highlights on pause
-                        audio.addEventListener('pause', () => {
-                            wordSpans.forEach(span => {
-                                span.classList.remove('current');
-                            });
-                        });
-                        
-                        // Play audio
+                        // Start playing
                         audio.play().catch(err => {
                             console.error('Error playing audio:', err);
                             alert('Error playing audio. Please check your browser settings.');
                             this.innerHTML = originalText;
                             this.style.pointerEvents = 'auto';
+                            audioElement = null;
                         });
-
-                        // Update button state
-                        this.innerHTML = '<i class="bi bi-volume-up-fill me-2"></i>Playing...';
-                        isPlaying = true;
                         
                         // Clean up on error
                         audio.addEventListener('error', () => {

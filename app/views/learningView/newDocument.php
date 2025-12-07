@@ -465,7 +465,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-file-earmark-plus me-2"></i>
                             New Document Details
                         </h5>
                     </div>
@@ -474,10 +473,9 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             <input type="hidden" name="folderSelect" id="folderSelect">
 
                             <div class="mb-4">
-                                <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here..." required>
+                                <label for="documentName" class="form-label fw-semibold">Document Name <span class="text-muted">(optional)</span></label>
+                                <input type="text" class="form-control form-input-theme" id="documentName" name="documentName" placeholder="Enter your document name here (defaults to file name if not provided)">
                             </div>
-                            
                             <div class="mb-4">
                                 <label for="folderSelectInput" class="form-label fw-semibold">Add to Folder</label>
                                 <div class="folder-select-wrapper">
@@ -504,7 +502,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                             </div>
 
                             <div class="d-flex gap-3 justify-content-center mt-4">
-                                <button type="button" class="btn btn-cancel" onclick="resetForm()">Reset</button>
+                                <button type="button" class="btn btn-cancel px-5" onclick="resetForm()">Reset</button>
                                 <button type="submit" class="btn btn-create px-5">Create</button>
                             </div>
                         </form>
@@ -774,15 +772,6 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
 
-            if (getDocumentSelection().mode === 'single') {
-                if (!documentName) {
-                    e.preventDefault();
-                    showSnackbar('Please enter a document name.', 'error');
-                    document.getElementById('documentName').focus();
-                    return false;
-                }
-            }
-
             if (!files || files.length === 0) {
                 e.preventDefault();
                 showSnackbar('Please select at least one file to upload.', 'error');
@@ -803,7 +792,7 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 return false;
             }
 
-            if (documentName.length > 255) {
+            if (documentName && documentName.length > 255) {
                 e.preventDefault();
                 showSnackbar('Document name must be less than 255 characters.', 'error');
                 document.getElementById('documentName').focus();

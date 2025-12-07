@@ -31,7 +31,7 @@ class LmModel
     }
 
     /**
-     * Set custom temp directory for PHP to avoid permission issues with system temp
+     * Set custom temp directory to avoid permission issues
      */
     private function setCustomTempDir(): void
     {
@@ -49,7 +49,7 @@ class LmModel
     }
 
     /**
-     * Ensure quiz schema has required columns/tables.
+     * Ensure quiz schema has required columns and tables
      */
     private function ensureQuizSchema(): void
     {
@@ -138,7 +138,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Extract text content from uploaded file based on file extension
+     * Extract text from file (txt, pdf, doc, docx)
      */
     public function extractTextFromFile($tmpName, $fileExtension)
     {
@@ -175,7 +175,7 @@ class LmModel
     }
 
     /**
-     * Generate a unique filename using UUID
+     * Generate unique filename with UUID
      */
     public function generateUniqueFileName($fileExtension)
     {
@@ -185,8 +185,7 @@ class LmModel
     }
 
     /**
-     * Get logical folder path for GCS storage
-     * Uses stored folderPath from database if available, otherwise builds and stores it
+     * Get folder path for GCS storage (uses cached path or builds it)
      */
     public function getLogicalFolderPath($folderId, $userId)
     {
@@ -243,7 +242,7 @@ class LmModel
     }
 
     /**
-     * Get folder information by ID
+     * Get folder details by ID
      */
     public function getFolderInfo($folderId)
     {
@@ -256,7 +255,7 @@ class LmModel
     }
 
     /**
-     * Get all folders for a user (for dropdowns/modals)
+     * Get all user folders (for dropdowns/modals)
      */
     public function getAllFoldersForUser($userId)
     {
@@ -269,7 +268,7 @@ class LmModel
     }
 
     /**
-     * Get file information by user ID and file ID
+     * Get file details by user and file ID
      */
     public function getFile($userId, $fileId)
     {
@@ -287,7 +286,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Upload audio file to Google Cloud Storage and save metadata to audio table for summary
+     * Upload audio file to GCS for summary
      */
     public function uploadAudioFileToGCSForSummary(int $summaryId, int $sourceFileId, string $localAudioPath): string
     {
@@ -348,7 +347,7 @@ class LmModel
     }
 
     /**
-     * Upload audio file to Google Cloud Storage and save metadata to audio table for note
+     * Upload audio file to GCS for note
      */
     public function uploadAudioFileToGCSForNote(int $noteId, int $sourceFileId, string $localAudioPath): string
     {
@@ -409,7 +408,7 @@ class LmModel
     }
 
     /**
-     * Upload audio file to Google Cloud Storage and save metadata to audio table for document
+     * Upload audio file to GCS for document
      */
     public function uploadAudioFileToGCSForDocument(int $fileId, string $localAudioPath): string
     {
@@ -470,7 +469,7 @@ class LmModel
     }
 
     /**
-     * Get audio file for a specific summary ID from audio table
+     * Get audio file for summary
      */
     public function getAudioFileForSummary(int $summaryId, int $userId): ?array
     {
@@ -489,7 +488,7 @@ class LmModel
     }
 
     /**
-     * Get audio file for a specific note ID from audio table
+     * Get audio file for note
      */
     public function getAudioFileForNote(int $noteId, int $userId): ?array
     {
@@ -508,7 +507,7 @@ class LmModel
     }
 
     /**
-     * Get audio file for a specific document/file ID from audio table
+     * Get audio file for document
      */
     public function getAudioFileForDocument(int $fileId, int $userId): ?array
     {
@@ -526,7 +525,7 @@ class LmModel
     }
 
     /**
-     * Get signed URL for audio file from GCS
+     * Get signed URL for audio file
      */
     public function getAudioSignedUrl(string $gcsPath): string
     {
@@ -544,7 +543,7 @@ class LmModel
 
 
     /**
-     * Upload file to Google Cloud Storage and save metadata to database
+     * Upload file to GCS and save metadata
      */
     public function uploadFileToGCS($userId, $folderId, $extractedText, $fileContent = null, $file = null, $originalFileName = null)
     {
@@ -597,7 +596,7 @@ class LmModel
     }
 
     /**
-     * Get the latest uploaded file for a user
+     * Get latest uploaded file for user
      */
     public function getLatestFileForUser($userId)
     {
@@ -610,7 +609,7 @@ class LmModel
     }
 
     /**
-     * Get all files for a user, ordered by most recent first
+     * Get all user files (most recent first)
      */
     public function getFilesForUser($userId)
     {
@@ -627,7 +626,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Get folders and files for a specific parent folder
+     * Get folders and files for parent folder
      */
     public function getFoldersAndFiles($userId, $parentId = null)
     {
@@ -686,7 +685,7 @@ class LmModel
     }
 
     /**
-     * Get document content from GCS (returns file content or signed URL for images)
+     * Get document content from GCS (file content or signed URL for images)
      */
     public function getDocumentContent($fileId, $userId)
     {
@@ -731,7 +730,7 @@ class LmModel
     }
 
     /**
-     * Delete a document from GCS and database
+     * Delete document from GCS and database
      */
     public function deleteDocument($fileId, $userId)
     {
@@ -766,7 +765,7 @@ class LmModel
     }
 
     /**
-     * Delete a folder and all its contents from GCS and database
+     * Delete folder and all contents from GCS and database
      */
     public function deleteFolder($folderId, $userId)
     {
@@ -833,7 +832,7 @@ class LmModel
     }
 
     /**
-     * Helper function to recursively update folderPath for a folder and all its children
+     * Recursively update folderPath for folder and children
      */
     private function updateFolderPathRecursive($folderId, $newFolderPath, $userId, $conn)
     {
@@ -871,7 +870,7 @@ class LmModel
     }
 
     /**
-     * Rename a folder in GCS and database
+     * Rename folder in GCS and database
      */
     public function renameFolder($folderId, $newName, $userId)
     {
@@ -935,7 +934,7 @@ class LmModel
     }
 
     /**
-     * Rename a file/document in database
+     * Rename file in database
      */
     public function renameFile($fileId, $newName, $userId)
     {
@@ -960,7 +959,7 @@ class LmModel
     }
 
     /**
-     * Move a file to another folder in GCS and database
+     * Move file to another folder in GCS and database
      */
     public function moveFile($fileId, $newFolderId, $userId)
     {
@@ -1010,7 +1009,7 @@ class LmModel
     }
 
     /**
-     * Move a folder to another parent folder in GCS and database
+     * Move folder to another parent in GCS and database
      */
     public function moveFolder($folderId, $newParentId, $userId)
     {
@@ -1080,7 +1079,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Create a new folder in GCS and database
+     * Create new folder in GCS and database
      */
     public function createFolder($userId, $folderName, $parentFolderId = null)
     {
@@ -1123,7 +1122,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save a summary to database
+     * Save summary to database
      */
     public function saveSummary(int $fileId, string $title, string $content): int
     {
@@ -1137,7 +1136,7 @@ class LmModel
     }
 
     /**
-     * Get all summaries for a specific file
+     * Get all summaries for file
      */
     public function getSummaryByFile(int $fileId)
     {
@@ -1149,7 +1148,7 @@ class LmModel
     }
 
     /**
-     * Get a specific summary by ID and user ID (verifies ownership through file)
+     * Get summary by ID (verifies ownership)
      */
     public function getSummaryById(int $summaryId, int $userId)
     {
@@ -1175,7 +1174,7 @@ class LmModel
     }
 
     /**
-     * Save summary as file from database and upload to GCS
+     * Save summary as file and upload to GCS
      */
     public function saveSummaryAsFile(int $summaryId, $fileId, $folderId)
     {
@@ -1201,7 +1200,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save a note to database
+     * Save note to database
      */
     public function saveNotes(int $fileId, string $title, string $content): int
     {
@@ -1215,7 +1214,7 @@ class LmModel
     }
 
     /**
-     * Get all notes for a specific file
+     * Get all notes for file
      */
     public function getNotesByFile(int $fileId)
     {
@@ -1227,7 +1226,7 @@ class LmModel
     }
 
     /**
-     * Get a specific note by ID and user ID (checks ownership through file)
+     * Get note by ID (checks ownership)
      */
     public function getNoteById(int $noteId, int $userId)
     {
@@ -1253,7 +1252,7 @@ class LmModel
     }
 
     /**
-     * Save note as file from database and upload to GCS
+     * Save note as file and upload to GCS
      */
     public function saveNoteAsFile(int $noteId, $fileId, $folderId)
     {
@@ -1275,7 +1274,7 @@ class LmModel
     }
 
     /**
-     * Update note content and title (inline editing)
+     * Update note content and title
      */
     public function updateNote(int $noteId, int $fileId, int $userId, string $title, string $content): bool
     {
@@ -1294,7 +1293,7 @@ class LmModel
     }
 
     /**
-     * Upload note image to GCS and save metadata to database, returns image info with signed URL
+     * Upload note image to GCS and return signed URL
      */
     public function saveNoteImage(int $noteId, string $fileContent, string $fileExtension, int $userId): array
     {
@@ -1336,7 +1335,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save a mindmap to database
+     * Save mindmap to database
      */
     public function saveMindmap(int $fileId, string $title, string $data): int
     {
@@ -1350,7 +1349,7 @@ class LmModel
     }
 
     /**
-     * Update mindmap data payload
+     * Update mindmap data
      */
     public function updateMindmap(int $mindmapId, int $fileId, int $userId, array $payload): bool
     {
@@ -1373,7 +1372,7 @@ class LmModel
     }
 
     /**
-     * Get all mindmaps for a specific file
+     * Get all mindmaps for file
      */
     public function getMindmapByFile(int $fileId)
     {
@@ -1385,7 +1384,7 @@ class LmModel
     }
 
     /**
-     * Get a specific mindmap by ID and file ID (checks ownership through file)
+     * Get mindmap by ID (checks ownership if userId provided)
      */
     public function getMindmapById(int $mindmapId, int $fileId, ?int $userId = null)
     {
@@ -1430,16 +1429,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save flashcards to database
-     */
-    /**
-     * Saves flashcards as comma-separated strings (one row per title/set)
-     * Uses "," as separator between cards (format: "term1","term2","term3")
-     * @param int $fileId
-     * @param string $title
-     * @param array $terms Array of term strings
-     * @param array $definitions Array of definition strings
-     * @return int The flashcard ID
+     * Save flashcards as comma-separated strings (one row per title/set)
      */
     public function saveFlashcards(int $fileId, string $title, array $terms, array $definitions): int
     {
@@ -1484,8 +1474,7 @@ class LmModel
     }
 
     /**
-     * Get all flashcards for a specific file, grouped by title (one entry per title/set)
-     * Now calculates card count from JSON arrays
+     * Get all flashcards for file, grouped by title
      */
     public function getFlashcardsByFile(int $fileId)
     {
@@ -1592,7 +1581,7 @@ class LmModel
     }
 
     /**
-     * Get a specific flashcard by ID
+     * Get flashcard by ID
      */
     public function getFlashcardsById(int $flashcardId)
     {
@@ -1604,7 +1593,7 @@ class LmModel
     }
 
     /**
-     * Get all flashcards with a specific title for a file
+     * Get flashcards by title for file
      */
     public function getFlashcardsByTitle(string $title, int $fileId)
     {
@@ -1617,7 +1606,7 @@ class LmModel
     }
 
     /**
-     * Delete all flashcards with a specific title for a file
+     * Delete flashcards by title for file
      */
     public function deleteFlashcardsByTitle(string $title, int $fileId)
     {
@@ -1629,7 +1618,7 @@ class LmModel
     }
 
     /**
-     * Delete a single flashcard by ID with ownership check
+     * Delete flashcard by ID (checks ownership)
      */
     public function deleteFlashcardById(int $flashcardId, int $userId): bool
     {
@@ -1643,7 +1632,7 @@ class LmModel
     }
 
     /**
-     * Get a specific flashcard ensuring it belongs to the user
+     * Get flashcard by ID (verifies ownership)
      */
     public function getFlashcardWithOwner(int $flashcardId, int $userId)
     {
@@ -1659,7 +1648,7 @@ class LmModel
     }
 
     /**
-     * Update a flashcard (title, term, definition) with ownership check
+     * Update flashcard (checks ownership)
      */
     public function updateFlashcard(int $flashcardId, string $title, string $term, string $definition, int $userId): bool
     {
@@ -1682,7 +1671,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save a quiz to database
+     * Save quiz to database
      */
     public function saveQuiz(
         int $fileId,
@@ -1707,7 +1696,7 @@ class LmModel
     }
 
     /**
-     * Save a question to database
+     * Save question to database
      */
     public function saveQuestion(int $quizId, string $type, string $question, ?string $explanation = null): int
     {
@@ -1722,7 +1711,7 @@ class LmModel
     }
 
     /**
-     * Save a user answer to database
+     * Save user answer to database
      */
     public function saveUserAnswer(int $questionId, string $userAnswer): int
     {
@@ -1735,7 +1724,7 @@ class LmModel
     }
 
     /**
-     * Get all quizzes for a specific file
+     * Get all quizzes for file
      */
     public function getQuizByFile(int $fileId)
     {
@@ -1748,7 +1737,7 @@ class LmModel
     }
 
     /**
-     * Get a specific quiz by ID
+     * Get quiz by ID
      */
     public function getQuizById(int $quizId)
     {
@@ -1761,7 +1750,7 @@ class LmModel
     }
 
     /**
-     * Get question data for a specific quiz
+     * Get question data for quiz
      */
     public function getQuestionByQuiz(int $quizId)
     {
@@ -1773,7 +1762,7 @@ class LmModel
     }
 
     /**
-     * Get all questions for a specific quiz
+     * Get all questions for quiz
      */
     public function getQuestionsByQuiz(int $quizId)
     {
@@ -1785,7 +1774,7 @@ class LmModel
     }
 
     /**
-     * Save an option for a question
+     * Save option for question
      */
     public function saveOption(int $questionId, string $text, bool $isCorrect): int
     {
@@ -1799,7 +1788,7 @@ class LmModel
     }
 
     /**
-     * Get all options for a specific question
+     * Get all options for question
      */
     public function getOptionsByQuestion(int $questionId)
     {
@@ -1960,7 +1949,7 @@ class LmModel
     }
 
     /**
-     * Get suggested answers for a question
+     * Get suggested answers for question
      */
     public function getSuggestedAnswers(int $questionId)
     {
@@ -1979,8 +1968,7 @@ class LmModel
     }
 
     /**
-     * Delete a quiz and all related data (questions, answers, etc.)
-     * CASCADE constraints in database will handle related records
+     * Delete quiz and related data (CASCADE handles related records)
      */
     public function deleteQuiz(int $quizId, int $userId): bool
     {
@@ -2015,7 +2003,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Save a chat message to database
+     * Save chatbot to database
      */
     public function saveChatbot(int $fileId, string $title)
     {
@@ -2028,7 +2016,7 @@ class LmModel
     }
 
     /**
-     * Save a user question in chat
+     * Save user question in chat
      */
     public function saveQuestionChat(int $chatbotId, string $question)
     {
@@ -2041,7 +2029,7 @@ class LmModel
     }
 
     /**
-     * Save a chatbot response
+     * Save chatbot response
      */
     public function saveResponseChat(int $questionChatId, string $response)
     {
@@ -2066,7 +2054,7 @@ class LmModel
     }
 
     /**
-     * Get all question chats for a specific chatbot
+     * Get all question chats for chatbot
      */
     public function getQuestionChatByChatbot(int $chatbotId)
     {
@@ -2102,7 +2090,7 @@ class LmModel
     }
 
     /**
-     * Get chat history for a file
+     * Get chat history for file
      */
     public function chatHistory($fileId, int $limit = 5)
     {
@@ -2157,8 +2145,7 @@ class LmModel
     // ============================================================================ 
 
     /**
-     * Split text into overlapping chunks for RAG processing
-     * Prioritizes maximum chunk size threshold first, then finds nearest sentence boundary
+     * Split text into overlapping chunks for RAG (respects sentence boundaries)
      */
     public function splitTextIntoChunks(string $text, int $fileID, int $chunkSize = 2000, int $overlap = 400): array{
         $chunks = [];
@@ -2266,7 +2253,7 @@ class LmModel
     }
 
     /**
-     * Save text chunks and their embeddings to database for RAG retrieval
+     * Save text chunks and embeddings to database for RAG
      */
     public function saveChunksToDB(array $chunks, array $embeddings, int $fileID): void{
         $conn = $this->db->connect();
@@ -2284,7 +2271,7 @@ class LmModel
     }
 
     /**
-     * Get all document chunks and embeddings for a specific file
+     * Get document chunks and embeddings for file
      */
     public function getChunksByFile(int $fileID): array
     {
@@ -2302,8 +2289,7 @@ class LmModel
     }
 
     /**
-     * Get all document chunks with file metadata for a user's files
-     * Returns chunks with fileID, fileName, chunkText, and embedding
+     * Get document chunks with file metadata for user's files
      */
     public function getChunksForUserFiles(int $userId): array
     {
@@ -2335,7 +2321,7 @@ class LmModel
     // ============================================================================
 
     /**
-     * Ensures homework_helper table exists in database
+     * Ensure homework_helper table exists
      */
     private function ensureHomeworkHelperSchema(): void
     {
@@ -2452,7 +2438,7 @@ class LmModel
     }
 
     /**
-     * Get all homework helper entries for a user
+     * Get all homework helper entries for user
      */
     public function getHomeworkHelpersByUser(int $userId): array
     {
@@ -2480,7 +2466,44 @@ class LmModel
     }
 
     /**
-     * Get storage client (for controller use)
+     * Delete homework helper entry by ID
+     */
+    public function deleteHomeworkHelper(int $homeworkId, int $userId): bool
+    {
+        $this->ensureHomeworkHelperSchema();
+        $conn = $this->db->connect();
+        
+        // First, get the file path to delete from GCS
+        $homework = $this->getHomeworkHelperById($homeworkId, $userId);
+        if (!$homework) {
+            return false;
+        }
+        
+        // Delete file from GCS if it exists
+        if (!empty($homework['filePath'])) {
+            try {
+                $bucket = $this->storage->bucket($this->bucketName);
+                $object = $bucket->object($homework['filePath']);
+                if ($object->exists()) {
+                    $object->delete();
+                }
+            } catch (\Exception $e) {
+                error_log('Error deleting homework file from GCS: ' . $e->getMessage());
+                // Continue with database deletion even if GCS deletion fails
+            }
+        }
+        
+        // Delete from database
+        $stmt = $conn->prepare("DELETE FROM homework_helper WHERE homeworkID = :homeworkID AND userID = :userID");
+        $stmt->bindParam(':homeworkID', $homeworkId, \PDO::PARAM_INT);
+        $stmt->bindParam(':userID', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Get storage client
      */
     public function getStorage()
     {
@@ -2488,7 +2511,7 @@ class LmModel
     }
 
     /**
-     * Get bucket name (for controller use)
+     * Get bucket name
      */
     public function getBucketName()
     {

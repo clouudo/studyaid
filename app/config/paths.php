@@ -20,7 +20,7 @@ define('ASSET_PATH', PUBLIC_PATH . 'asset/');
 // Images - using absolute URLs for better compatibility
 define('IMG_VISIBLE', APP_URL . 'public/asset/visible.png');
 define('IMG_INVISIBLE', APP_URL . 'public/asset/invisible.png');
-define('IMG_LOGO', APP_URL . 'public/asset/logo.png');
+define('IMG_LOGO', APP_URL . 'public/asset/logo.jpeg');
 define('IMG_SETTING', APP_URL . 'public/asset/setting.png');
 define('IMG_CARET_DOWN', APP_URL . 'public/asset/down-chevron.png');
 
@@ -113,6 +113,7 @@ define('SEARCH_KNOWLEDGE_BASE', BASE_PATH . 'lm/searchKnowledgeBase');
 define('HOMEWORK_HELPER', BASE_PATH . 'lm/homeworkHelper');
 define('PROCESS_HOMEWORK', BASE_PATH . 'lm/processHomework');
 define('VIEW_HOMEWORK_FILE', BASE_PATH . 'lm/viewHomeworkFile');
+define('DELETE_HOMEWORK', BASE_PATH . 'lm/deleteHomework');
 
 // JSON API routes
 define('RENAME_FOLDER', BASE_PATH . 'lm/renameFolder');

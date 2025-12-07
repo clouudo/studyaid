@@ -227,6 +227,84 @@
             box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25);
         }
 
+        /* Bloom's Taxonomy per question type */
+        .bloom-taxonomy-section {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px dashed rgba(111, 66, 193, 0.2);
+            display: none;
+        }
+
+        .bloom-taxonomy-section.active {
+            display: block;
+        }
+
+        .bloom-select {
+            font-size: 0.85rem;
+            border: 1px solid rgba(111, 66, 193, 0.25);
+            border-radius: 8px;
+            padding: 0.4rem 0.6rem;
+            background-color: #fdfbff;
+            color: var(--sa-primary-dark);
+            transition: all 0.2s;
+        }
+
+        .bloom-select:focus {
+            border-color: var(--sa-primary);
+            box-shadow: 0 0 0 0.15rem rgba(111, 66, 193, 0.2);
+            outline: none;
+        }
+
+        .bloom-label {
+            font-size: 0.8rem;
+            color: var(--sa-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .bloom-label i {
+            color: var(--sa-primary);
+        }
+
+        .bloom-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .bloom-badge.remember { background-color: #e3f2fd; color: #1565c0; }
+        .bloom-badge.understand { background-color: #e8f5e9; color: #2e7d32; }
+        .bloom-badge.apply { background-color: #fff3e0; color: #ef6c00; }
+        .bloom-badge.analysis { background-color: #fce4ec; color: #c2185b; }
+        .bloom-badge.evaluate { background-color: #f3e5f5; color: #7b1fa2; }
+        .bloom-badge.create { background-color: #e0f2f1; color: #00695c; }
+
+        .question-type-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .question-type-info {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .question-type-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
         .quiz-list-item {
             border-left: 4px solid transparent;
         }
@@ -499,10 +577,18 @@
                 <?php require_once VIEW_NAVBAR; ?>
 
                 <!-- Quiz Builder Row -->
+                <?php
+                $hasExtractedText = isset($file['extracted_text']) && !empty(trim($file['extracted_text'] ?? ''));
+                ?>
                 <div class="row g-4 mb-4 align-items-stretch">
                     <div class="col-12 col-lg-5 quiz-builder-left">
                         <div class="card h-100" id="generateQuizCard">
                             <div class="card-body">
+                                <?php if (!$hasExtractedText): ?>
+                                    <div class="alert alert-warning mb-3">
+                                        <i class="bi bi-exclamation-triangle"></i> This document has no extracted text. AI tools are not available.
+                                    </div>
+                                <?php endif; ?>
                                 <?php $defaultQuestionTotal = 10; ?>
                                 <form id="generateQuizForm" action="<?= GENERATE_QUIZ ?>" method="POST">
                                     <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
@@ -511,7 +597,7 @@
                                             <span>Total Questions</span>
                                             <span id="questionCountLabel" class="badge rounded-pill" style="background-color: var(--sa-accent); color: var(--sa-primary-dark); font-size: 1rem; min-width: 48px;"><?php echo $defaultQuestionTotal; ?></span>
                                         </label>
-                                        <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>">
+                                        <input type="range" class="form-range" id="questionCountSlider" min="1" max="25" value="<?php echo $defaultQuestionTotal; ?>" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Question Distribution</label>
@@ -525,59 +611,81 @@
                                         $questionTypes = [
                                             'multiple_choice' => [
                                                 'label' => 'Multiple Choice',
-                                                'hint' => 'One correct answer per question.'
+                                                'hint' => 'One correct answer per question.',
+                                                'icon' => 'bi-circle-fill'
                                             ],
                                             'checkbox' => [
                                                 'label' => 'Checkbox (Multi-select)',
-                                                'hint' => 'Choose all answers that apply.'
+                                                'hint' => 'Choose all answers that apply.',
+                                                'icon' => 'bi-check-square-fill'
                                             ],
                                             'true_false' => [
                                                 'label' => 'True / False',
-                                                'hint' => 'Classify statements quickly.'
+                                                'hint' => 'Classify statements quickly.',
+                                                'icon' => 'bi-toggle-on'
                                             ],
                                             'short_answer' => [
                                                 'label' => 'Short Answer',
-                                                'hint' => '1-2 sentence responses.'
+                                                'hint' => '1-2 sentence responses.',
+                                                'icon' => 'bi-chat-left-text-fill'
                                             ],
                                             'long_answer' => [
                                                 'label' => 'Long Answer',
-                                                'hint' => 'Detailed explanation.'
+                                                'hint' => 'Detailed explanation.',
+                                                'icon' => 'bi-file-text-fill'
                                             ]
+                                        ];
+                                        $bloomLevels = [
+                                            'remember' => ['label' => 'Remember', 'desc' => 'Recall facts and basic concepts'],
+                                            'understand' => ['label' => 'Understand', 'desc' => 'Explain ideas or concepts'],
+                                            'apply' => ['label' => 'Apply', 'desc' => 'Use information in new situations'],
+                                            'analysis' => ['label' => 'Analysis', 'desc' => 'Draw connections among ideas'],
+                                            'evaluate' => ['label' => 'Evaluate', 'desc' => 'Justify a stand or decision'],
+                                            'create' => ['label' => 'Create', 'desc' => 'Produce new or original work']
                                         ];
                                         foreach ($questionTypes as $typeKey => $meta):
                                             $defaultValue = $typeKey === 'multiple_choice' ? $defaultQuestionTotal : 0;
                                         ?>
-                                            <div class="question-type-card d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-2">
-                                                <div>
-                                                    <p class="mb-0 fw-semibold"><?= $meta['label'] ?></p>
-                                                    <small class="text-muted"><?= $meta['hint'] ?></small>
+                                            <div class="question-type-card mb-2" data-question-type-card="<?= $typeKey ?>">
+                                                <div class="question-type-header">
+                                                    <div class="question-type-info">
+                                                        <p class="mb-0 fw-semibold d-flex align-items-center gap-2">
+                                                            <i class="bi <?= $meta['icon'] ?>" style="color: var(--sa-primary); font-size: 0.9rem;"></i>
+                                                            <?= $meta['label'] ?>
+                                                        </p>
+                                                        <small class="text-muted"><?= $meta['hint'] ?></small>
+                                                    </div>
+                                                    <div class="question-type-controls">
+                                                        <input type="number" class="form-control question-type-input" min="0" max="25" value="<?= $defaultValue ?>" data-question-type="<?= $typeKey ?>" style="width: 80px; text-align: center;" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
+                                                    </div>
                                                 </div>
-                                                <div class="quantity-input-wrapper">
-                                                    <input type="number" class="form-control question-type-input" min="0" max="25" value="<?= $defaultValue ?>" data-question-type="<?= $typeKey ?>" style="width: 80px; text-align: center;">
+                                                <div class="bloom-taxonomy-section <?= $defaultValue > 0 ? 'active' : '' ?>" data-bloom-section="<?= $typeKey ?>">
+                                                    <label class="bloom-label">
+                                                        <i class="bi bi-mortarboard-fill"></i>
+                                                        Bloom's Level
+                                                    </label>
+                                                    <select class="bloom-select w-100" data-bloom-type="<?= $typeKey ?>" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
+                                                        <?php foreach ($bloomLevels as $levelKey => $level): ?>
+                                                            <option value="<?= $levelKey ?>" <?= $levelKey === 'remember' ? 'selected' : '' ?>>
+                                                                <?= $level['label'] ?> - <?= $level['desc'] ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
                                                 </div>
                                             </div>
                                         <?php endforeach; ?>
-                                        <small class="text-muted d-block">Allocate all questions before generating.</small>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label d-block">Bloom's Taxonomy Level</label>
-                                        <select name="questionDifficulty" class="form-select" id="bloomTaxonomySelect" required>
-                                            <option value="remember" selected>Remember - Recall facts and basic concepts</option>
-                                            <option value="understand">Understand - Explain ideas or concepts</option>
-                                            <option value="apply">Apply - Use information in new situations</option>
-                                            <option value="analysis">Analysis - Draw connections among ideas</option>
-                                            <option value="evaluate">Evaluate - Justify a stand or decision</option>
-                                            <option value="create">Create - Produce new or original work</option>
-                                        </select>
-                                        <small class="text-muted d-block">Select the cognitive level for quiz questions.</small>
+                                        <small class="text-muted d-block mt-2">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Set the quantity and Bloom's Taxonomy level for each question type.
+                                        </small>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label d-block">Exam Mode</label>
                                         
                                         <div class="btn-group" role="group">
-                                            <input type="radio" class="btn-check" name="examMode" id="examModeOff" value="0" checked>
+                                            <input type="radio" class="btn-check" name="examMode" id="examModeOff" value="0" checked <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                             <label class="btn btn-outline-secondary" for="examModeOff">Practice</label>
-                                            <input type="radio" class="btn-check" name="examMode" id="examModeOn" value="1">
+                                            <input type="radio" class="btn-check" name="examMode" id="examModeOn" value="1" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                             <label class="btn btn-outline-secondary" for="examModeOn">Exam Mode</label>
                                             
                                         </div>
@@ -586,9 +694,9 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Instructions (optional)</label>
-                                        <input type="text" name="instructions" class="form-control" placeholder="Describe your instruction">
+                                        <input type="text" name="instructions" class="form-control" placeholder="Describe your instruction" <?php echo !$hasExtractedText ? 'disabled' : ''; ?>>
                                     </div>
-                                    <button type="submit" id="genQuiz" class="btn btn-primary">Generate Quiz</button>
+                                    <button type="submit" id="genQuiz" class="btn btn-primary" <?php echo !$hasExtractedText ? 'disabled' : ''; ?> style="<?php echo !$hasExtractedText ? 'opacity: 0.5; cursor: not-allowed;' : ''; ?>">Generate Quiz</button>
                                 </form>
                             </div>
                         </div>
@@ -1143,6 +1251,18 @@
                 updateDistributionTotals();
             });
 
+            // Function to toggle Bloom's Taxonomy section visibility
+            function toggleBloomSection(typeKey, show) {
+                const section = document.querySelector(`[data-bloom-section="${typeKey}"]`);
+                if (section) {
+                    if (show) {
+                        section.classList.add('active');
+                    } else {
+                        section.classList.remove('active');
+                    }
+                }
+            }
+
             questionTypeInputs.forEach(input => {
                 input.addEventListener('input', () => {
                     const quota = parseInt(questionCountSlider.value, 10);
@@ -1166,10 +1286,21 @@
 
                     input.value = value;
                     updateDistributionTotals(input);
+
+                    // Toggle Bloom's Taxonomy section
+                    const typeKey = input.dataset.questionType;
+                    toggleBloomSection(typeKey, value > 0);
                 });
             });
 
             updateDistributionTotals();
+            
+            // Initialize Bloom sections visibility on page load
+            questionTypeInputs.forEach(input => {
+                const typeKey = input.dataset.questionType;
+                const value = parseInt(input.value || '0', 10);
+                toggleBloomSection(typeKey, value > 0);
+            });
 
             function buildDistributionPayload() {
                 const distribution = {};
@@ -1178,6 +1309,19 @@
                     distribution[type] = parseInt(input.value || '0', 10) || 0;
                 });
                 return distribution;
+            }
+
+            function buildBloomLevelsPayload() {
+                const bloomLevels = {};
+                const bloomSelects = document.querySelectorAll('.bloom-select[data-bloom-type]');
+                bloomSelects.forEach(select => {
+                    const type = select.dataset.bloomType;
+                    const count = parseInt(document.querySelector(`[data-question-type="${type}"]`)?.value || '0', 10);
+                    if (count > 0) {
+                        bloomLevels[type] = select.value;
+                    }
+                });
+                return bloomLevels;
             }
 
             generateQuizForm.addEventListener('submit', async (event) => {
@@ -1199,10 +1343,9 @@
                     formData.append('totalQuestions', totalQuestions);
                     formData.append('questionDistribution', JSON.stringify(buildDistributionPayload()));
                     
-                    // Get questionDifficulty (Bloom's taxonomy) with null check and default
-                    const questionDifficultySelect = document.querySelector('select[name="questionDifficulty"]');
-                    const questionDifficulty = questionDifficultySelect ? questionDifficultySelect.value : 'remember';
-                    formData.append('questionDifficulty', questionDifficulty);
+                    // Get Bloom's Taxonomy levels per question type
+                    const bloomLevels = buildBloomLevelsPayload();
+                    formData.append('bloomLevels', JSON.stringify(bloomLevels));
                     
                     // Get examMode with null check and default
                     const examModeInput = document.querySelector('input[name="examMode"]:checked');
