@@ -443,6 +443,33 @@ class LmController
         exit();
     }
 
+    /**
+     * Bulk delete file (JSON API for bulk operations)
+     */
+    public function bulkDeleteFile()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = isset($_POST['fileId']) ? (int)$_POST['fileId'] : 0;
+
+        if ($fileId === 0) {
+            echo json_encode(['success' => false, 'message' => 'File ID not provided.']);
+            exit();
+        }
+
+        try {
+            if ($this->lmModel->deleteDocument($fileId, $userId)) {
+                echo json_encode(['success' => true, 'message' => 'File deleted successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete file.']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    }
+
     // ============================================================================
     // NEW FOLDER PAGE (newFolder.php)
     // ============================================================================

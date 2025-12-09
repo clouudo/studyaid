@@ -433,6 +433,45 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             flex: 1;
             font-size: 0.95rem;
         }
+
+        /* Loading Modal Styles */
+        .loading-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            background-color: #ffffff;
+        }
+
+        .loading-modal .modal-body {
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e7d5ff;
+            border-top-color: var(--sa-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .loading-subtext {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
     </style>
 </head>
 
@@ -549,6 +588,19 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                     <div id="previewContent" class="preview-content">
                         <p class="text-center text-muted">Loading preview...</p>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Loading Modal -->
+    <div class="modal fade loading-modal" id="uploadLoadingModal" tabindex="-1" aria-labelledby="uploadLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Uploading Documents...</div>
+                    <div class="loading-subtext">Please wait while your files are being processed.</div>
                 </div>
             </div>
         </div>
@@ -771,6 +823,8 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
             const documentName = document.getElementById('documentName').value.trim();
             const fileInput = document.getElementById('documentFile');
             const files = fileInput.files;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalSubmitText = submitBtn ? submitBtn.innerHTML : '';
 
             if (!files || files.length === 0) {
                 e.preventDefault();
@@ -798,6 +852,20 @@ function buildFolderTree($folders, $parentId = null, $level = 0)
                 document.getElementById('documentName').focus();
                 return false;
             }
+
+            // Show loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('uploadLoadingModal'));
+            loadingModal.show();
+
+            // Disable submit button to prevent double submission
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+            }
+
+            // If form submission is prevented (validation fails), restore button
+            // This will be handled by the preventDefault() calls above
+            // The modal will remain open until page redirects on successful submission
         });
 
         function resetForm() {
