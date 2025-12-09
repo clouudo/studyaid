@@ -12,44 +12,148 @@ class GeminiService
     private $defaultModel;
     private $models;
     private $generationConfig;
+    private $rateLimiter;
+    private $config;
 
     public function __construct()
     {
         $config = require __DIR__ . '/../config/gemini.php';
+        $this->config = $config;
         $this->client = Gemini::client($config['api_key']);
         $this->defaultModel = $config['model'];
         $this->models = $config['models'];
         $this->generationConfig = $config['generation_config'];
+        $this->rateLimiter = new RateLimiter();
     }
 
-    private function generateText(string $model, string $prompt, ?array $generationConfig = null): string
+    /**
+     * Generate text with rate limiting, retry logic, and overload prevention
+     * 
+     * @param string $model Model name
+     * @param string $prompt Prompt text
+     * @param array|null $generationConfig Generation configuration
+     * @param int|null $userId User ID for rate limiting (optional)
+     * @return string Generated text
+     * @throws \RuntimeException On API errors or rate limit exceeded
+     */
+    private function generateText(string $model, string $prompt, ?array $generationConfig = null, ?int $userId = null): string
     {
-        try {
-            $generativeModel = $this->client->generativeModel($model);
-            
-            // Apply generation config if provided
-            if ($generationConfig !== null) {
-                $config = new GenerationConfig(
-                    candidateCount: 1,
-                    stopSequences: [],
-                    maxOutputTokens: $generationConfig['maxOutputTokens'] ?? null,
-                    temperature: $generationConfig['temperature'] ?? null,
-                    topP: $generationConfig['topP'] ?? null,
-                    topK: $generationConfig['topK'] ?? null
-                );
-                $generativeModel = $generativeModel->withGenerationConfig($config);
-            }
-            
-            $response = $generativeModel->generateContent($prompt);
-            return $response->text();
-        } catch (\Exception $e) {
-            error_log('Gemini API - Error generating text: ' . $e->getMessage());
-            // Throw exception instead of returning empty string so calling code can handle it
-            throw new \RuntimeException('Gemini API Error: ' . $e->getMessage(), 0, $e);
+        // Validate prompt size (prevent oversized requests)
+        $maxPromptLength = 1000000; // ~1M characters
+        if (strlen($prompt) > $maxPromptLength) {
+            throw new \RuntimeException('Prompt too large. Maximum length: ' . $maxPromptLength . ' characters.');
         }
+
+        // Rate limiting check
+        if ($userId !== null) {
+            $rateCheck = $this->rateLimiter->checkRateLimit($userId);
+            if (!$rateCheck['allowed']) {
+                $waitTime = $rateCheck['wait_time'];
+                $reason = $rateCheck['reason'] === 'minute_limit' ? 'per minute' : 'per hour';
+                throw new \RuntimeException(
+                    "Rate limit exceeded ({$reason}). Please wait {$waitTime} seconds. " .
+                    "Current: {$rateCheck['current']}/{$rateCheck['limit']} requests."
+                );
+            }
+
+            // Check concurrent request limit
+            if (!$this->rateLimiter->checkConcurrentLimit($userId)) {
+                throw new \RuntimeException('Too many concurrent requests. Please wait for current requests to complete.');
+            }
+
+            // Acquire lock for concurrent tracking
+            $lockFile = $this->rateLimiter->acquireLock($userId);
+            if (!$lockFile) {
+                throw new \RuntimeException('Unable to acquire request lock. Please try again.');
+            }
+        }
+
+        $maxRetries = $this->config['rate_limiting']['max_retries'] ?? 3;
+        $retryDelay = $this->config['rate_limiting']['retry_delay'] ?? 2;
+        $lastException = null;
+
+        // Retry logic with exponential backoff
+        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+            try {
+                // Delay between calls (except first attempt)
+                if ($attempt > 0) {
+                    $delay = $retryDelay * pow(2, $attempt - 1); // Exponential backoff
+                    sleep($delay);
+                } else if ($userId !== null) {
+                    // Small delay between calls for rate limiting
+                    $this->rateLimiter->delay();
+                }
+
+                $generativeModel = $this->client->generativeModel($model);
+                
+                // Apply generation config if provided
+                if ($generationConfig !== null) {
+                    $config = new GenerationConfig(
+                        candidateCount: 1,
+                        stopSequences: [],
+                        maxOutputTokens: $generationConfig['maxOutputTokens'] ?? null,
+                        temperature: $generationConfig['temperature'] ?? null,
+                        topP: $generationConfig['topP'] ?? null,
+                        topK: $generationConfig['topK'] ?? null
+                    );
+                    $generativeModel = $generativeModel->withGenerationConfig($config);
+                }
+                
+                $response = $generativeModel->generateContent($prompt);
+                $result = $response->text();
+
+                // Record successful request
+                if ($userId !== null) {
+                    $this->rateLimiter->recordRequest($userId);
+                    if (isset($lockFile)) {
+                        $this->rateLimiter->releaseLock($lockFile);
+                    }
+                }
+
+                return $result;
+            } catch (\Exception $e) {
+                $lastException = $e;
+                $errorMessage = $e->getMessage();
+                
+                // Check if it's a rate limit error from API
+                if (stripos($errorMessage, 'rate limit') !== false || 
+                    stripos($errorMessage, '429') !== false ||
+                    stripos($errorMessage, 'quota') !== false) {
+                    // Rate limit error - wait longer before retry
+                    if ($attempt < $maxRetries) {
+                        $waitTime = $retryDelay * pow(2, $attempt + 1);
+                        error_log("Gemini API - Rate limit hit, waiting {$waitTime} seconds before retry " . ($attempt + 1));
+                        sleep($waitTime);
+                        continue;
+                    }
+                }
+
+                // Check if it's a temporary error (5xx)
+                if (stripos($errorMessage, '500') !== false || 
+                    stripos($errorMessage, '503') !== false ||
+                    stripos($errorMessage, '502') !== false) {
+                    // Temporary server error - retry
+                    if ($attempt < $maxRetries) {
+                        error_log("Gemini API - Temporary error, retrying: " . $errorMessage);
+                        continue;
+                    }
+                }
+
+                // For other errors, don't retry
+                break;
+            }
+        }
+
+        // Release lock on failure
+        if ($userId !== null && isset($lockFile)) {
+            $this->rateLimiter->releaseLock($lockFile);
+        }
+
+        error_log('Gemini API - Error generating text after ' . ($attempt + 1) . ' attempts: ' . ($lastException ? $lastException->getMessage() : 'Unknown error'));
+        throw new \RuntimeException('Gemini API Error: ' . ($lastException ? $lastException->getMessage() : 'Unknown error'), 0, $lastException);
     }
 
-    public function formatContent(string $content): string
+    public function formatContent(string $content, ?int $userId = null): string
     {
         $model = $this->models['default'] ?? $this->defaultModel;
         $schema = <<<PROMPT
@@ -60,21 +164,21 @@ Organize hierarchically using headings and subheadings where appropriate.
 Output should be plain text formatted with markdown-style headers such as #, ##, ###, etc.
 PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $content;
-        return $this->generateText($model, $prompt);
+        return $this->generateText($model, $prompt, null, $userId);
     }
 
-    public function generateSummary(string $sourceText, ?string $instructions = null): string
+    public function generateSummary(string $sourceText, ?string $instructions = null, ?int $userId = null): string
     {
         $model = $this->models['summary'] ?? $this->defaultModel;
         $prompt = "Summarize the following content into 3 short paragraphs.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
-        return $this->generateText($model, $prompt);
+        return $this->generateText($model, $prompt, null, $userId);
     }
 
-    public function generateNotes(string $sourceText, ?string $instructions = null): string
+    public function generateNotes(string $sourceText, ?string $instructions = null, ?int $userId = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
         $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Notes should be concise and short.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
-        return $this->generateText($model, $prompt);
+        return $this->generateText($model, $prompt, null, $userId);
     }
 
     public function generateMindmapMarkdown(string $sourceText): string

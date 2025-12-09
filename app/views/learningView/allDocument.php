@@ -552,6 +552,15 @@ ob_start();
                             <li><a class="dropdown-item sort-option" href="#" data-sort="oldest">Oldest to Latest</a></li>
                         </ul>
                     </div>
+                    <div class="dropdown" id="bulkActionsDropdown" style="display: none;">
+                        <button class="btn-icon" id="bulkActionsBtn" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Bulk actions">
+                            <i class="bi bi-check2-square" style="font-size: 1.1rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bulkActionsBtn">
+                            <li><a class="dropdown-item" href="#" id="bulkMoveBtn">Move Selected</a></li>
+                            <li><a class="dropdown-item text-danger" href="#" id="bulkDeleteBtn">Delete Selected</a></li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="list-group" id="documentList">
@@ -564,10 +573,17 @@ ob_start();
                                 data-item-type="folder"
                                 data-item-name="<?php echo htmlspecialchars(strtolower($folder['name'])); ?>"
                                 data-item-date="<?php echo isset($folder['createdAt']) ? strtotime($folder['createdAt']) : (isset($folder['created_at']) ? strtotime($folder['created_at']) : (isset($folder['folderID']) ? (int)$folder['folderID'] * 1000 : 0)); ?>">
-                                <a class="file-folder-link" href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?php echo $folder['folderID'] ?>">
-                                    <i class="bi bi-folder-fill"></i>
-                                    <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
-                                </a>
+                                <div class="d-flex align-items-center" style="flex-grow: 1;">
+                                    <input type="checkbox" class="form-check-input bulk-select-checkbox me-3" 
+                                           data-item-id="<?php echo $folder['folderID']; ?>" 
+                                           data-item-type="folder"
+                                           style="width: 18px; height: 18px; cursor: pointer;"
+                                           onclick="event.stopPropagation();">
+                                    <a class="file-folder-link" href="<?= BASE_PATH ?>lm/displayLearningMaterials?folder_id=<?php echo $folder['folderID'] ?>" onclick="event.stopPropagation();">
+                                        <i class="bi bi-folder-fill"></i>
+                                        <strong><?php echo htmlspecialchars($folder['name']); ?></strong>
+                                    </a>
+                                </div>
                                 <div class="dropdown">
                                     <button class="action-btn"
                                         type="button"
@@ -596,20 +612,27 @@ ob_start();
                                 data-item-type="file"
                                 data-item-name="<?php echo htmlspecialchars(strtolower($file['name'])); ?>"
                                 data-item-date="<?php echo isset($file['uploadDate']) ? strtotime($file['uploadDate']) : (isset($file['createdAt']) ? strtotime($file['createdAt']) : 0); ?>">
-                                <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1; margin: 0;">
-                                    <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
-                                    <button type="submit" class="file-folder-link" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
-                                        <?php
-                                        $fileIcon = 'bi-file-earmark';
-                                        $fileTypeLower = strtolower($file['fileType']);
-                                        if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
-                                        elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
-                                        elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
-                                        ?>
-                                        <i class="bi <?php echo $fileIcon; ?>"></i>
-                                        <strong><?php echo htmlspecialchars($file['name']); ?></strong>
-                                    </button>
-                                </form>
+                                <div class="d-flex align-items-center" style="flex-grow: 1;">
+                                    <input type="checkbox" class="form-check-input bulk-select-checkbox me-3" 
+                                           data-item-id="<?php echo $file['fileID']; ?>" 
+                                           data-item-type="file"
+                                           style="width: 18px; height: 18px; cursor: pointer;"
+                                           onclick="event.stopPropagation();">
+                                    <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1; margin: 0;" onclick="event.stopPropagation();">
+                                        <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
+                                        <button type="submit" class="file-folder-link" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
+                                            <?php
+                                            $fileIcon = 'bi-file-earmark';
+                                            $fileTypeLower = strtolower($file['fileType']);
+                                            if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
+                                            elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
+                                            elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
+                                            ?>
+                                            <i class="bi <?php echo $fileIcon; ?>"></i>
+                                            <strong><?php echo htmlspecialchars($file['name']); ?></strong>
+                                        </button>
+                                    </form>
+                                </div>
                                 <div class="dropdown">
                                     <button class="action-btn" type="button" id="dropdownFileActions<?php echo $file['fileID']; ?>" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                                         <i class="bi bi-three-dots-vertical"></i>
@@ -698,6 +721,47 @@ ob_start();
                         <ul class="folder-list" style="list-style: none; padding: 0; margin: 0;">
                             <li>
                                 <a href="#" class="folder-item" data-folder-id="0" data-folder-name="Root" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">
+                                    <i class="bi bi-house-fill me-2"></i>Home
+                                </a>
+                        </li>
+                    </ul>
+                        <p class="text-muted text-center py-4">No folders available. Create a folder first.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Move Modal -->
+    <div class="modal fade" id="bulkMoveModal" tabindex="-1" aria-labelledby="bulkMoveModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="bulkMoveModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Move Selected Items</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px; max-height: 400px; overflow-y: auto;">
+                    <h5 style="margin-bottom: 16px; color: #212529;">Select Destination Folder</h5>
+                    <?php if (!empty($allUserFolders)): ?>
+                        <ul class="folder-list" style="list-style: none; padding: 0; margin: 0;">
+                            <li>
+                                <a href="#" class="bulk-folder-item" data-folder-id="0" data-folder-name="Root" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">
+                                    <i class="bi bi-house-fill me-2"></i>Home
+                                </a>
+                            </li>
+                            <?php 
+                            // Build folder tree with bulk-folder-item class
+                            $bulkFolderTree = buildFolderTree($allUserFolders);
+                            $bulkFolderTree = str_replace('folder-item', 'bulk-folder-item', $bulkFolderTree);
+                            echo $bulkFolderTree;
+                            ?>
+                        </ul>
+                    <?php else: ?>
+                        <ul class="folder-list" style="list-style: none; padding: 0; margin: 0;">
+                            <li>
+                                <a href="#" class="bulk-folder-item" data-folder-id="0" data-folder-name="Root" style="display: block; padding: 12px 16px; color: #6f42c1; text-decoration: none; border-radius: 8px; transition: all 0.2s; margin-bottom: 4px; font-weight: 500;">
                                     <i class="bi bi-house-fill me-2"></i>Home
                                 </a>
                         </li>
@@ -1289,6 +1353,192 @@ ob_start();
                     }
                 });
             });
+
+            /**
+             * Bulk actions functionality
+             * 
+             * Behavior: Shows/hides bulk actions dropdown based on checkbox selection,
+             * handles bulk delete and bulk move operations.
+             */
+            
+            // Show/hide bulk actions dropdown based on checkbox selection
+            $(document).on('change', '.bulk-select-checkbox', function() {
+                const checkedCount = $('.bulk-select-checkbox:checked').length;
+                if (checkedCount > 0) {
+                    $('#bulkActionsDropdown').show();
+                } else {
+                    $('#bulkActionsDropdown').hide();
+                }
+            });
+
+            // Select all checkbox functionality (if needed in future)
+            // For now, we'll just handle individual checkboxes
+
+            /**
+             * Get selected items for bulk operations
+             * 
+             * Behavior: Collects all checked items and returns them as arrays
+             * separated by type (folders and files).
+             */
+            function getSelectedItems() {
+                const folders = [];
+                const files = [];
+                
+                $('.bulk-select-checkbox:checked').each(function() {
+                    const itemId = $(this).data('item-id');
+                    const itemType = $(this).data('item-type');
+                    
+                    if (itemType === 'folder') {
+                        folders.push(itemId);
+                    } else if (itemType === 'file') {
+                        files.push(itemId);
+                    }
+                });
+                
+                return { folders: folders, files: files };
+            }
+
+            /**
+             * Bulk delete handler
+             * 
+             * Behavior: Shows confirmation modal, then deletes all selected items
+             * via AJAX. Reloads page on success.
+             */
+            $('#bulkDeleteBtn').on('click', function(e) {
+                e.preventDefault();
+                const selected = getSelectedItems();
+                const totalCount = selected.folders.length + selected.files.length;
+                
+                if (totalCount === 0) {
+                    showSnackbar('Please select at least one item to delete.', 'error');
+                    return;
+                }
+                
+                const message = 'Are you sure you want to delete ' + totalCount + 
+                    (totalCount === 1 ? ' item' : ' items') + 
+                    '? This action cannot be undone.';
+                
+                showConfirmModal({
+                    message: message,
+                    title: 'Delete Selected Items',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    danger: true,
+                    onConfirm: function() {
+                        // Delete folders first
+                        const folderPromises = selected.folders.map(function(folderId) {
+                            return $.ajax({
+                                url: '<?= BASE_PATH ?>lm/deleteFolder',
+                                type: 'POST',
+                                data: { folder_id: folderId },
+                                dataType: 'json'
+                            });
+                        });
+                        
+                        // Delete files
+                        const filePromises = selected.files.map(function(fileId) {
+                            return $.ajax({
+                                url: '<?= BASE_PATH ?>lm/bulkDeleteFile',
+                                type: 'POST',
+                                data: { fileId: fileId },
+                                dataType: 'json'
+                            });
+                        });
+                        
+                        // Wait for all deletions to complete
+                        Promise.all([...folderPromises, ...filePromises])
+                            .then(function() {
+                                showSnackbar(totalCount + ' item(s) deleted successfully.', 'success');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 500);
+                            })
+                            .catch(function() {
+                                showSnackbar('Some items could not be deleted.', 'error');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            });
+                    }
+                });
+            });
+
+            /**
+             * Bulk move handler
+             * 
+             * Behavior: Opens bulk move modal to select destination folder,
+             * then moves all selected items via AJAX.
+             */
+            $('#bulkMoveBtn').on('click', function(e) {
+                e.preventDefault();
+                const selected = getSelectedItems();
+                const totalCount = selected.folders.length + selected.files.length;
+                
+                if (totalCount === 0) {
+                    showSnackbar('Please select at least one item to move.', 'error');
+                    return;
+                }
+                
+                // Open bulk move modal
+                $('#bulkMoveModal').modal('show');
+            });
+
+            /**
+             * Bulk move folder selection handler
+             * 
+             * Behavior: Moves all selected items to the chosen destination folder.
+             */
+            $('#bulkMoveModal').on('click', '.bulk-folder-item', function(e) {
+                e.preventDefault();
+                const targetFolderId = $(this).data('folder-id');
+                const selected = getSelectedItems();
+                const totalCount = selected.folders.length + selected.files.length;
+                
+                // Close modal
+                $('#bulkMoveModal').modal('hide');
+                
+                // Move folders
+                const folderPromises = selected.folders.map(function(folderId) {
+                    return $.ajax({
+                        url: '<?= BASE_PATH ?>lm/moveFolder',
+                        type: 'POST',
+                        data: {
+                            folderId: folderId,
+                            newFolderId: targetFolderId
+                        },
+                        dataType: 'json'
+                    });
+                });
+                
+                // Move files
+                const filePromises = selected.files.map(function(fileId) {
+                    return $.ajax({
+                        url: '<?= BASE_PATH ?>lm/moveFile',
+                        type: 'POST',
+                        data: {
+                            fileId: fileId,
+                            newFolderId: targetFolderId
+                        },
+                        dataType: 'json'
+                    });
+                });
+                
+                // Wait for all moves to complete
+                Promise.all([...folderPromises, ...filePromises])
+                    .then(function() {
+                        showSnackbar(totalCount + ' item(s) moved successfully.', 'success');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 500);
+                    })
+                    .catch(function() {
+                        showSnackbar('Some items could not be moved.', 'error');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
+                    });
+            });
+
     });
     
     /**
