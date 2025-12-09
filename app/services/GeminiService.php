@@ -27,6 +27,54 @@ class GeminiService
     }
 
     /**
+     * Clean and validate UTF-8 text
+     * 
+     * Removes invalid UTF-8 sequences and ensures text is properly encoded
+     * 
+     * @param string $text Text to clean
+     * @return string Cleaned UTF-8 text
+     */
+    private function cleanUtf8(string $text): string
+    {
+        if (empty($text)) {
+            return '';
+        }
+
+        // Remove null bytes and other control characters (except newlines, tabs, carriage returns)
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+
+        // Check if text is valid UTF-8
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            // Try to convert from various encodings
+            $encodings = ['Windows-1252', 'ISO-8859-1', 'UTF-8'];
+            foreach ($encodings as $encoding) {
+                if (mb_check_encoding($text, $encoding)) {
+                    $text = mb_convert_encoding($text, 'UTF-8', $encoding);
+                    break;
+                }
+            }
+            
+            // If still invalid, use filter_var to remove invalid sequences
+            $text = filter_var($text, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_HIGH);
+            
+            // Final cleanup: remove any remaining invalid UTF-8 sequences
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        }
+
+        // Remove invalid UTF-8 sequences using regex
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
+        
+        // Remove replacement characters that indicate encoding issues
+        $text = str_replace(["\xEF\xBF\xBD", "\xFF\xFD"], '', $text);
+        
+        // Normalize line endings
+        $text = preg_replace('/\r\n|\r/', "\n", $text);
+        
+        // Trim and return
+        return trim($text);
+    }
+
+    /**
      * Generate text with rate limiting, retry logic, and overload prevention
      * 
      * @param string $model Model name
@@ -38,10 +86,18 @@ class GeminiService
      */
     private function generateText(string $model, string $prompt, ?array $generationConfig = null, ?int $userId = null): string
     {
+        // Clean UTF-8 encoding before processing
+        $prompt = $this->cleanUtf8($prompt);
+        
         // Validate prompt size (prevent oversized requests)
         $maxPromptLength = 1000000; // ~1M characters
         if (strlen($prompt) > $maxPromptLength) {
             throw new \RuntimeException('Prompt too large. Maximum length: ' . $maxPromptLength . ' characters.');
+        }
+        
+        // Ensure prompt is not empty after cleaning
+        if (empty(trim($prompt))) {
+            throw new \RuntimeException('Prompt is empty or contains only invalid characters.');
         }
 
         // Rate limiting check
@@ -125,6 +181,28 @@ class GeminiService
                         error_log("Gemini API - Rate limit hit, waiting {$waitTime} seconds before retry " . ($attempt + 1));
                         sleep($waitTime);
                         continue;
+                    }
+                }
+
+                // Check if it's a UTF-8 encoding error
+                if (stripos($errorMessage, 'UTF-8') !== false || 
+                    stripos($errorMessage, 'malformed') !== false ||
+                    stripos($errorMessage, 'encoding') !== false ||
+                    stripos($errorMessage, 'incorrectly encoded') !== false) {
+                    // UTF-8 error - try cleaning the prompt and retry once
+                    if ($attempt === 0) {
+                        error_log("Gemini API - UTF-8 encoding error detected, cleaning prompt and retrying");
+                        $prompt = $this->cleanUtf8($prompt);
+                        continue;
+                    } else {
+                        // Already retried, throw error
+                        error_log("Gemini API - UTF-8 encoding error persists after cleaning");
+                        throw new \RuntimeException(
+                            'Text contains invalid UTF-8 characters that could not be cleaned. ' .
+                            'Please ensure your document uses valid UTF-8 encoding.',
+                            0,
+                            $e
+                        );
                     }
                 }
 
@@ -797,7 +875,17 @@ PROMPT;
             
             return $values;
         } catch (\Exception $e) {
-            error_log('Gemini API - Error generating embedding: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+            
+            // Check for UTF-8 encoding errors
+            if (stripos($errorMessage, 'UTF-8') !== false || 
+                stripos($errorMessage, 'malformed') !== false ||
+                stripos($errorMessage, 'encoding') !== false) {
+                error_log('Gemini API - UTF-8 encoding error in embedding generation. Text length: ' . strlen($text));
+                error_log('Gemini API - First 200 chars: ' . substr($text, 0, 200));
+            }
+            
+            error_log('Gemini API - Error generating embedding: ' . $errorMessage);
             error_log('Gemini API - Exception class: ' . get_class($e));
             error_log('Gemini API - Stack trace: ' . $e->getTraceAsString());
             return [];

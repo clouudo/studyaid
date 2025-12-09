@@ -171,7 +171,58 @@ class LmModel
         // Replace 2 or more newlines with a single newline and trim whitespace
         $extractedText = preg_replace('/\n{2,}/', "\n", trim($extractedText));
 
+        // Clean UTF-8 encoding to prevent malformed character errors
+        $extractedText = $this->cleanUtf8($extractedText);
+
         return $extractedText;
+    }
+
+    /**
+     * Clean and validate UTF-8 text
+     * 
+     * Removes invalid UTF-8 sequences and ensures text is properly encoded
+     * 
+     * @param string $text Text to clean
+     * @return string Cleaned UTF-8 text
+     */
+    private function cleanUtf8(string $text): string
+    {
+        if (empty($text)) {
+            return '';
+        }
+
+        // Remove null bytes and other control characters (except newlines, tabs, carriage returns)
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
+
+        // Check if text is valid UTF-8
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            // Try to convert from various encodings
+            $encodings = ['Windows-1252', 'ISO-8859-1', 'UTF-8'];
+            foreach ($encodings as $encoding) {
+                if (mb_check_encoding($text, $encoding)) {
+                    $text = mb_convert_encoding($text, 'UTF-8', $encoding);
+                    break;
+                }
+            }
+            
+            // If still invalid, use filter_var to remove invalid sequences
+            $text = filter_var($text, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_HIGH);
+            
+            // Final cleanup: remove any remaining invalid UTF-8 sequences
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        }
+
+        // Remove invalid UTF-8 sequences using regex
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
+        
+        // Remove replacement characters that indicate encoding issues
+        $text = str_replace(["\xEF\xBF\xBD", "\xFF\xFD"], '', $text);
+        
+        // Normalize line endings
+        $text = preg_replace('/\r\n|\r/', "\n", $text);
+        
+        // Trim and return
+        return trim($text);
     }
 
     /**
