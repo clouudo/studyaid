@@ -882,12 +882,12 @@
 
                 const practiceScores = dates.map(date => {
                     const scores = practiceData[date] || [];
-                    return scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
+                    return scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null;
                 });
 
                 const examScores = dates.map(date => {
                     const scores = examData[date] || [];
-                    return scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
+                    return scores.length > 0 ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null;
                 });
 
                 if (quizChart) {
@@ -923,13 +923,20 @@
                                 pointHoverRadius: 7,
                                 pointBackgroundColor: '#ffc107',
                                 pointBorderColor: '#fff',
-                                pointBorderWidth: 2
+                                pointBorderWidth: 2,
+                                spanGaps: true,
+                                showLine: true
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: true,
+                        elements: {
+                            line: {
+                                spanGaps: true
+                            }
+                        },
                         plugins: {
                             legend: {
                                 display: true,
