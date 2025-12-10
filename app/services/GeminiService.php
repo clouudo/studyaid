@@ -905,22 +905,181 @@ PROMPT;
         }
     }
 
-    public function synthesizeDocument(string $sourceText, string $instructions): string
+    public function synthesizeDocument(string $sourceText, string $instructions, ?int $userId = null): string
     {
         $model = $this->models['synthesize'] ?? $this->defaultModel;
         
-        // Increased output capacity for synthesize document (supports up to 5 documents)
+        // Maximum output tokens for Gemini 2.5 Pro
+        // Standard limit is 8192, but can be set higher (up to 32768) for extended outputs
+        // Using 16384 as a balance between maximum output and API stability
+        // Continuation logic will handle cases where even this limit is reached
+        $maxTokensPerRequest = 16384;
+        
         $generationConfig = array_merge($this->generationConfig, [
-            'maxOutputTokens' => 32768, // Increased from 8192 for larger synthesized documents
+            'maxOutputTokens' => $maxTokensPerRequest,
         ]);
         
-        $prompt = $instructions . "\n\n"
+        $basePrompt = $instructions . "\n\n"
             . "IMPORTANT: Use ONLY the following relevant content retrieved from the selected documents. "
             . "This content has been selected because it matches your query. "
             . "Base your synthesized document strictly on this content and do not include information not found in it.\n\n"
             . "Relevant Content:\n{$sourceText}\n\n"
+            . "CRITICAL: Generate a COMPLETE and COMPREHENSIVE synthesized document. "
+            . "Do not cut off mid-sentence or mid-thought. Ensure all sections are fully developed and concluded.\n\n"
             . "Synthesize the document now:";
-        return $this->generateText($model, $prompt, $generationConfig);
+        
+        // Generate initial response
+        $fullDocument = $this->generateText($model, $basePrompt, $generationConfig, $userId);
+        
+        // Check if output might be cut off and continue if needed
+        $maxContinuations = 3; // Limit continuations to prevent infinite loops
+        $continuationCount = 0;
+        
+        while ($continuationCount < $maxContinuations && $this->isOutputCutOff($fullDocument)) {
+            $continuationCount++;
+            
+            // Get the last portion of the document for context
+            $lastContext = $this->getLastContext($fullDocument, 1000); // Last 1000 chars for context
+            
+            $continuationPrompt = "Continue the following document from where it left off. "
+                . "Maintain the same style, tone, and structure. "
+                . "Complete any incomplete sentences or thoughts, and continue with the next logical section.\n\n"
+                . "Document so far:\n{$lastContext}\n\n"
+                . "Continue from here (do not repeat what was already written):";
+            
+            try {
+                $continuation = $this->generateText($model, $continuationPrompt, $generationConfig, $userId);
+                
+                // Append continuation, avoiding duplication
+                if (!empty($continuation)) {
+                    // Remove any potential overlap
+                    $continuation = $this->removeOverlap($lastContext, $continuation);
+                    $fullDocument .= "\n\n" . $continuation;
+                } else {
+                    break; // No more content generated
+                }
+            } catch (\Exception $e) {
+                error_log("[Synthesize] Continuation error: " . $e->getMessage());
+                break; // Stop if continuation fails
+            }
+        }
+        
+        return $fullDocument;
+    }
+    
+    /**
+     * Check if output appears to be cut off mid-generation
+     */
+    private function isOutputCutOff(string $text): bool
+    {
+        if (empty(trim($text))) {
+            return false;
+        }
+        
+        $text = trim($text);
+        $lastChar = substr($text, -1);
+        $lastParagraph = $this->getLastParagraph($text);
+        
+        // Check for incomplete sentences (doesn't end with proper punctuation)
+        $properEndings = ['.', '!', '?'];
+        $endsWithProperPunctuation = in_array($lastChar, $properEndings);
+        
+        // Check for incomplete words (ends mid-word without space)
+        $endsMidWord = preg_match('/\w$/', $lastChar) && !preg_match('/\s$/', $text);
+        
+        // Check if last paragraph seems incomplete
+        $lastParagraphWords = str_word_count($lastParagraph);
+        $lastParagraphEndsProperly = preg_match('/[.!?]\s*$/', $lastParagraph);
+        
+        // If ends with proper punctuation and last paragraph is substantial, likely complete
+        if ($endsWithProperPunctuation && $lastParagraphWords > 10 && $lastParagraphEndsProperly) {
+            return false;
+        }
+        
+        // Check for common cut-off patterns
+        $cutOffPatterns = [
+            '/\w{1,3}$/',  // Ends with very short word (likely incomplete)
+            '/[^.!?]\s*$/', // Doesn't end with sentence-ending punctuation
+        ];
+        
+        foreach ($cutOffPatterns as $pattern) {
+            if (preg_match($pattern, $text) && !$endsWithProperPunctuation) {
+                // Additional check: if last sentence is very short, might be cut off
+                if ($lastParagraphWords < 8) {
+                    return true;
+                }
+            }
+        }
+        
+        // Likely cut off if: ends mid-word, or last paragraph is incomplete
+        return $endsMidWord || (!$endsWithProperPunctuation && $lastParagraphWords < 15);
+    }
+    
+    /**
+     * Get the last paragraph from text
+     */
+    private function getLastParagraph(string $text): string
+    {
+        // Split by double newlines (paragraph breaks) or single newlines
+        $paragraphs = preg_split('/\n\s*\n/', $text);
+        if (empty($paragraphs)) {
+            // Fallback to sentences if no paragraph breaks
+            $sentences = preg_split('/[.!?]+\s+/', $text);
+            return !empty($sentences) ? end($sentences) : $text;
+        }
+        return end($paragraphs);
+    }
+    
+    /**
+     * Get the last portion of text for context
+     */
+    private function getLastContext(string $text, int $length = 1000): string
+    {
+        if (strlen($text) <= $length) {
+            return $text;
+        }
+        
+        // Get last N characters, but try to start at a sentence boundary
+        $lastPortion = substr($text, -$length);
+        $firstSentenceEnd = strpos($lastPortion, '.');
+        
+        if ($firstSentenceEnd !== false && $firstSentenceEnd < 200) {
+            // Start from after the first sentence in the portion
+            return substr($lastPortion, $firstSentenceEnd + 1);
+        }
+        
+        return $lastPortion;
+    }
+    
+    /**
+     * Remove overlapping content between context and continuation
+     */
+    private function removeOverlap(string $context, string $continuation): string
+    {
+        $contextWords = explode(' ', trim($context));
+        $continuationWords = explode(' ', trim($continuation));
+        
+        // Check for overlap at the beginning of continuation
+        $overlapLength = 0;
+        $maxCheck = min(count($contextWords), count($continuationWords), 20); // Check up to 20 words
+        
+        for ($i = 0; $i < $maxCheck; $i++) {
+            $contextIndex = count($contextWords) - $maxCheck + $i;
+            if ($contextIndex >= 0 && isset($contextWords[$contextIndex]) && isset($continuationWords[$i])) {
+                if (strtolower($contextWords[$contextIndex]) === strtolower($continuationWords[$i])) {
+                    $overlapLength++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // Remove overlapping words
+        if ($overlapLength > 0) {
+            $continuationWords = array_slice($continuationWords, $overlapLength);
+        }
+        
+        return implode(' ', $continuationWords);
     }
 
     /**

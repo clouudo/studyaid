@@ -3711,7 +3711,7 @@ class LmController
             exit();
         }
 
-            $document = $this->gemini->synthesizeDocument($context, $description);
+            $document = $this->gemini->synthesizeDocument($context, $description, $userId);
 
             if (empty($document)) {
                 echo json_encode(['success' => false, 'message' => 'Failed to synthesize document.']);
