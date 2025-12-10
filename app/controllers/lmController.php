@@ -378,6 +378,101 @@ class LmController
     }
 
     /**
+     * Get all summaries for user (AJAX)
+     */
+    public function getAllSummaries()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            $summaries = $this->lmModel->getAllSummariesForUser($userId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'data' => $summaries]);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Get all notes for user (AJAX)
+     */
+    public function getAllNotes()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            $notes = $this->lmModel->getAllNotesForUser($userId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'data' => $notes]);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Get all mindmaps for user (AJAX)
+     */
+    public function getAllMindmaps()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            $mindmaps = $this->lmModel->getAllMindmapsForUser($userId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'data' => $mindmaps]);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Get all flashcards for user (AJAX)
+     */
+    public function getAllFlashcards()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            $flashcards = $this->lmModel->getAllFlashcardsForUser($userId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'data' => $flashcards]);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
+     * Get all quizzes for user (AJAX)
+     */
+    public function getAllQuizzes()
+    {
+        $this->checkSession();
+        $userId = (int)$_SESSION['user_id'];
+        
+        try {
+            $quizzes = $this->lmModel->getAllQuizzesForUser($userId);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'data' => $quizzes]);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
      * Display document with content and metadata
      */
     public function displayDocument()
@@ -3724,19 +3819,72 @@ class LmController
         }
 
         $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
         
         if (!in_array($fileExtension, $allowedExtensions)) {
-            $this->sendJsonError('Invalid file type. Please upload a PDF or image file.');
+            $this->sendJsonError('Invalid file type. Please upload a PDF, DOCX, or image file.');
+        }
+
+        // Validate file size
+        $maxFileSize = 15 * 1024 * 1024; // 15MB for documents
+        $maxImageSize = 10 * 1024 * 1024; // 10MB for images
+        $isImage = $this->isImageFile($fileExtension);
+        $maxSize = $isImage ? $maxImageSize : $maxFileSize;
+        
+        if ($file['size'] > $maxSize) {
+            $maxSizeMB = $isImage ? '10MB' : '15MB';
+            $this->sendJsonError("File size exceeds the limit of {$maxSizeMB}. Please upload a smaller file.");
+        }
+
+        // Validate page count for PDF and DOCX files
+        $maxPages = 50; // Maximum 50 pages
+        $tmpName = $file['tmp_name'];
+        $pageCount = 0;
+        
+        if ($fileExtension === 'pdf') {
+            $pageCount = $this->lmModel->getPdfPageCount($tmpName);
+            if ($pageCount > $maxPages) {
+                $this->sendJsonError("PDF file has {$pageCount} pages, which exceeds the limit of {$maxPages} pages. Please upload a document with fewer pages.");
+            }
+        } elseif (in_array($fileExtension, ['doc', 'docx'])) {
+            $pageCount = $this->lmModel->getDocxPageCount($tmpName);
+            if ($pageCount > $maxPages) {
+                $this->sendJsonError("Document file has approximately {$pageCount} pages, which exceeds the limit of {$maxPages} pages. Please upload a document with fewer pages.");
+            }
         }
 
         try {
-            // Extract text from file
+            // Extract text from file (OCR for images, standard extraction for PDFs/DOCX)
             $tmpName = $file['tmp_name'];
+            $fileName = $file['name'];
+            
+            // Check if it's an image file - OCR will be triggered automatically
+            $isImage = $this->isImageFile($fileExtension);
+            $isDocument = in_array($fileExtension, ['pdf', 'doc', 'docx']);
+            
+            if ($isImage) {
+                error_log("[Homework Helper] Image file detected: {$fileName}. OCR will be triggered to extract text.");
+            } elseif ($isDocument) {
+                error_log("[Homework Helper] Document file detected: {$fileName} ({$fileExtension}). Text extraction will be performed.");
+            }
+            
             $extractedText = $this->extractTextFromFile($tmpName, $fileExtension, $file);
             
             if (empty($extractedText)) {
-                $this->sendJsonError('Could not extract text from the file. Please ensure the file contains readable text or questions.');
+                if ($isImage) {
+                    $this->sendJsonError('Could not extract text from the image using OCR. Please ensure the image contains readable text or questions. The image may be too blurry, low quality, or contain handwritten text that OCR cannot recognize.');
+                } elseif ($isDocument) {
+                    $this->sendJsonError('Could not extract text from the document. Please ensure the file contains readable text or questions.');
+                } else {
+                    $this->sendJsonError('Could not extract text from the file. Please ensure the file contains readable text or questions.');
+                }
+            }
+            
+            // Log successful extraction
+            if ($isImage) {
+                error_log("[Homework Helper] OCR completed successfully. Extracted " . strlen($extractedText) . " characters from image: {$fileName}");
+            } else {
+                error_log("[Homework Helper] Text extraction completed. Extracted " . strlen($extractedText) . " characters from {$fileExtension} file: {$fileName}");
             }
 
             // Upload file to GCS
@@ -3751,7 +3899,15 @@ class LmController
 
             // Upload to GCS
             $bucket = $this->lmModel->getStorage()->bucket($this->lmModel->getBucketName());
-            $contentType = $fileExtension === 'pdf' ? 'application/pdf' : 'image/' . ($fileExtension === 'jpg' ? 'jpeg' : $fileExtension);
+            // Determine content type based on file extension
+            if ($fileExtension === 'pdf') {
+                $contentType = 'application/pdf';
+            } elseif (in_array($fileExtension, ['doc', 'docx'])) {
+                $contentType = $fileExtension === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/msword';
+            } else {
+                // Image files
+                $contentType = 'image/' . ($fileExtension === 'jpg' ? 'jpeg' : $fileExtension);
+            }
             
             $bucket->upload($fileContent, [
                 'name' => $gcsObjectName,
@@ -3771,8 +3927,10 @@ class LmController
                 $instructions
             );
 
-            // Process with Gemini
+            // Process extracted text with LLM (Gemini)
+            // Note: For images, the text has already been extracted via OCR above
             try {
+                error_log("[Homework Helper] Sending extracted text to LLM for processing. Text length: " . strlen($extractedText) . " characters");
                 $result = $this->gemini->answerHomeworkQuestion($extractedText, $instructions);
                 
                 $status = $result['hasQuestion'] ? 'completed' : 'no_question';

@@ -182,6 +182,7 @@ if (!isset($homeworkEntries)) {
         
         .snackbar.success { background-color: #28a745; }
         .snackbar.error { background-color: #dc3545; }
+        .snackbar.info { background-color: #17a2b8; }
         
         .snackbar-icon { font-size: 1.2rem; }
         .snackbar-message { flex: 1; font-size: 0.95rem; }
@@ -234,6 +235,41 @@ if (!isset($homeworkEntries)) {
         .homework-header[aria-expanded="true"] .collapse-icon {
             transform: rotate(90deg);
         }
+
+        /* Loading Modal Styles */
+        .loading-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            background-color: #ffffff;
+        }
+
+        .loading-modal .modal-body {
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .loading-modal-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e7d5ff;
+            border-top-color: var(--sa-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .loading-modal-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .loading-modal-subtext {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
     </style>
 </head>
 
@@ -254,15 +290,19 @@ if (!isset($homeworkEntries)) {
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">Generate with AI</h5>
-                        <small class="text-muted">Upload PDF or image to get AI answers.</small>
+                        <small class="text-muted">Upload PDF, DOCX, or image to get AI answers.</small>
                     </div>
                     <div class="card-body">
                         <form id="homeworkForm" enctype="multipart/form-data">
                             <div class="upload-area" id="uploadArea">
                                 <i class="bi bi-cloud-upload" style="font-size: 3rem; color: var(--sa-primary);"></i>
                                 <h5 class="mt-3 mb-2">Drag & Drop or Click to Upload</h5>
-                                <p class="text-muted mb-3">Supports PDF and image files (JPG, PNG, WEBP)</p>
-                                <input type="file" id="homeworkFile" name="homework_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp" style="display: none;" required>
+                                <p class="text-muted mb-3">Supports PDF, DOCX, and image files (JPG, PNG, WEBP)</p>
+                                <p class="text-muted small mb-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Max file size: 15MB (documents), 10MB (images). Max pages: 50.
+                                </p>
+                                <input type="file" id="homeworkFile" name="homework_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.webp" style="display: none;" required>
                                 <div id="fileName" class="mt-3" style="display: none;">
                                     <p class="mb-0"><strong>Selected:</strong> <span id="selectedFileName"></span></p>
                                 </div>
@@ -355,9 +395,10 @@ if (!isset($homeworkEntries)) {
                                                         <div id="answer-content-<?= $entry['homeworkID'] ?>" class="view-section">
                                                             <span class="view-label">Answer</span>
                                                             <?php if ($entry['status'] === 'no_question'): ?>
-                                                                <div class="alert alert-warning mb-0">
-                                                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                                                    <?= htmlspecialchars($entry['answer'] ?? 'No question found in the uploaded document. Please upload a document that contains questions or problems to solve.') ?>
+                                                                <div class="alert alert-info mb-0">
+                                                                    <i class="bi bi-info-circle me-2"></i>
+                                                                    <strong>No Question Found</strong>
+                                                                    <p class="mb-0 mt-2"><?= htmlspecialchars($entry['answer'] ?? 'No explicit question found in the uploaded document. Please upload a document that contains clear questions or problems to solve.') ?></p>
                                                                 </div>
                                                             <?php else: ?>
                                                                 <div class="answer-content mt-0">
@@ -414,6 +455,8 @@ if (!isset($homeworkEntries)) {
                 snackbarIcon.className = 'snackbar-icon bi bi-check-circle-fill';
             } else if (type === 'error') {
                 snackbarIcon.className = 'snackbar-icon bi bi-x-circle-fill';
+            } else if (type === 'info') {
+                snackbarIcon.className = 'snackbar-icon bi bi-info-circle-fill';
             }
             
             snackbar.classList.add('show');
@@ -423,13 +466,19 @@ if (!isset($homeworkEntries)) {
         }
 
 
-        // File input handling
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('homeworkFile');
-        const fileName = document.getElementById('fileName');
-        const selectedFileName = document.getElementById('selectedFileName');
+        // File input handling - wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('homeworkFile');
+            const fileName = document.getElementById('fileName');
+            const selectedFileName = document.getElementById('selectedFileName');
+            
+            if (!uploadArea || !fileInput || !fileName || !selectedFileName) {
+                console.error('Required elements not found for file input handling');
+                return;
+            }
 
-        uploadArea.addEventListener('click', (e) => {
+            uploadArea.addEventListener('click', (e) => {
              if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
                  fileInput.click();
              }
@@ -458,39 +507,121 @@ if (!isset($homeworkEntries)) {
 
         function handleFileSelect() {
             if (fileInput.files.length > 0) {
-                selectedFileName.textContent = fileInput.files[0].name;
+                const selectedFile = fileInput.files[0];
+                const fileSize = selectedFile.size;
+                const fileExtension = selectedFile.name.split('.').pop().toLowerCase();
+                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension);
+                const maxSize = isImage ? 10 * 1024 * 1024 : 15 * 1024 * 1024; // 10MB for images, 15MB for documents
+                const maxSizeMB = isImage ? '10MB' : '15MB';
+                
+                // Validate file size
+                if (fileSize > maxSize) {
+                    showSnackbar(`File size exceeds the limit of ${maxSizeMB}. Please select a smaller file.`, 'error');
+                    fileInput.value = ''; // Clear the input
+                    fileName.style.display = 'none';
+                    return;
+                }
+                
+                // Show file info
+                const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+                selectedFileName.textContent = `${selectedFile.name} (${fileSizeMB} MB)`;
                 fileName.style.display = 'block';
             } else {
                 fileName.style.display = 'none';
             }
         }
+        }); // End DOMContentLoaded for file input handling
 
-        // Form submission
-        const homeworkForm = document.getElementById('homeworkForm');
-        const submitBtn = document.getElementById('submitBtn');
-
-        homeworkForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            if (!fileInput.files.length) {
-                showSnackbar('Please select a file to upload', 'error');
+        // Form submission - wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const homeworkForm = document.getElementById('homeworkForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const fileInput = document.getElementById('homeworkFile');
+            const homeworkInstruction = document.getElementById('homeworkInstruction');
+            
+            if (!homeworkForm || !submitBtn || !fileInput) {
+                console.error('Required elements not found for form submission');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('homework_file', fileInput.files[0]);
-            const instruction = document.getElementById('homeworkInstruction').value;
-            if (instruction) {
-                formData.append('instruction', instruction);
-            }
+            homeworkForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
 
-            // Disable submit button and show loading
-            submitBtn.disabled = true;
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+                if (!fileInput.files.length) {
+                    showSnackbar('Please select a file to upload', 'error');
+                    return;
+                }
 
+                // Validate file size client-side before submission
+                const selectedFile = fileInput.files[0];
+                const fileSize = selectedFile.size;
+                const fileExtension = selectedFile.name.split('.').pop().toLowerCase();
+                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension);
+                const maxSize = isImage ? 10 * 1024 * 1024 : 15 * 1024 * 1024; // 10MB for images, 15MB for documents
+                const maxSizeMB = isImage ? '10MB' : '15MB';
+                
+                if (fileSize > maxSize) {
+                    showSnackbar(`File size exceeds the limit of ${maxSizeMB}. Please select a smaller file.`, 'error');
+                    return;
+                }
+
+                // Show confirmation modal first
+                const fileName = selectedFile.name;
+            showConfirmModal({
+                message: `Are you sure you want to process "${fileName}"? This will analyze the document and extract questions for AI assistance.`,
+                title: 'Process Homework',
+                confirmText: 'Process',
+                cancelText: 'Cancel',
+                danger: false,
+                onConfirm: async () => {
+                    // Show loading modal
+                    const loadingModal = new bootstrap.Modal(document.getElementById('homeworkLoadingModal'));
+                    loadingModal.show();
+
+                    const formData = new FormData();
+                    formData.append('homework_file', fileInput.files[0]);
+                    const instruction = homeworkInstruction ? homeworkInstruction.value : '';
+                    if (instruction) {
+                        formData.append('instruction', instruction);
+                    }
+
+                    // Disable submit button
+                    submitBtn.disabled = true;
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+
+                    try {
+                        await processHomework(formData, submitBtn, originalText, loadingModal);
+                    } catch (error) {
+                        console.error('Error:', error);
+                        // Hide loading modal on error
+                        const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('homeworkLoadingModal'));
+                        if (loadingModalInstance) {
+                            loadingModalInstance.hide();
+                        }
+                        showSnackbar('Network error. Please check your connection and try again.', 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                }
+            });
+        });
+        }); // End DOMContentLoaded
+
+        // Separate function to handle homework processing
+        async function processHomework(formData, submitBtn, originalText, loadingModal) {
             try {
-                const response = await fetch('<?= PROCESS_HOMEWORK ?>', {
+                // Convert routing URL to index.php format for fetch
+                let actionUrl = '<?= PROCESS_HOMEWORK ?>';
+                if (actionUrl.includes('/lm/')) {
+                    // Extract the route part (lm/processHomework)
+                    const routeMatch = actionUrl.match(/\/lm\/(.+)$/);
+                    if (routeMatch) {
+                        actionUrl = '<?= BASE_PATH ?>index.php?url=lm/' + routeMatch[1];
+                    }
+                }
+                
+                const response = await fetch(actionUrl, {
                     method: 'POST',
                     body: formData
                 });
@@ -507,12 +638,29 @@ if (!isset($homeworkEntries)) {
                     throw new Error('Invalid response format from server');
                 }
 
+                // Hide loading modal
+                const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('homeworkLoadingModal'));
+                if (loadingModalInstance) {
+                    loadingModalInstance.hide();
+                }
+
                 if (data.success) {
-                    showSnackbar('Homework processed successfully!', 'success');
+                    // Show appropriate message based on status
+                    if (data.status === 'no_question') {
+                        showSnackbar('No question found in the uploaded document. Please upload a document with explicit questions.', 'info');
+                    } else {
+                        showSnackbar('Homework processed successfully!', 'success');
+                    }
                     
                     // Reset form
-                    homeworkForm.reset();
-                    fileName.style.display = 'none';
+                    const form = document.getElementById('homeworkForm');
+                    if (form) {
+                        form.reset();
+                    }
+                    const fileNameDisplay = document.getElementById('fileName');
+                    if (fileNameDisplay) {
+                        fileNameDisplay.style.display = 'none';
+                    }
                     
                     // Reload page to show new entry
                     setTimeout(() => {
@@ -520,15 +668,18 @@ if (!isset($homeworkEntries)) {
                     }, 1000);
                 } else {
                     showSnackbar(data.message || 'Failed to process homework', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
                 }
             } catch (error) {
-                console.error('Error:', error);
-                showSnackbar('Network error. Please check your connection and try again.', 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                // Hide loading modal on error
+                const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('homeworkLoadingModal'));
+                if (loadingModalInstance) {
+                    loadingModalInstance.hide();
+                }
+                throw error; // Re-throw to be caught by caller
             }
-        });
+        }
 
         // Parse markdown in answer content
         document.addEventListener('DOMContentLoaded', () => {
@@ -683,5 +834,20 @@ if (!isset($homeworkEntries)) {
         // Initialize delete handlers when DOM is ready
         document.addEventListener('DOMContentLoaded', initDeleteHandlers);
     </script>
+    
+    <?php include VIEW_CONFIRM; ?>
+
+    <!-- Loading Modal for Homework Processing -->
+    <div class="modal fade loading-modal" id="homeworkLoadingModal" tabindex="-1" aria-labelledby="homeworkLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="loading-modal-spinner"></div>
+                    <div class="loading-modal-text">Processing Homework...</div>
+                    <div class="loading-modal-subtext">Please wait while AI analyzes your document and extracts questions.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

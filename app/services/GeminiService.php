@@ -931,11 +931,18 @@ PROMPT;
         $prompt = <<<PROMPT
 You are a helpful homework assistant. Analyze the following content from an uploaded document (image or PDF).
 
+CRITICAL RULES - STRICTLY FOLLOW THESE:
+1. DO NOT create, invent, or generate questions that are not explicitly present in the content
+2. DO NOT assume questions exist - only work with questions that are clearly stated in the content
+3. DO NOT provide answers if there is no question found in the content
+4. If the content contains only information, explanations, or text without questions, respond with EXACTLY: "NO_QUESTION_FOUND"
+
 YOUR TASK:
-1. First, carefully examine the content to identify if there is a question, problem, or exercise to solve.
-2. If NO question or problem is found in the content, respond with EXACTLY: "NO_QUESTION_FOUND"
-3. If a question or problem IS found:
-   - Extract and clearly state the question/problem
+1. Carefully examine the content to identify if there is an EXPLICIT question, problem, or exercise to solve
+2. A question must be clearly stated with question marks (?), words like "solve", "find", "calculate", "determine", "what is", "how", etc., or be an obvious problem statement
+3. If NO explicit question or problem is found in the content, respond with EXACTLY: "NO_QUESTION_FOUND"
+4. If a question or problem IS explicitly found:
+   - Extract ONLY the question/problem that exists in the content (do not modify or rephrase)
    - Provide a detailed, step-by-step answer
    - Explain your reasoning thoroughly
    - Use clear formatting with markdown
@@ -945,14 +952,16 @@ CONTENT TO ANALYZE:
 {$extractedText}
 
 RESPONSE FORMAT:
-- If no question found: respond ONLY with "NO_QUESTION_FOUND"
+- If no question found: respond ONLY with "NO_QUESTION_FOUND" (nothing else)
 - If question found, use this format:
 
 ### Question:
-[State the question or problem clearly]
+[State the EXACT question or problem as it appears in the content - do not modify it]
 
 ### Answer:
 [Provide your detailed answer with step-by-step explanation]
+
+Remember: Only answer questions that are EXPLICITLY present in the content. Do not create questions.
 
 Now analyze and respond:
 PROMPT;
@@ -960,13 +969,37 @@ PROMPT;
         try {
             $response = $this->generateText($model, $prompt);
             
-            // Check if no question was found
-            if (stripos($response, 'NO_QUESTION_FOUND') !== false || 
-                stripos($response, 'no question found') !== false ||
-                (stripos($response, 'no question') !== false && stripos($response, 'no question') < 50)) {
+            // Check if no question was found - be very strict about this
+            $responseTrimmed = trim($response);
+            $noQuestionPatterns = [
+                '/^NO_QUESTION_FOUND$/i',
+                '/^no question found$/i',
+                '/^no questions? found$/i',
+                '/^no question found in/i',
+                '/^no questions? were found/i',
+                '/^no questions? detected/i',
+                '/^no explicit question/i',
+                '/^no question or problem/i'
+            ];
+            
+            $isNoQuestion = false;
+            foreach ($noQuestionPatterns as $pattern) {
+                if (preg_match($pattern, $responseTrimmed)) {
+                    $isNoQuestion = true;
+                    break;
+                }
+            }
+            
+            // Also check if response starts with "NO_QUESTION_FOUND" (case insensitive)
+            if (stripos($responseTrimmed, 'NO_QUESTION_FOUND') === 0 || 
+                stripos($responseTrimmed, 'no question found') === 0) {
+                $isNoQuestion = true;
+            }
+            
+            if ($isNoQuestion) {
                 return [
                     'hasQuestion' => false,
-                    'answer' => 'No question found in the uploaded document. Please upload a document that contains questions or problems to solve.',
+                    'answer' => 'No question found in the uploaded document. Please upload a document that contains explicit questions or problems to solve.',
                     'question' => null
                 ];
             }
@@ -977,9 +1010,51 @@ PROMPT;
             if (preg_match('/###?\s*Question[:\s]*\n?(.+?)(?=###?\s*Answer|$)/is', $response, $matches)) {
                 $question = trim($matches[1]);
             }
-            // Fallback: try to extract from original text
-            if (empty($question) && preg_match('/(?:Question|Problem|Solve|Find|Calculate|Determine)[:\s]+(.+?)(?:\n|$)/i', $extractedText, $matches)) {
-                $question = trim($matches[1]);
+            // Fallback: try to extract from original text (only if it's clearly a question)
+            if (empty($question)) {
+                // Look for explicit question patterns in original text
+                $questionPatterns = [
+                    '/(?:Question|Problem|Solve|Find|Calculate|Determine|What|How|Why|When|Where)[:\s]+(.+?)(?:\n|$|\?)/i',
+                    '/(.+?)\?/s' // Any text ending with question mark
+                ];
+                
+                foreach ($questionPatterns as $pattern) {
+                    if (preg_match($pattern, $extractedText, $matches)) {
+                        $potentialQuestion = trim($matches[1] ?? $matches[0]);
+                        // Only use if it's substantial (more than 10 chars) and contains question words
+                        if (strlen($potentialQuestion) > 10 && 
+                            preg_match('/(?:what|how|why|when|where|solve|find|calculate|determine|question|problem)/i', $potentialQuestion)) {
+                            $question = $potentialQuestion;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If we still don't have a question but got a response, check if response looks like it might be generating a question
+            // This is a safety check to prevent AI from generating questions
+            if (empty($question) && !empty($response)) {
+                // Check if the response seems to be creating a question rather than answering one
+                $responseLower = strtolower($response);
+                $questionGenerationIndicators = [
+                    'here is a question',
+                    'let me create',
+                    'i will generate',
+                    'here\'s a question',
+                    'consider this question',
+                    'suppose we have'
+                ];
+                
+                foreach ($questionGenerationIndicators as $indicator) {
+                    if (stripos($responseLower, $indicator) !== false) {
+                        // This looks like question generation - treat as no question found
+                        return [
+                            'hasQuestion' => false,
+                            'answer' => 'No explicit question found in the uploaded document. Please upload a document that contains clear questions or problems to solve.',
+                            'question' => null
+                        ];
+                    }
+                }
             }
             
             return [

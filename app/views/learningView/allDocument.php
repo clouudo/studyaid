@@ -500,6 +500,122 @@ ob_start();
             align-items: center;
             width: 100%;
         }
+
+        /* Content Navigation Navbar Styles */
+        .content-navbar {
+            background-color: white;
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.08);
+            border: 1px solid var(--sa-card-border);
+            margin-bottom: 20px;
+        }
+
+        .content-navbar .nav {
+            gap: 4px;
+        }
+
+        .content-navbar .nav-link {
+            color: #6c757d;
+            font-weight: 500;
+            padding: 10px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .content-navbar .nav-link:hover {
+            background-color: var(--sa-accent);
+            color: var(--sa-primary);
+        }
+
+        .content-navbar .nav-link.active {
+            background-color: var(--sa-primary);
+            color: white;
+        }
+
+        .content-navbar .nav-link i {
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .content-navbar .nav-link {
+                font-size: 0.85rem;
+                padding: 8px 12px;
+            }
+            
+            .content-navbar .nav-link i {
+                font-size: 1rem;
+            }
+        }
+
+        /* Content List Styles */
+        .content-list-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .content-list-container.active {
+            display: block;
+        }
+
+        .content-list-item {
+            background: white;
+            border: 1px solid var(--sa-card-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .content-list-item:hover {
+            box-shadow: 0 4px 12px rgba(111, 66, 193, 0.1);
+            transform: translateY(-2px);
+            border-color: var(--sa-primary);
+        }
+
+        .content-list-item-info {
+            flex: 1;
+        }
+
+        .content-list-item-title {
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .content-list-item-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .content-list-item-icon {
+            color: var(--sa-primary);
+            font-size: 1.2rem;
+        }
+
+        .content-list-empty {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .content-list-empty i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
     </style>
 </head>
 
@@ -530,8 +646,52 @@ ob_start();
                 }
                 ?>
 
-                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 30px;">All Documents</h3>
+                <h3 style="color: #212529; font-size: 1.5rem; font-weight: 600; margin-bottom: 20px;">All Documents</h3>
 
+                <!-- Navigation Tabs for Generated Content -->
+                <div class="content-navbar mb-4">
+                    <nav class="nav nav-pills nav-justified">
+                        <button class="nav-link active" data-tab="documents" type="button">
+                            <i class="bi bi-folder me-2"></i>Documents
+                        </button>
+                        <button class="nav-link" data-tab="summaries" type="button">
+                            <i class="bi bi-file-text me-2"></i>Summaries
+                        </button>
+                        <button class="nav-link" data-tab="notes" type="button">
+                            <i class="bi bi-journal-text me-2"></i>Notes
+                        </button>
+                        <button class="nav-link" data-tab="mindmaps" type="button">
+                            <i class="bi bi-diagram-3 me-2"></i>Mindmaps
+                        </button>
+                        <button class="nav-link" data-tab="flashcards" type="button">
+                            <i class="bi bi-card-text me-2"></i>Flashcards
+                        </button>
+                        <button class="nav-link" data-tab="quizzes" type="button">
+                            <i class="bi bi-question-circle me-2"></i>Quizzes
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Content Lists Container -->
+                <div id="contentListsContainer" style="display: none;">
+                    <!-- Summaries List -->
+                    <div id="summariesList" class="content-list-container"></div>
+                    
+                    <!-- Notes List -->
+                    <div id="notesList" class="content-list-container"></div>
+                    
+                    <!-- Mindmaps List -->
+                    <div id="mindmapsList" class="content-list-container"></div>
+                    
+                    <!-- Flashcards List -->
+                    <div id="flashcardsList" class="content-list-container"></div>
+                    
+                    <!-- Quizzes List -->
+                    <div id="quizzesList" class="content-list-container"></div>
+                </div>
+
+                <!-- Documents Section (Breadcrumb, Search, and Document List) -->
+                <div id="documentsSection">
                 <div class="breadcrumb-container">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
@@ -694,6 +854,8 @@ ob_start();
                     <?php endif;
                     ?>
                 </div>
+                </div>
+                <!-- End Documents Section -->
             </div>
         </main>
     </div>
@@ -1619,6 +1781,204 @@ ob_start();
         showSnackbar('<?php echo addslashes($errorMessage); ?>', 'error');
     });
     <?php endif; ?>
+    </script>
+
+    <!-- Content Navigation Tabs Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.content-navbar .nav-link[data-tab]');
+            const documentsSection = document.getElementById('documentsSection');
+            const contentListsContainer = document.getElementById('contentListsContainer');
+            
+            // Ensure documents section is visible initially
+            if (documentsSection) {
+                documentsSection.style.display = 'block';
+            }
+
+            // Tab click handlers
+            tabButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const tabName = this.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    tabButtons.forEach(function(btn) {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Show/hide documents section
+                    if (tabName === 'documents') {
+                        // Show documents section
+                        if (documentsSection) {
+                            documentsSection.style.display = 'block';
+                        }
+                        // Hide content lists container
+                        if (contentListsContainer) {
+                            contentListsContainer.style.display = 'none';
+                        }
+                        // Hide all individual content lists
+                        document.querySelectorAll('.content-list-container').forEach(function(list) {
+                            list.classList.remove('active');
+                        });
+                    } else {
+                        // Hide documents section completely
+                        if (documentsSection) {
+                            documentsSection.style.display = 'none';
+                        }
+                        // Show content lists container
+                        if (contentListsContainer) {
+                            contentListsContainer.style.display = 'block';
+                        }
+                        
+                        // Hide all lists first
+                        document.querySelectorAll('.content-list-container').forEach(function(list) {
+                            list.classList.remove('active');
+                        });
+                        
+                        // Show and load selected list
+                        loadContentList(tabName);
+                    }
+                });
+            });
+
+            function loadContentList(type) {
+                const listContainer = document.getElementById(type + 'List');
+                if (!listContainer) return;
+                
+                // Show loading state
+                listContainer.classList.add('active');
+                listContainer.innerHTML = '<div class="content-list-empty"><i class="bi bi-hourglass-split"></i><p>Loading...</p></div>';
+                
+                // Determine endpoint and route
+                let endpoint = '';
+                let route = '';
+                
+                switch(type) {
+                    case 'summaries':
+                        endpoint = '<?= BASE_PATH ?>index.php?url=lm/getAllSummaries';
+                        route = '<?= BASE_PATH ?>index.php?url=lm/summary';
+                        break;
+                    case 'notes':
+                        endpoint = '<?= BASE_PATH ?>index.php?url=lm/getAllNotes';
+                        route = '<?= BASE_PATH ?>index.php?url=lm/note';
+                        break;
+                    case 'mindmaps':
+                        endpoint = '<?= BASE_PATH ?>index.php?url=lm/getAllMindmaps';
+                        route = '<?= BASE_PATH ?>index.php?url=lm/mindmap';
+                        break;
+                    case 'flashcards':
+                        endpoint = '<?= BASE_PATH ?>index.php?url=lm/getAllFlashcards';
+                        route = '<?= BASE_PATH ?>index.php?url=lm/flashcard';
+                        break;
+                    case 'quizzes':
+                        endpoint = '<?= BASE_PATH ?>index.php?url=lm/getAllQuizzes';
+                        route = '<?= BASE_PATH ?>index.php?url=lm/quiz';
+                        break;
+                }
+                
+                // Fetch data
+                fetch(endpoint)
+                    .then(function(response) {
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        if (data.success && data.data && data.data.length > 0) {
+                            renderContentList(listContainer, data.data, type, route);
+                        } else {
+                            listContainer.innerHTML = '<div class="content-list-empty"><i class="bi bi-inbox"></i><p>No ' + type + ' found</p></div>';
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Error loading ' + type + ':', error);
+                        listContainer.innerHTML = '<div class="content-list-empty"><i class="bi bi-exclamation-triangle"></i><p>Error loading ' + type + '</p></div>';
+                    });
+            }
+
+            function renderContentList(container, items, type, route) {
+                let html = '';
+                
+                items.forEach(function(item) {
+                    const fileId = item.fileID || item.file_id;
+                    const fileName = item.fileName || 'Unknown Document';
+                    let title = '';
+                    let meta = '';
+                    let icon = '';
+                    
+                    switch(type) {
+                        case 'summaries':
+                            title = item.title || 'Untitled Summary';
+                            meta = fileName;
+                            icon = 'bi-file-text';
+                            break;
+                        case 'notes':
+                            title = item.title || 'Untitled Note';
+                            meta = fileName;
+                            icon = 'bi-journal-text';
+                            break;
+                        case 'mindmaps':
+                            title = item.title || 'Untitled Mindmap';
+                            meta = fileName;
+                            icon = 'bi-diagram-3';
+                            break;
+                        case 'flashcards':
+                            title = item.title || 'Untitled Flashcard';
+                            meta = fileName + (item.cardCount ? ' • ' + item.cardCount + ' cards' : '');
+                            icon = 'bi-card-text';
+                            break;
+                        case 'quizzes':
+                            title = item.title || 'Untitled Quiz';
+                            meta = fileName;
+                            icon = 'bi-question-circle';
+                            break;
+                    }
+                    
+                    const createdAt = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
+                    
+                    html += '<div class="content-list-item" data-file-id="' + fileId + '">';
+                    html += '<div class="content-list-item-info">';
+                    html += '<div class="content-list-item-title">' + escapeHtml(title) + '</div>';
+                    html += '<div class="content-list-item-meta">';
+                    html += '<span><i class="bi bi-file-earmark me-1"></i>' + escapeHtml(meta) + '</span>';
+                    if (createdAt) {
+                        html += '<span><i class="bi bi-calendar me-1"></i>' + createdAt + '</span>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                    html += '<div class="content-list-item-icon"><i class="bi ' + icon + '"></i></div>';
+                    html += '</div>';
+                });
+                
+                container.innerHTML = html;
+                
+                // Add click handlers
+                container.querySelectorAll('.content-list-item').forEach(function(item) {
+                    item.addEventListener('click', function() {
+                        const fileId = this.getAttribute('data-file-id');
+                        if (fileId) {
+                            // Navigate to the specific page with file_id
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = route;
+                            
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'file_id';
+                            input.value = fileId;
+                            
+                            form.appendChild(input);
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
+                    });
+                });
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        });
     </script>
     <?php include VIEW_CONFIRM; ?>
 </body>

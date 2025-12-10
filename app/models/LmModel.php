@@ -178,6 +178,63 @@ class LmModel
     }
 
     /**
+     * Get page count from PDF file
+     * 
+     * @param string $tmpName Temporary file path
+     * @return int Number of pages, or 0 if unable to determine
+     */
+    public function getPdfPageCount($tmpName)
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($tmpName);
+            $pages = $pdf->getPages();
+            return count($pages);
+        } catch (\Exception $e) {
+            error_log("[Homework Helper] Error counting PDF pages: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get page count from DOCX file
+     * 
+     * @param string $tmpName Temporary file path
+     * @return int Number of pages (estimated based on sections), or 0 if unable to determine
+     */
+    public function getDocxPageCount($tmpName)
+    {
+        try {
+            $phpWord = \PhpOffice\PhpWord\IOFactory::load($tmpName);
+            $sections = $phpWord->getSections();
+            // Estimate pages: roughly 1 page per section, minimum 1
+            $estimatedPages = max(1, count($sections));
+            
+            // Try to get more accurate count by counting paragraphs
+            $paragraphCount = 0;
+            foreach ($sections as $section) {
+                $elements = $section->getElements();
+                foreach ($elements as $element) {
+                    if ($element instanceof \PhpOffice\PhpWord\Element\TextRun || 
+                        $element instanceof \PhpOffice\PhpWord\Element\Text) {
+                        $paragraphCount++;
+                    }
+                }
+            }
+            
+            // Rough estimate: ~20-30 paragraphs per page
+            if ($paragraphCount > 0) {
+                $estimatedPages = max(1, ceil($paragraphCount / 25));
+            }
+            
+            return $estimatedPages;
+        } catch (\Exception $e) {
+            error_log("[Homework Helper] Error counting DOCX pages: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
      * Clean and validate UTF-8 text
      * 
      * Removes invalid UTF-8 sequences and ensures text is properly encoded
@@ -1199,6 +1256,22 @@ class LmModel
     }
 
     /**
+     * Get all summaries for a user (across all files)
+     */
+    public function getAllSummariesForUser(int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT s.*, f.name as fileName, f.fileID 
+                                FROM summary s 
+                                INNER JOIN file f ON s.fileID = f.fileID 
+                                WHERE f.userID = :userID 
+                                ORDER BY s.createdAt DESC");
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Get summary by ID (verifies ownership)
      */
     public function getSummaryById(int $summaryId, int $userId)
@@ -1272,6 +1345,22 @@ class LmModel
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM note WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all notes for a user (across all files)
+     */
+    public function getAllNotesForUser(int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT n.*, f.name as fileName, f.fileID 
+                                FROM note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                WHERE f.userID = :userID 
+                                ORDER BY n.createdAt DESC");
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -1430,6 +1519,22 @@ class LmModel
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM mindmap WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all mindmaps for a user (across all files)
+     */
+    public function getAllMindmapsForUser(int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT m.*, f.name as fileName, f.fileID 
+                                FROM mindmap m 
+                                INNER JOIN file f ON m.fileID = f.fileID 
+                                WHERE f.userID = :userID 
+                                ORDER BY m.createdAt DESC");
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -1632,6 +1737,57 @@ class LmModel
     }
 
     /**
+     * Get all flashcards for a user (across all files), grouped by title
+     */
+    public function getAllFlashcardsForUser(int $userId)
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("
+            SELECT 
+                fc.title,
+                fc.fileID,
+                MAX(fc.createdAt) as createdAt,
+                MIN(fc.flashcardID) as flashcardID,
+                fc.term,
+                fc.definition,
+                f.name as fileName
+            FROM flashcard fc
+            INNER JOIN file f ON fc.fileID = f.fileID
+            WHERE f.userID = :userID 
+            GROUP BY fc.title, fc.fileID, fc.term, fc.definition, f.name
+            ORDER BY createdAt DESC
+        ");
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Calculate card count from comma-separated strings
+        foreach ($results as &$result) {
+            $termString = $result['term'] ?? '';
+            $definitionString = $result['definition'] ?? '';
+            
+            // Parse comma-separated strings (format: "term1","term2","term3")
+            $terms = !empty($termString) ? preg_split('/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/', $termString) : [];
+            $definitions = !empty($definitionString) ? preg_split('/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/', $definitionString) : [];
+            
+            // Remove quotes and unescape
+            $terms = array_map(function($term) {
+                $term = trim($term, '"');
+                return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $term);
+            }, $terms);
+            
+            $definitions = array_map(function($def) {
+                $def = trim($def, '"');
+                return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $def);
+            }, $definitions);
+            
+            $result['cardCount'] = max(count($terms), count($definitions));
+        }
+        
+        return $results;
+    }
+
+    /**
      * Get flashcard by ID
      */
     public function getFlashcardsById(int $flashcardId)
@@ -1783,6 +1939,23 @@ class LmModel
         $conn = $this->db->connect();
         $stmt = $conn->prepare("SELECT * FROM quiz WHERE fileID = :fileID ORDER BY createdAt DESC");
         $stmt->bindParam(':fileID', $fileId);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all quizzes for a user (across all files)
+     */
+    public function getAllQuizzesForUser(int $userId)
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("SELECT q.*, f.name as fileName, f.fileID 
+                                FROM quiz q 
+                                INNER JOIN file f ON q.fileID = f.fileID 
+                                WHERE f.userID = :userID 
+                                ORDER BY q.createdAt DESC");
+        $stmt->bindParam(':userID', $userId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
