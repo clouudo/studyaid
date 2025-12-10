@@ -103,48 +103,42 @@ class OCRService
                 throw new \Exception("Tesseract is not available. Please install Tesseract OCR.");
             }
 
-            $processedImagePath = $this->preprocessImage($imagePath);
+            // Use original image directly without preprocessing
+            $imageToProcess = $imagePath;
 
-            try {
-                $outputBase = $this->getTempFile('tesseract', '');
-                $command = $this->buildTesseractCommand($processedImagePath, $language, $psm, $oem, $outputBase);
-                $output = shell_exec($command . ' 2>&1');
-                $exitCode = 0;
+            $outputBase = $this->getTempFile('tesseract', '');
+            $command = $this->buildTesseractCommand($imageToProcess, $language, $psm, $oem, $outputBase);
+            $output = shell_exec($command . ' 2>&1');
+            $exitCode = 0;
 
-                // Tesseract outputs to {outputBase}.txt
-                $textFilePath = $outputBase . '.txt';
-                
-                // Wait a moment for file to be written
-                $attempts = 0;
-                while (!file_exists($textFilePath) && $attempts < 10) {
-                    usleep(100000); // Wait 100ms
-                    $attempts++;
-                }
-                
-                if (!file_exists($textFilePath)) {
-                    throw new \Exception("Tesseract output file not created: {$textFilePath}. Command output: {$output}");
-                }
-                
-                $recognizedText = file_get_contents($textFilePath);
-
-                $confidence = $this->calculateConfidence($recognizedText);
-
-                @unlink($textFilePath);
-                @unlink($processedImagePath);
-
-                return [
-                    'success' => true,
-                    'text' => trim($recognizedText),
-                    'confidence' => $confidence,
-                    'engine' => 'tesseract',
-                    'processing_time' => $this->getProcessingTime(),
-                    'lines' => $this->extractTextLines($recognizedText)
-                ];
-            } finally {
-                if (isset($processedImagePath) && file_exists($processedImagePath)) {
-                    @unlink($processedImagePath);
-                }
+            // Tesseract outputs to {outputBase}.txt
+            $textFilePath = $outputBase . '.txt';
+            
+            // Wait a moment for file to be written
+            $attempts = 0;
+            while (!file_exists($textFilePath) && $attempts < 10) {
+                usleep(100000); // Wait 100ms
+                $attempts++;
             }
+            
+            if (!file_exists($textFilePath)) {
+                throw new \Exception("Tesseract output file not created: {$textFilePath}. Command output: {$output}");
+            }
+            
+            $recognizedText = file_get_contents($textFilePath);
+
+            $confidence = $this->calculateConfidence($recognizedText);
+
+            @unlink($textFilePath);
+
+            return [
+                'success' => true,
+                'text' => trim($recognizedText),
+                'confidence' => $confidence,
+                'engine' => 'tesseract',
+                'processing_time' => $this->getProcessingTime(),
+                'lines' => $this->extractTextLines($recognizedText)
+            ];
         } catch (\Exception $e) {
             error_log("[OCR] Tesseract Error: " . $e->getMessage());
             return [
@@ -162,87 +156,78 @@ class OCRService
                 throw new \Exception("Google Vision client not initialized. Please check your credentials.");
             }
 
-            // Preprocess image for better OCR results
-            $processedImagePath = $this->preprocessImage($imagePath);
-            
-            try {
-                $imageData = file_get_contents($processedImagePath);
-                if ($imageData === false) {
-                    throw new \Exception("Failed to read image file: {$imagePath}");
-                }
+            // Use original image directly without preprocessing
+            $imageData = file_get_contents($imagePath);
+            if ($imageData === false) {
+                throw new \Exception("Failed to read image file: {$imagePath}");
+            }
 
-                // Create Image object
-                $image = new Image();
-                $image->setContent($imageData);
+            // Create Image object
+            $image = new Image();
+            $image->setContent($imageData);
 
-                // Create Feature for text detection
-                $feature = new Feature();
-                $feature->setType(\Google\Cloud\Vision\V1\Feature\Type::TEXT_DETECTION);
+            // Create Feature for text detection
+            $feature = new Feature();
+            $feature->setType(\Google\Cloud\Vision\V1\Feature\Type::TEXT_DETECTION);
 
-                // Create AnnotateImageRequest
-                $request = new AnnotateImageRequest();
-                $request->setImage($image);
-                $request->setFeatures([$feature]);
+            // Create AnnotateImageRequest
+            $request = new AnnotateImageRequest();
+            $request->setImage($image);
+            $request->setFeatures([$feature]);
 
-                // Create BatchAnnotateImagesRequest
-                $batchRequest = new BatchAnnotateImagesRequest();
-                $batchRequest->setRequests([$request]);
+            // Create BatchAnnotateImagesRequest
+            $batchRequest = new BatchAnnotateImagesRequest();
+            $batchRequest->setRequests([$request]);
 
-                // Call the API
-                $response = $this->googleVisionClient->batchAnnotateImages($batchRequest);
-                $responses = $response->getResponses();
+            // Call the API
+            $response = $this->googleVisionClient->batchAnnotateImages($batchRequest);
+            $responses = $response->getResponses();
 
-                if (empty($responses)) {
-                    throw new \Exception("No response from Google Vision API.");
-                }
+            if (empty($responses)) {
+                throw new \Exception("No response from Google Vision API.");
+            }
 
-                $annotateResponse = $responses[0];
-                $textAnnotations = $annotateResponse->getTextAnnotations();
+            $annotateResponse = $responses[0];
+            $textAnnotations = $annotateResponse->getTextAnnotations();
 
-                if (empty($textAnnotations)) {
-                    throw new \Exception("No text detected by Google Vision.");
-                }
+            if (empty($textAnnotations)) {
+                throw new \Exception("No text detected by Google Vision.");
+            }
 
-                // First annotation contains the full text
-                $fullText = $textAnnotations[0]->getDescription();
-                $lines = [];
+            // First annotation contains the full text
+            $fullText = $textAnnotations[0]->getDescription();
+            $lines = [];
 
-                // Process individual text annotations (skip first as it's the full text)
-                foreach ($textAnnotations as $index => $textAnnotation) {
-                    if ($index === 0) continue;
+            // Process individual text annotations (skip first as it's the full text)
+            foreach ($textAnnotations as $index => $textAnnotation) {
+                if ($index === 0) continue;
 
-                    $boundingPoly = $textAnnotation->getBoundingPoly();
-                    if ($boundingPoly) {
-                        $vertices = $boundingPoly->getVertices();
-                        if (count($vertices) >= 4) {
-                            $lines[] = [
-                                'text' => $textAnnotation->getDescription(),
-                                'confidence' => 1.0,
-                                'bbox' => [
-                                    'x' => $vertices[0]->getX(),
-                                    'y' => $vertices[0]->getY(),
-                                    'width' => $vertices[2]->getX() - $vertices[0]->getX(),
-                                    'height' => $vertices[2]->getY() - $vertices[0]->getY(),
-                                ]
-                            ];
-                        }
+                $boundingPoly = $textAnnotation->getBoundingPoly();
+                if ($boundingPoly) {
+                    $vertices = $boundingPoly->getVertices();
+                    if (count($vertices) >= 4) {
+                        $lines[] = [
+                            'text' => $textAnnotation->getDescription(),
+                            'confidence' => 1.0,
+                            'bbox' => [
+                                'x' => $vertices[0]->getX(),
+                                'y' => $vertices[0]->getY(),
+                                'width' => $vertices[2]->getX() - $vertices[0]->getX(),
+                                'height' => $vertices[2]->getY() - $vertices[0]->getY(),
+                            ]
+                        ];
                     }
                 }
-
-                return [
-                    'success' => true,
-                    'text' => $fullText,
-                    'confidence' => 0.95,
-                    'engine' => 'google_vision',
-                    'processing_time' => $this->getProcessingTime(),
-                    'lines' => $lines
-                ];
-            } finally {
-                // Clean up processed image file
-                if (isset($processedImagePath) && file_exists($processedImagePath) && $processedImagePath !== $imagePath) {
-                    @unlink($processedImagePath);
-                }
             }
+
+            return [
+                'success' => true,
+                'text' => $fullText,
+                'confidence' => 0.95,
+                'engine' => 'google_vision',
+                'processing_time' => $this->getProcessingTime(),
+                'lines' => $lines
+            ];
         } catch (\Exception $e) {
             return [
                 'success' => false,

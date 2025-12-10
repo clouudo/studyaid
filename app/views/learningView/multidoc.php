@@ -346,7 +346,7 @@
         <main class="content-panel flex-grow-1 p-4">
             <div class="container-fluid">
                 <h3 class="mb-4" style="color: var(--sa-primary);">Document Hub</h3>
-                <p class="text-muted mb-4">Choose a tool to generate content. Document selection is available in each tool's modal.</p>
+                <p class="text-muted mb-4">Choose a tool to generate content.</p>
 
                 <div class="row g-4">
                     <!-- Synthesize Document -->
