@@ -1187,6 +1187,47 @@
             border-radius: 4px;
             object-fit: contain;
         }
+        
+        /* Markdown table styles */
+        #preview table,
+        .note-preview table {
+            width: 100%;
+            margin: 1rem 0;
+            border-collapse: collapse;
+            border-spacing: 0;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #preview table thead,
+        .note-preview table thead {
+            background-color: var(--sa-primary);
+            color: #fff;
+        }
+        
+        #preview table th,
+        .note-preview table th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--sa-primary-dark);
+        }
+        
+        #preview table td,
+        .note-preview table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        #preview table tbody tr:hover,
+        .note-preview table tbody tr:hover {
+            background-color: var(--sa-accent);
+        }
+        
+        #preview table tbody tr:last-child td,
+        .note-preview table tbody tr:last-child td {
+            border-bottom: none;
+        }
 
         .note-preview-panel blockquote {
             border-left: 4px solid #6f42c1;

@@ -270,6 +270,41 @@ if (!isset($homeworkEntries)) {
             font-size: 0.9rem;
             color: #6c757d;
         }
+        
+        /* Markdown table styles for homework answers */
+        [id^="answer-text-"] table {
+            width: 100%;
+            margin: 1rem 0;
+            border-collapse: collapse;
+            border-spacing: 0;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        [id^="answer-text-"] table thead {
+            background-color: var(--sa-primary);
+            color: #fff;
+        }
+        
+        [id^="answer-text-"] table th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--sa-primary-dark);
+        }
+        
+        [id^="answer-text-"] table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        [id^="answer-text-"] table tbody tr:hover {
+            background-color: var(--sa-accent);
+        }
+        
+        [id^="answer-text-"] table tbody tr:last-child td {
+            border-bottom: none;
+        }
     </style>
 </head>
 

@@ -663,6 +663,41 @@
             font-weight: 700;
             box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
         }
+        
+        /* Markdown table styles */
+        .summaryContent table {
+            width: 100%;
+            margin: 1rem 0;
+            border-collapse: collapse;
+            border-spacing: 0;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .summaryContent table thead {
+            background-color: var(--sa-primary);
+            color: #fff;
+        }
+        
+        .summaryContent table th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--sa-primary-dark);
+        }
+        
+        .summaryContent table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .summaryContent table tbody tr:hover {
+            background-color: var(--sa-accent);
+        }
+        
+        .summaryContent table tbody tr:last-child td {
+            border-bottom: none;
+        }
     </style>
     <script>
             /**

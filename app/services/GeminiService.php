@@ -240,6 +240,8 @@ Preserve all original content exactly as-is.
 Do not include any additional explanations or text.
 Organize hierarchically using headings and subheadings where appropriate.
 Output should be plain text formatted with markdown-style headers such as #, ##, ###, etc.
+
+Important: Analyze the original text to determine if it contains tabular data or table-like structures (rows and columns, comparisons, structured data sets, key-value pairs, etc.). If the original text is in table format or contains tabular information, preserve and format it using markdown table syntax (| column | column |) with proper headers and alignment.
 PROMPT;
         $prompt = $schema . "\n\n" . 'Content: ' . $content;
         return $this->generateText($model, $prompt, null, $userId);
@@ -255,7 +257,14 @@ PROMPT;
     public function generateNotes(string $sourceText, ?string $instructions = null, ?int $userId = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
-        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Encouraged to use bullet points and numbered lists if possible.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown format.\n\n" .
+                  "Formatting Guidelines:\n" .
+                  "- Use markdown tables (| column | column |) to organize structured data, comparisons, definitions, key-value pairs, timelines, or any tabular information.\n" .
+                  "- Tables are especially encouraged for: comparing concepts, listing definitions with examples, showing relationships, displaying data sets, or organizing information in rows and columns.\n" .
+                  "- Use bullet points and numbered lists for sequential or hierarchical information.\n" .
+                  "- Use headings to organize different sections.\n\n" .
+                  ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . 
+                  "Content:\n" . $sourceText;
         return $this->generateText($model, $prompt, null, $userId);
     }
 
