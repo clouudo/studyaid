@@ -695,7 +695,7 @@ class LmModel
         $results['folders'] = $folderStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // Get files
-        $fileQuery = "SELECT fileID, name, fileType FROM file WHERE userID = :userID AND " . ($parentId === null ? "folderID IS NULL" : "folderID = :folderID");
+        $fileQuery = "SELECT fileID, name, fileType, uploadDate FROM file WHERE userID = :userID AND " . ($parentId === null ? "folderID IS NULL" : "folderID = :folderID");
         $fileStmt = $conn->prepare($fileQuery);
         $fileStmt->bindParam(':userID', $userId);
         if ($parentId !== null) {
@@ -725,7 +725,7 @@ class LmModel
         $results['folders'] = $folderStmt->fetchAll(\PDO::FETCH_ASSOC);
 
         // Search files
-        $fileQuery = "SELECT fileID, name, fileType FROM file WHERE userID = :userID AND name LIKE :searchQuery";
+        $fileQuery = "SELECT fileID, name, fileType, uploadDate FROM file WHERE userID = :userID AND name LIKE :searchQuery";
         $fileStmt = $conn->prepare($fileQuery);
         $fileStmt->bindParam(':userID', $userId);
         $fileStmt->bindParam(':searchQuery', $searchParam);

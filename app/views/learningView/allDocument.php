@@ -159,6 +159,10 @@ ob_start();
             color: #6f42c1;
         }
 
+        .file-folder-link:hover .file-upload-date {
+            color: #6c757d;
+        }
+
         .file-folder-link i {
             color: #6f42c1;
             margin-right: 12px;
@@ -483,6 +487,19 @@ ob_start();
             flex: 1;
             font-size: 0.95rem;
         }
+
+        .file-upload-date {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-left: 12px;
+            font-weight: normal;
+        }
+
+        .file-name-wrapper {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
     </style>
 </head>
 
@@ -611,7 +628,7 @@ ob_start();
                                 data-item-id="<?php echo $file['fileID']; ?>"
                                 data-item-type="file"
                                 data-item-name="<?php echo htmlspecialchars(strtolower($file['name'])); ?>"
-                                data-item-date="<?php echo isset($file['uploadDate']) ? strtotime($file['uploadDate']) : (isset($file['createdAt']) ? strtotime($file['createdAt']) : 0); ?>">
+                                data-item-date="<?php echo isset($file['uploadDate']) ? strtotime($file['uploadDate']) : 0; ?>">
                                 <div class="d-flex align-items-center" style="flex-grow: 1;">
                                     <input type="checkbox" class="form-check-input bulk-select-checkbox me-3" 
                                            data-item-id="<?php echo $file['fileID']; ?>" 
@@ -621,15 +638,26 @@ ob_start();
                                     <form method="POST" action="<?= DISPLAY_DOCUMENT ?>" style="display: inline; flex-grow: 1; margin: 0;" onclick="event.stopPropagation();">
                                         <input type="hidden" name="file_id" value="<?php echo $file['fileID']; ?>">
                                         <button type="submit" class="file-folder-link" style="border: none; background: none; width: 100%; text-align: left; padding: 0;">
-                                            <?php
-                                            $fileIcon = 'bi-file-earmark';
-                                            $fileTypeLower = strtolower($file['fileType']);
-                                            if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
-                                            elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
-                                            elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
-                                            ?>
-                                            <i class="bi <?php echo $fileIcon; ?>"></i>
-                                            <strong><?php echo htmlspecialchars($file['name']); ?></strong>
+                                            <div class="file-name-wrapper">
+                                                <?php
+                                                $fileIcon = 'bi-file-earmark';
+                                                $fileTypeLower = strtolower($file['fileType']);
+                                                if (in_array($fileTypeLower, ['pdf'])) $fileIcon = 'bi-file-earmark-pdf';
+                                                elseif (in_array($fileTypeLower, ['doc', 'docx'])) $fileIcon = 'bi-file-earmark-word';
+                                                elseif (in_array($fileTypeLower, ['jpg', 'jpeg', 'png', 'gif'])) $fileIcon = 'bi-file-earmark-image';
+                                                
+                                                // Format upload date
+                                                $uploadDate = null;
+                                                if (isset($file['uploadDate']) && !empty($file['uploadDate'])) {
+                                                    $uploadDate = date('M d, Y', strtotime($file['uploadDate']));
+                                                }
+                                                ?>
+                                                <i class="bi <?php echo $fileIcon; ?>"></i>
+                                                <strong><?php echo htmlspecialchars($file['name']); ?></strong>
+                                                <?php if ($uploadDate): ?>
+                                                    <span class="file-upload-date"><?php echo htmlspecialchars($uploadDate); ?></span>
+                                                <?php endif; ?>
+                                            </div>
                                         </button>
                                     </form>
                                 </div>
