@@ -1287,6 +1287,22 @@ class LmModel
     }
 
     /**
+     * Update summary title
+     */
+    public function updateSummaryTitle(int $summaryId, int $userId, string $title): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE summary s 
+                                INNER JOIN file f ON s.fileID = f.fileID 
+                                SET s.title = :title
+                                WHERE s.summaryID = :summaryID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':summaryID', $summaryId);
+        $stmt->bindParam(':userID', $userId);
+        return $stmt->execute();
+    }
+
+    /**
      * Delete summary from database
      */
     public function deleteSummary(int $summaryId)
@@ -1433,6 +1449,22 @@ class LmModel
     }
 
     /**
+     * Update note title only
+     */
+    public function updateNoteTitle(int $noteId, int $userId, string $title): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE note n 
+                                INNER JOIN file f ON n.fileID = f.fileID 
+                                SET n.title = :title
+                                WHERE n.noteID = :noteID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':noteID', $noteId);
+        $stmt->bindParam(':userID', $userId);
+        return $stmt->execute();
+    }
+
+    /**
      * Upload note image to GCS and return signed URL
      */
     public function saveNoteImage(int $noteId, string $fileContent, string $fileExtension, int $userId): array
@@ -1509,6 +1541,22 @@ class LmModel
         $stmt->execute();
         
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Update mindmap title only
+     */
+    public function updateMindmapTitle(int $mindmapId, int $userId, string $title): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE mindmap m 
+                                INNER JOIN file f ON m.fileID = f.fileID 
+                                SET m.title = :title
+                                WHERE m.mindmapID = :mindmapID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':mindmapID', $mindmapId);
+        $stmt->bindParam(':userID', $userId);
+        return $stmt->execute();
     }
 
     /**
@@ -1873,6 +1921,23 @@ class LmModel
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Update flashcard title only
+     */
+    public function updateFlashcardTitle(int $flashcardId, int $userId, string $title): bool
+    {
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE flashcard fc
+                                INNER JOIN file f ON fc.fileID = f.fileID
+                                SET fc.title = :title
+                                WHERE fc.flashcardID = :flashcardID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':flashcardID', $flashcardId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+
     // ============================================================================ 
     // QUIZ PAGE (quiz.php)
     // ============================================================================ 
@@ -2021,6 +2086,24 @@ class LmModel
         $stmt->bindParam(':questionID', $questionId);
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Update quiz title only
+     */
+    public function updateQuizTitle(int $quizId, int $userId, string $title): bool
+    {
+        $this->ensureQuizSchema();
+        $conn = $this->db->connect();
+        $stmt = $conn->prepare("UPDATE quiz q 
+                                INNER JOIN file f ON q.fileID = f.fileID 
+                                SET q.title = :title
+                                WHERE q.quizID = :quizID AND f.userID = :userID");
+        $stmt->bindParam(':title', $title);
+        $stmt->bindParam(':quizID', $quizId);
+        $stmt->bindParam(':userID', $userId);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
     }
 
     /**

@@ -383,6 +383,7 @@
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">View</a></li>
                                                 <li><a class="dropdown-item export-mindmap-image-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as Image</a></li>
                                                 <li><a class="dropdown-item export-mindmap-pdf-btn" href="#" data-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>">Export as PDF</a></li>
+                                                <li><a class="dropdown-item rename-mindmap-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameMindmapModal" data-mindmap-id="<?= htmlspecialchars($mindmap['mindmapID']) ?>" data-mindmap-title="<?= htmlspecialchars($mindmap['title']) ?>">Rename</a></li>
                                                 <li>
                                                     <hr class="dropdown-divider">
                                                 </li>
@@ -1262,6 +1263,85 @@
             </div>
         </div>
     </div>
+
+    <!-- Rename Mindmap Modal -->
+    <div class="modal fade" id="renameMindmapModal" tabindex="-1" aria-labelledby="renameMindmapModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="renameMindmapModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Rename Mindmap</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <form id="renameMindmapForm" onsubmit="return false;">
+                        <input type="hidden" id="renameMindmapId">
+                        <div class="mb-3">
+                            <label for="newMindmapTitle" class="form-label fw-semibold">Title</label>
+                            <input type="text" class="form-control form-input-theme" id="newMindmapTitle" required style="background-color: #e7d5ff; border: none; border-radius: 12px; padding: 12px 16px; color: #212529;">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 20px 24px;">
+                    <button type="button" class="btn btn-create" id="saveRenameMindmapBtn" style="background-color: #e7d5ff; border: none; color: #6f42c1; padding: 10px 24px; border-radius: 8px; font-weight: 600;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Mindmap Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const renameModal = document.getElementById('renameMindmapModal');
+            const renameMindmapId = document.getElementById('renameMindmapId');
+            const newMindmapTitle = document.getElementById('newMindmapTitle');
+            const saveBtn = document.getElementById('saveRenameMindmapBtn');
+            const renameButtons = document.querySelectorAll('.rename-mindmap-btn');
+
+            renameButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const mindmapId = this.getAttribute('data-mindmap-id');
+                    const currentTitle = this.getAttribute('data-mindmap-title');
+                    renameMindmapId.value = mindmapId;
+                    newMindmapTitle.value = currentTitle;
+                });
+            });
+
+            saveBtn.addEventListener('click', function() {
+                const mindmapId = renameMindmapId.value;
+                const newTitle = newMindmapTitle.value.trim();
+
+                if (!newTitle) {
+                    alert('Title cannot be empty.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('mindmap_id', mindmapId);
+                formData.append('title', newTitle);
+
+                fetch('<?= BASE_PATH ?>index.php?url=lm/renameMindmap', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const modal = bootstrap.Modal.getInstance(renameModal);
+                        modal.hide();
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Failed to rename mindmap.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while renaming the mindmap.');
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

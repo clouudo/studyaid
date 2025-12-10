@@ -861,6 +861,41 @@ class LmController
     }
 
     /**
+     * Rename summary title
+     */
+    public function renameSummary()
+    {
+        $this->checkSession();
+        header('Content-Type: application/json');
+
+        $userId = (int)$_SESSION['user_id'];
+        $summaryId = isset($_POST['summary_id']) ? (int)$_POST['summary_id'] : 0;
+        $newTitle = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if ($summaryId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Summary ID not provided.']);
+            exit();
+        }
+
+        if (empty($newTitle)) {
+            echo json_encode(['success' => false, 'message' => 'Title cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $updated = $this->lmModel->updateSummaryTitle($summaryId, $userId, $newTitle);
+            if ($updated) {
+                echo json_encode(['success' => true, 'message' => 'Summary renamed successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to rename summary.']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
      * Delete summary from database
      */
     public function deleteSummary()
@@ -1622,6 +1657,41 @@ class LmController
     }
 
     /**
+     * Rename mindmap title
+     */
+    public function renameMindmap()
+    {
+        $this->checkSession();
+        header('Content-Type: application/json');
+
+        $userId = (int)$_SESSION['user_id'];
+        $mindmapId = isset($_POST['mindmap_id']) ? (int)$_POST['mindmap_id'] : 0;
+        $newTitle = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if ($mindmapId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Mindmap ID not provided.']);
+            exit();
+        }
+
+        if (empty($newTitle)) {
+            echo json_encode(['success' => false, 'message' => 'Title cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $updated = $this->lmModel->updateMindmapTitle($mindmapId, $userId, $newTitle);
+            if ($updated) {
+                echo json_encode(['success' => true, 'message' => 'Mindmap renamed successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to rename mindmap.']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+
+    /**
      * Delete mindmap from database
      */
     public function deleteMindmap()
@@ -1994,6 +2064,40 @@ class LmController
         }
     }
 
+    /**
+     * Rename note title
+     */
+    public function renameNote()
+    {
+        $this->checkSession();
+        header('Content-Type: application/json');
+
+        $userId = (int)$_SESSION['user_id'];
+        $noteId = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
+        $newTitle = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if ($noteId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Note ID not provided.']);
+            exit();
+        }
+
+        if (empty($newTitle)) {
+            echo json_encode(['success' => false, 'message' => 'Title cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $updated = $this->lmModel->updateNoteTitle($noteId, $userId, $newTitle);
+            if ($updated) {
+                echo json_encode(['success' => true, 'message' => 'Note renamed successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to rename note.']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
 
     // ============================================================================
     // FLASHCARD PAGE (flashcard.php)
@@ -3055,6 +3159,41 @@ class LmController
         } catch (\Throwable $e) {
             $this->sendJsonError($e->getMessage());
         }
+    }
+
+    /**
+     * Rename quiz title
+     */
+    public function renameQuiz()
+    {
+        $this->checkSession();
+        header('Content-Type: application/json');
+
+        $userId = (int)$_SESSION['user_id'];
+        $quizId = isset($_POST['quiz_id']) ? (int)$_POST['quiz_id'] : 0;
+        $newTitle = isset($_POST['title']) ? trim($_POST['title']) : '';
+
+        if ($quizId === 0) {
+            echo json_encode(['success' => false, 'message' => 'Quiz ID not provided.']);
+            exit();
+        }
+
+        if (empty($newTitle)) {
+            echo json_encode(['success' => false, 'message' => 'Title cannot be empty.']);
+            exit();
+        }
+
+        try {
+            $updated = $this->lmModel->updateQuizTitle($quizId, $userId, $newTitle);
+            if ($updated) {
+                echo json_encode(['success' => true, 'message' => 'Quiz renamed successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to rename quiz.']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+        exit();
     }
 
     /**

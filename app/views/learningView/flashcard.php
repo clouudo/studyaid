@@ -617,6 +617,7 @@ if (isset($flashcards) && is_array($flashcards)) {
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownFileActions<?php echo $representativeFlashcardId; ?>">
                                                 <li><a class="dropdown-item view-btn" href="#" data-id="<?= htmlspecialchars($representativeFlashcardId) ?>" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">View</a></li>
                                                 <li><a class="dropdown-item edit-btn" href="#" data-id="<?= htmlspecialchars($representativeFlashcardId) ?>">Edit</a></li>
+                                                <li><a class="dropdown-item rename-flashcard-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameFlashcardModal" data-flashcard-id="<?= htmlspecialchars($representativeFlashcardId) ?>" data-flashcard-title="<?= htmlspecialchars($flashcardSet['title']) ?>">Rename</a></li>
                                                 <li>
                                                     <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">
                                                         <input type="hidden" name="title" value="<?= htmlspecialchars($flashcardSet['title']) ?>">
@@ -1450,6 +1451,7 @@ if (isset($flashcards) && is_array($flashcards)) {
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="${dropdownId}">
                             <li><a class="dropdown-item view-btn" href="#" data-id="${flashcardId}" data-title="${escapeHtml(title)}">View</a></li>
                             <li><a class="dropdown-item edit-btn" href="#" data-id="${flashcardId}">Edit</a></li>
+                            <li><a class="dropdown-item rename-flashcard-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameFlashcardModal" data-flashcard-id="${flashcardId}" data-flashcard-title="${escapeHtml(title)}">Rename</a></li>
                             <li>
                                 <form method="POST" action="${deleteFlashcardUrl}" class="delete-flashcard-form" style="display: inline;" data-title="${escapeHtml(title)}">
                                     <input type="hidden" name="title" value="${escapeHtml(title)}">
@@ -1557,6 +1559,97 @@ if (isset($flashcards) && is_array($flashcards)) {
             </div>
         </div>
     </div>
+
+    <!-- Rename Flashcard Modal -->
+    <div class="modal fade" id="renameFlashcardModal" tabindex="-1" aria-labelledby="renameFlashcardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="renameFlashcardModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Rename Flashcard</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <form id="renameFlashcardForm" onsubmit="return false;">
+                        <input type="hidden" id="renameFlashcardId">
+                        <div class="mb-3">
+                            <label for="newFlashcardTitle" class="form-label fw-semibold">Title</label>
+                            <input type="text" class="form-control form-input-theme" id="newFlashcardTitle" required style="background-color: #e7d5ff; border: none; border-radius: 12px; padding: 12px 16px; color: #212529;">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 20px 24px;">
+                    <button type="button" class="btn btn-create" id="saveRenameFlashcardBtn" style="background-color: #e7d5ff; border: none; color: #6f42c1; padding: 10px 24px; border-radius: 8px; font-weight: 600;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Flashcard Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const renameModal = document.getElementById('renameFlashcardModal');
+            const renameFlashcardId = document.getElementById('renameFlashcardId');
+            const newFlashcardTitle = document.getElementById('newFlashcardTitle');
+            const saveBtn = document.getElementById('saveRenameFlashcardBtn');
+
+            function bindRenameButtons() {
+                document.querySelectorAll('.rename-flashcard-btn').forEach(function(btn) {
+                    if (!btn.dataset.bound) {
+                        btn.addEventListener('click', function() {
+                            const flashcardId = this.getAttribute('data-flashcard-id');
+                            const currentTitle = this.getAttribute('data-flashcard-title');
+                            renameFlashcardId.value = flashcardId;
+                            newFlashcardTitle.value = currentTitle;
+                        });
+                        btn.dataset.bound = 'true';
+                    }
+                });
+            }
+
+            bindRenameButtons();
+
+            // Re-bind rename buttons after dynamic content is added
+            const observer = new MutationObserver(function() {
+                bindRenameButtons();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            saveBtn.addEventListener('click', function() {
+                const flashcardId = renameFlashcardId.value;
+                const newTitle = newFlashcardTitle.value.trim();
+
+                if (!newTitle) {
+                    alert('Title cannot be empty.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('flashcard_id', flashcardId);
+                formData.append('title', newTitle);
+
+                fetch('<?= BASE_PATH ?>index.php?url=lm/renameFlashcard', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const modal = bootstrap.Modal.getInstance(renameModal);
+                        modal.hide();
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Failed to rename flashcard.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while renaming the flashcard.');
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

@@ -654,6 +654,7 @@
                                                     </a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="pdf" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as PDF</a></li>
                                                     <li><a class="dropdown-item export-note-btn" href="#" data-export-type="txt" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-file-id="<?= htmlspecialchars($file['fileID']) ?>">Export as TXT</a></li>
+                                                    <li><a class="dropdown-item rename-note-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameNoteModal" data-note-id="<?= htmlspecialchars($note['noteID']) ?>" data-note-title="<?= htmlspecialchars($note['title']) ?>">Rename</a></li>
                                                     <li>
                                                         <hr class="dropdown-divider">
                                                     </li>
@@ -2410,6 +2411,85 @@
             </div>
         </div>
     </div>
+
+    <!-- Rename Note Modal -->
+    <div class="modal fade" id="renameNoteModal" tabindex="-1" aria-labelledby="renameNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e9ecef; padding: 20px 24px;">
+                    <h5 class="modal-title" id="renameNoteModalLabel" style="font-weight: 600; color: #212529; font-size: 1.25rem;">Rename Note</h5>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close" style="background-color: transparent; border: none; color: #6f42c1; padding: 8px 12px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 1.5rem; cursor: pointer;">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: 20px 24px;">
+                    <form id="renameNoteForm" onsubmit="return false;">
+                        <input type="hidden" id="renameNoteId">
+                        <div class="mb-3">
+                            <label for="newNoteTitle" class="form-label fw-semibold">Title</label>
+                            <input type="text" class="form-control form-input-theme" id="newNoteTitle" required style="background-color: #e7d5ff; border: none; border-radius: 12px; padding: 12px 16px; color: #212529;">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 20px 24px;">
+                    <button type="button" class="btn btn-create" id="saveRenameNoteBtn" style="background-color: #e7d5ff; border: none; color: #6f42c1; padding: 10px 24px; border-radius: 8px; font-weight: 600;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Note Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const renameModal = document.getElementById('renameNoteModal');
+            const renameNoteId = document.getElementById('renameNoteId');
+            const newNoteTitle = document.getElementById('newNoteTitle');
+            const saveBtn = document.getElementById('saveRenameNoteBtn');
+            const renameButtons = document.querySelectorAll('.rename-note-btn');
+
+            renameButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const noteId = this.getAttribute('data-note-id');
+                    const currentTitle = this.getAttribute('data-note-title');
+                    renameNoteId.value = noteId;
+                    newNoteTitle.value = currentTitle;
+                });
+            });
+
+            saveBtn.addEventListener('click', function() {
+                const noteId = renameNoteId.value;
+                const newTitle = newNoteTitle.value.trim();
+
+                if (!newTitle) {
+                    alert('Title cannot be empty.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('note_id', noteId);
+                formData.append('title', newTitle);
+
+                fetch('<?= BASE_PATH ?>index.php?url=lm/renameNote', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const modal = bootstrap.Modal.getInstance(renameModal);
+                        modal.hide();
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Failed to rename note.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while renaming the note.');
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>

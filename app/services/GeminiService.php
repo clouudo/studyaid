@@ -255,7 +255,7 @@ PROMPT;
     public function generateNotes(string $sourceText, ?string $instructions = null, ?int $userId = null): string
     {
         $model = $this->models['notes'] ?? $this->defaultModel;
-        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Notes should be concise and short.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
+        $prompt = "Create study notes with headings, subpoints, definitions, examples, and key takeaways from the content. Use markdown. Encouraged to use bullet points and numbered lists if possible.\n\n" . ($instructions ? ("Constraints: " . $instructions . "\n\n") : '') . $sourceText;
         return $this->generateText($model, $prompt, null, $userId);
     }
 
