@@ -433,6 +433,45 @@
             color: white;
         }
 
+        /* Loading Modal Styles */
+        .loading-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            background-color: #ffffff;
+        }
+
+        .loading-modal .modal-body {
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e7d5ff;
+            border-top-color: var(--sa-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .loading-subtext {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -1335,6 +1374,11 @@
 
                 const submitButton = generateQuizForm.querySelector('#genQuiz');
                 const originalText = submitButton.innerHTML;
+                
+                // Show loading modal
+                const loadingModal = new bootstrap.Modal(document.getElementById('quizLoadingModal'));
+                loadingModal.show();
+                
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Generating...';
 
@@ -1362,6 +1406,11 @@
 
                     // Check if response is ok
                     if (!response.ok) {
+                        // Hide loading modal
+                        const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('quizLoadingModal'));
+                        if (loadingModalInstance) {
+                            loadingModalInstance.hide();
+                        }
                         console.error('HTTP Error:', response.status, responseText);
                         showSnackbar(`Server error (${response.status}): ${responseText.substring(0, 100)}`, 'error');
                         submitButton.disabled = false;
@@ -1374,12 +1423,23 @@
                     try {
                         data = JSON.parse(responseText);
                     } catch (parseError) {
+                        // Hide loading modal
+                        const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('quizLoadingModal'));
+                        if (loadingModalInstance) {
+                            loadingModalInstance.hide();
+                        }
                         console.error('JSON Parse Error:', parseError);
                         console.error('Response text:', responseText);
                         showSnackbar('Invalid response from server. Please check console for details.', 'error');
                         submitButton.disabled = false;
                         submitButton.innerHTML = originalText;
                         return;
+                    }
+
+                    // Hide loading modal
+                    const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('quizLoadingModal'));
+                    if (loadingModalInstance) {
+                        loadingModalInstance.hide();
                     }
 
                     if (!data.success) {
@@ -1393,6 +1453,11 @@
                         window.location.reload();
                     }, 1000);
                 } catch (error) {
+                    // Hide loading modal on error
+                    const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('quizLoadingModal'));
+                    if (loadingModalInstance) {
+                        loadingModalInstance.hide();
+                    }
                     console.error('Quiz Generation Error:', error);
                     console.error('Error details:', {
                         message: error.message,
@@ -2068,6 +2133,19 @@
         });
     </script>
     <?php include VIEW_CONFIRM; ?>
+
+    <!-- Loading Modal for Quiz Generation -->
+    <div class="modal fade loading-modal" id="quizLoadingModal" tabindex="-1" aria-labelledby="quizLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Generating Quiz...</div>
+                    <div class="loading-subtext">Please wait while AI processes your document.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

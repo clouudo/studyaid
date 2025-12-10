@@ -449,6 +449,45 @@
             color: var(--sa-primary-dark) !important;
             text-decoration: none !important;
         }
+
+        /* Loading Modal Styles */
+        .loading-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            background-color: #ffffff;
+        }
+
+        .loading-modal .modal-body {
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #e7d5ff;
+            border-top-color: var(--sa-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #212529;
+            margin-bottom: 8px;
+        }
+
+        .loading-subtext {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
         /* Snackbar Styles */
         .snackbar {
             position: fixed;
@@ -917,6 +956,10 @@
                     const submitButton = form.querySelector('#genSummary');
                     const originalButtonText = submitButton.textContent;
 
+                    // Show loading modal
+                    const loadingModal = new bootstrap.Modal(document.getElementById('summaryLoadingModal'));
+                    loadingModal.show();
+
                     // Disable button and show loading state
                     submitButton.disabled = true;
                     submitButton.textContent = 'Generating...';
@@ -951,17 +994,32 @@
                         const json = await res.json();
 
                         if (json.success) {
+                            // Hide loading modal
+                            const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('summaryLoadingModal'));
+                            if (loadingModalInstance) {
+                                loadingModalInstance.hide();
+                            }
                             showSnackbar('Summary generated successfully!', 'success');
                             setTimeout(() => {
                                 location.reload();
                             }, 1000);
                         } else {
+                            // Hide loading modal
+                            const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('summaryLoadingModal'));
+                            if (loadingModalInstance) {
+                                loadingModalInstance.hide();
+                            }
                             showSnackbar(json.message || 'Failed to generate summary. Please try again.', 'error');
                             submitButton.disabled = false;
                             submitButton.textContent = originalButtonText;
                         }
                     } catch (error) {
                         console.error('Error:', error);
+                        // Hide loading modal
+                        const loadingModalInstance = bootstrap.Modal.getInstance(document.getElementById('summaryLoadingModal'));
+                        if (loadingModalInstance) {
+                            loadingModalInstance.hide();
+                        }
                         showSnackbar('An error occurred while generating the summary. Please try again.', 'error');
                         submitButton.disabled = false;
                         submitButton.textContent = originalButtonText;
@@ -1295,6 +1353,19 @@
         });
     </script>
     <?php include VIEW_CONFIRM; ?>
+
+    <!-- Loading Modal for Summary Generation -->
+    <div class="modal fade loading-modal" id="summaryLoadingModal" tabindex="-1" aria-labelledby="summaryLoadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Generating Summary...</div>
+                    <div class="loading-subtext">Please wait while AI processes your document.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
