@@ -616,6 +616,14 @@ ob_start();
             margin-bottom: 16px;
             opacity: 0.5;
         }
+
+        /* Badge styles for quiz status and exam mode */
+        .content-list-item-title .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 4px 8px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -1936,7 +1944,27 @@ ob_start();
                     
                     html += '<div class="content-list-item" data-file-id="' + fileId + '">';
                     html += '<div class="content-list-item-info">';
-                    html += '<div class="content-list-item-title">' + escapeHtml(title) + '</div>';
+                    html += '<div class="content-list-item-title">';
+                    html += escapeHtml(title);
+                    
+                    // Add badges for quizzes (status and exam mode)
+                    if (type === 'quizzes') {
+                        const status = item.status || 'pending';
+                        const examMode = item.examMode || 0;
+                        const isCompleted = status === 'completed';
+                        const isExamMode = examMode === 1 || examMode === '1';
+                        
+                        html += '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap">';
+                        if (isExamMode) {
+                            html += '<span class="badge rounded-pill bg-warning text-dark">Exam Mode</span>';
+                        }
+                        html += '<span class="badge rounded-pill ' + (isCompleted ? 'bg-success' : 'bg-secondary') + '">';
+                        html += isCompleted ? 'Completed' : 'Pending';
+                        html += '</span>';
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
                     html += '<div class="content-list-item-meta">';
                     html += '<span><i class="bi bi-file-earmark me-1"></i>' + escapeHtml(meta) + '</span>';
                     if (createdAt) {
