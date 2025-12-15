@@ -619,9 +619,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                                 <li><a class="dropdown-item edit-btn" href="#" data-id="<?= htmlspecialchars($representativeFlashcardId) ?>">Edit</a></li>
                                                 <li><a class="dropdown-item rename-flashcard-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameFlashcardModal" data-flashcard-id="<?= htmlspecialchars($representativeFlashcardId) ?>" data-flashcard-title="<?= htmlspecialchars($flashcardSet['title']) ?>">Rename</a></li>
                                                 <li>
-                                                    <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">
-                                                        <input type="hidden" name="title" value="<?= htmlspecialchars($flashcardSet['title']) ?>">
-                                                        <input type="hidden" name="file_id" value="<?= htmlspecialchars($file['fileID']) ?>">
+                                                    <form method="POST" action="<?= DELETE_FLASHCARD ?>" class="delete-flashcard-form" style="display: inline;" data-flashcard-id="<?= htmlspecialchars($representativeFlashcardId) ?>" data-title="<?= htmlspecialchars($flashcardSet['title']) ?>">
+                                                        <input type="hidden" name="flashcard_id" value="<?= htmlspecialchars($representativeFlashcardId) ?>">
                                                         <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
                                                     </form>
                                                 </li>
@@ -1224,26 +1223,35 @@ if (isset($flashcards) && is_array($flashcards)) {
                     // Show success message
                     showSnackbar(data.message || 'Flashcards generated successfully!', 'success');
                     
-                    // Update flashcard preview with generated flashcards
-                    terms = data.preview.cards.map(card => card.term || '');
-                    definitions = data.preview.cards.map(card => card.definition || '');
-
-                    currentIndex = 0;
-                    flashcard.classList.remove('flipped');
-                    updateFlashcard();
+                    // Get the flashcard ID before reloading
+                    const flashcardId = data.listItem?.flashcardID || data.listItem?.flashcardId;
                     
-                    // Show the flashcard modal with preview (don't auto-close)
-                    flashcardsModal.show();
+                    // Reload the flashcard list from server to ensure it's up-to-date
+                    await reloadFlashcardList();
+                    
+                    // Automatically load and display the newly generated flashcard
+                    if (flashcardId) {
+                        // Small delay to ensure list is fully rendered
+                        setTimeout(async () => {
+                            await loadAndShowFlashcard(flashcardId);
+                        }, 300);
+                    } else {
+                        // Fallback: Update flashcard preview with generated flashcards if flashcardId is missing
+                        terms = data.preview.cards.map(card => card.term || '');
+                        definitions = data.preview.cards.map(card => card.definition || '');
+
+                        currentIndex = 0;
+                        flashcard.classList.remove('flipped');
+                        updateFlashcard();
+                        
+                        // Show the flashcard modal with preview
+                        flashcardsModal.show();
+                    }
                     
                     // Restore button
                     isGenerating = false;
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
-                    
-                    // Update flashcard list in-place
-                    if (data.listItem) {
-                        upsertFlashcardListEntry(data.listItem);
-                    }
                 } else {
                     showSnackbar(data.message || 'Failed to generate flashcards. Please try again.', 'error');
                     isGenerating = false;
@@ -1311,18 +1319,16 @@ if (isset($flashcards) && is_array($flashcards)) {
                     
                     const listItem = form.closest('.flashcard-item');
                     const flashcardTitle = listItem?.querySelector('strong')?.textContent?.trim() || 'this flashcard';
-                    const isSetDeletion = form.querySelector('input[name="title"]') !== null;
-                    const deletionType = isSetDeletion ? 'flashcard set' : 'flashcard';
                     
                     showConfirmModal({
-                        message: 'Are you sure you want to delete the ' + deletionType + ' "' + flashcardTitle + '"? This action cannot be undone.',
-                        title: 'Delete Flashcard ' + (isSetDeletion ? 'Set' : ''),
+                        message: 'Are you sure you want to delete this flashcard from "' + flashcardTitle + '"? This action cannot be undone.',
+                        title: 'Delete Flashcard',
                         confirmText: 'Delete',
                         cancelText: 'Cancel',
                         danger: true,
                         onConfirm: async () => {
                             const formData = new FormData(form);
-                            // Form already has the correct data (title or flashcard_id) from the form inputs
+                            // Form should have flashcard_id to delete single row
 
                             try {
                                 const response = await fetch('<?= DELETE_FLASHCARD ?>', {
@@ -1333,15 +1339,8 @@ if (isset($flashcards) && is_array($flashcards)) {
                                 
                                 if (data.success) {
                                     showSnackbar(data.message || 'Flashcard deleted successfully.', 'success');
-                                    // Remove the flashcard item from the list
-                                    if (listItem) {
-                                        listItem.remove();
-                                    } else {
-                                        // If not found, reload the page
-                                        setTimeout(() => {
-                                            location.reload();
-                                        }, 1000);
-                                    }
+                                    // Reload the list to ensure it's up-to-date
+                                    await reloadFlashcardList();
                                 } else {
                                     showSnackbar(data.message || 'Failed to delete flashcard. Please try again.', 'error');
                                 }
@@ -1411,9 +1410,113 @@ if (isset($flashcards) && is_array($flashcards)) {
                 }[char]));
             }
 
+            async function reloadFlashcardList() {
+                if (!flashcardList) return;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file_id', currentFileId);
+
+                    const response = await fetch('<?= BASE_PATH ?>index.php?url=lm/getFlashcardsForFile', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success && Array.isArray(data.flashcards)) {
+                        // Clear existing list
+                        flashcardList.innerHTML = '';
+
+                        if (data.flashcards.length === 0) {
+                            flashcardList.innerHTML = '<div class="list-group-item text-muted text-center">No flashcards yet. Generate or create your first set above.</div>';
+                            return;
+                        }
+
+                        // Rebuild the list from server data
+                        data.flashcards.forEach(flashcardSet => {
+                            const normalizedTitle = (flashcardSet.title || '').toLowerCase();
+                            const createdAt = flashcardSet.createdAt || '';
+                            const updatedTimestamp = new Date(createdAt).getTime() || Date.now();
+                            const cardCount = flashcardSet.cardCount || 1;
+                            const flashcardId = flashcardSet.flashcardID || flashcardSet.flashcardId || 0;
+                            
+                            // Format date to match PHP format: Y-m-d H:i:s
+                            let formattedDate = '';
+                            if (createdAt) {
+                                const date = new Date(createdAt);
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                const hours = String(date.getHours()).padStart(2, '0');
+                                const minutes = String(date.getMinutes()).padStart(2, '0');
+                                const seconds = String(date.getSeconds()).padStart(2, '0');
+                                formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                            } else {
+                                formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+                            }
+
+                            const listItem = document.createElement('div');
+                            listItem.className = 'list-group-item d-flex justify-content-between align-items-center flashcard-item';
+                            listItem.dataset.id = String(flashcardId);
+                            listItem.dataset.title = normalizedTitle;
+                            listItem.dataset.updated = String(updatedTimestamp);
+
+                            const dropdownId = `dropdownFlashcardActions_${flashcardId}_${Date.now()}`;
+                            listItem.innerHTML = `
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <strong title="${escapeHtml(flashcardSet.title)}">${escapeHtml(flashcardSet.title)}</strong>
+                                    <small class="text-muted d-block">
+                                        ${cardCount} card${cardCount !== 1 ? 's' : ''} • 
+                                        Updated: ${escapeHtml(formattedDate)}
+                                    </small>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="action-btn" type="button" id="${dropdownId}" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="Flashcard actions">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="${dropdownId}">
+                                        <li><a class="dropdown-item view-btn" href="#" data-id="${flashcardId}" data-title="${escapeHtml(flashcardSet.title)}">View</a></li>
+                                        <li><a class="dropdown-item edit-btn" href="#" data-id="${flashcardId}">Edit</a></li>
+                                        <li><a class="dropdown-item rename-flashcard-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameFlashcardModal" data-flashcard-id="${flashcardId}" data-flashcard-title="${escapeHtml(flashcardSet.title)}">Rename</a></li>
+                                        <li>
+                                            <form method="POST" action="${deleteFlashcardUrl}" class="delete-flashcard-form" style="display: inline;" data-flashcard-id="${flashcardId}" data-title="${escapeHtml(flashcardSet.title)}">
+                                                <input type="hidden" name="flashcard_id" value="${flashcardId}">
+                                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            `;
+
+                            flashcardList.appendChild(listItem);
+
+                            // Bind delete confirmation
+                            const deleteForm = listItem.querySelector('.delete-flashcard-form');
+                            if (deleteForm) {
+                                bindDeleteConfirmation(deleteForm);
+                            }
+                        });
+
+                        // Sort the list
+                        sortFlashcards(currentSortType);
+                    } else {
+                        console.error('Failed to reload flashcard list:', data.message);
+                    }
+                } catch (error) {
+                    console.error('Error reloading flashcard list:', error);
+                }
+            }
+
             function upsertFlashcardListEntry(listItemMeta) {
                 if (!flashcardList || !listItemMeta || !listItemMeta.title) {
                     return;
+                }
+
+                // Remove "No flashcards yet" message if it exists
+                const emptyMessage = flashcardList.querySelector('.text-muted.text-center');
+                if (emptyMessage) {
+                    emptyMessage.remove();
                 }
 
                 const title = listItemMeta.title;
@@ -1432,8 +1535,14 @@ if (isset($flashcards) && is_array($flashcards)) {
                     hour12: false
                 }).replace(/(\d{4})-(\d{2})-(\d{2}), (\d{2}):(\d{2}):(\d{2})/, '$1-$2-$3 $4:$5:$6');
 
+                // Try to find existing item by ID first (more reliable), then by title
                 let listItem = Array.from(flashcardList.querySelectorAll('.flashcard-item'))
-                    .find(item => item.dataset.title === normalizedTitle);
+                    .find(item => item.dataset.id === String(flashcardId));
+                
+                if (!listItem) {
+                    listItem = Array.from(flashcardList.querySelectorAll('.flashcard-item'))
+                        .find(item => item.dataset.title === normalizedTitle);
+                }
 
                 const dropdownId = `dropdownFlashcardActions_${flashcardId || 'tmp'}_${Date.now()}`;
                 const itemHtml = `
@@ -1469,15 +1578,25 @@ if (isset($flashcards) && is_array($flashcards)) {
                     flashcardList.prepend(listItem);
                 }
 
-                listItem.dataset.id = flashcardId || '';
+                listItem.dataset.id = String(flashcardId || '');
                 listItem.dataset.title = normalizedTitle;
-                listItem.dataset.updated = updatedTimestamp;
+                listItem.dataset.updated = String(updatedTimestamp);
                 listItem.innerHTML = itemHtml;
 
+                // Rebind event handlers
                 const deleteForm = listItem.querySelector('.delete-flashcard-form');
-                bindDeleteConfirmation(deleteForm);
+                if (deleteForm) {
+                    deleteForm.dataset.bound = 'false'; // Reset binding flag
+                    bindDeleteConfirmation(deleteForm);
+                }
 
+                // Sort the list to maintain order
                 sortFlashcards(currentSortType);
+                
+                // Ensure the new item is visible (scroll into view if needed)
+                if (listItem.offsetParent !== null) {
+                    listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             }
 
             editFlashcardForm?.addEventListener('submit', async (e) => {

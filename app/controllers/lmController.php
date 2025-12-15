@@ -2260,6 +2260,35 @@ class LmController
     }
 
     /**
+     * Get flashcards for a file (AJAX endpoint)
+     */
+    public function getFlashcardsForFile()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+
+        if ($fileId === 0) {
+            $this->sendJsonError('File ID not provided.');
+        }
+
+        try {
+            // Verify file ownership
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file) {
+                $this->sendJsonError('File not found.');
+            }
+
+            $flashcards = $this->lmModel->getFlashcardsByFile($fileId);
+            $this->sendJsonSuccess(['flashcards' => $flashcards]);
+        } catch (\Throwable $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
      * Get flashcard by ID and return data
      */
     public function getFlashcard()
@@ -2615,7 +2644,7 @@ class LmController
                 
                 $this->sendJsonSuccess(['message' => 'Flashcard set deleted successfully.']);
             } 
-            // Otherwise, delete single flashcard by ID (backward compatibility)
+            // Otherwise, delete single flashcard by ID
             else if ($flashcardId > 0) {
                 // Verify ownership before deleting
                 $flashcard = $this->lmModel->getFlashcardWithOwner($flashcardId, $userId);
@@ -2623,6 +2652,7 @@ class LmController
                     $this->sendJsonError('Flashcard not found or you do not have permission to delete it.');
                 }
 
+                // Delete only the single flashcard row by ID
                 $deleted = $this->lmModel->deleteFlashcardById($flashcardId, $userId);
                 if (!$deleted) {
                     $this->sendJsonError('Failed to delete flashcard.');
