@@ -1639,14 +1639,6 @@ class LmController
     }
 
     /**
-     * Load mindmap structure (alias of viewMindmap)
-     */
-    public function loadMindmapStructure()
-    {
-        $this->viewMindmap();
-    }
-
-    /**
      * Update mindmap markdown structure in database
      */
     public function updateMindmapStructure()
@@ -2682,32 +2674,6 @@ class LmController
             }
         } catch (\Throwable $e) {
             $this->sendJsonError('Error deleting flashcard: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Delete all flashcards by title for file
-     */
-    public function deleteFlashcards()
-    {
-        $this->checkSession();
-
-        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
-        $fileId = $this->resolveFileId();
-
-        if (empty($title) || $fileId === 0) {
-            $_SESSION['error'] = "Title or File ID not provided.";
-            header('Location: ' . FLASHCARD);
-            exit();
-        }
-
-        try {
-            $this->lmModel->deleteFlashcardsByTitle($title, $fileId);
-            header('Location: ' . FLASHCARD);
-        } catch (\Exception $e) {
-            $_SESSION['error'] = "Error: " . $e->getMessage();
-            header('Location: ' . FLASHCARD);
-            exit();
         }
     }
 

@@ -2063,18 +2063,6 @@ class LmModel
     }
 
     /**
-     * Get question data for quiz
-     */
-    public function getQuestionByQuiz(int $quizId)
-    {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM question WHERE quizID = :quizID");
-        $stmt->bindParam(':quizID', $quizId);
-        $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
-    }
-
-    /**
      * Get all questions for quiz
      */
     public function getQuestionsByQuiz(int $quizId)
@@ -2280,25 +2268,6 @@ class LmModel
     }
 
     /**
-     * Get suggested answers for question
-     */
-    public function getSuggestedAnswers(int $questionId)
-    {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT question FROM suggestedAnswers WHERE questionID = :questionID");
-        $stmt->bindParam(':questionID', $questionId);
-        $stmt->execute();
-        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-        
-        if ($result && isset($result['question'])) {
-            $answer = json_decode($result['question'], true);
-            return $answer;
-        }
-        
-        return null;
-    }
-
-    /**
      * Delete quiz and related data (CASCADE handles related records)
      */
     public function deleteQuiz(int $quizId, int $userId): bool
@@ -2406,69 +2375,6 @@ class LmModel
         $stmt->bindParam(':questionChatID', $questionChatId);
         $stmt->execute();
         return $stmt->fetchColumn();
-    }
-
-    /**
-     * Get response chat by ID
-     */
-    public function getResponseChatById(int $responseChatId)
-    {
-        $conn = $this->db->connect();
-        $stmt = $conn->prepare("SELECT * FROM responseChat WHERE responseChatID = :responseChatID");
-        $stmt->bindParam(':responseChatID', $responseChatId);
-        $stmt->execute();
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Get chat history for file
-     */
-    public function chatHistory($fileId, int $limit = 5)
-    {
-        $chatbot = $this->getChatBotByFile($fileId);
-        
-        if (!$chatbot || !isset($chatbot['chatbotID'])) {
-            return [
-                'questions' => [],
-                'responseChats' => []
-            ];
-        }
-
-        $chatbotId = $chatbot['chatbotID'];
-        $questions = [];
-        $responseChats = [];
-
-        if ($chatbotId) {
-            $questionChats = $this->getQuestionChatByChatbot($chatbotId);
-            
-            if ($questionChats && is_array($questionChats)) {
-                // Sort by createdAt DESC to get latest first
-                usort($questionChats, function($a, $b) {
-                    $dateA = isset($a['createdAt']) ? strtotime($a['createdAt']) : (isset($a['questionChatID']) ? $a['questionChatID'] : 0);
-                    $dateB = isset($b['createdAt']) ? strtotime($b['createdAt']) : (isset($b['questionChatID']) ? $b['questionChatID'] : 0);
-                    return $dateB - $dateA; // DESC order
-                });
-                
-                // Limit to the latest few chats
-                $limitedChats = array_slice($questionChats, 0, $limit);
-                
-                foreach ($limitedChats as $questionChat) {
-                    if (isset($questionChat['userQuestion'])) {
-                        $questions[] = $questionChat['userQuestion'];
-                    }
-                    
-                    $responseChat = $this->getResponseChatByQuestionChat($questionChat['questionChatID']);
-                    if ($responseChat) {
-                        $responseChats[] = $responseChat;
-                    }
-                }
-            }
-        }
-
-        return [
-            'questions' => $questions,
-            'responseChats' => $responseChats
-        ];
     }
 
     // ============================================================================ 
