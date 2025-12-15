@@ -1707,75 +1707,99 @@ class LmModel
             $definitionString = $result['definition'] ?? '';
             
             // Parse comma-separated strings (format: "term1","term2","term3")
-            $termString = trim($termString, '"');
-            $definitionString = trim($definitionString, '"');
-            
-            $termCount = 0;
-            $defCount = 0;
+            // Use the same parsing logic as viewFlashcard() for consistency
+            $terms = [];
+            $definitions = [];
             
             if (!empty($termString)) {
-                // Count cards by counting opening quotes (each opening quote = one card)
-                // Format: "term1","term2","term3"
+                // Split by comma, but handle escaped commas and quoted strings
+                $currentTerm = '';
                 $inQuotes = false;
                 $escaped = false;
-                $cardCount = 0;
                 
                 for ($i = 0; $i < strlen($termString); $i++) {
                     $char = $termString[$i];
                     
                     if ($escaped) {
+                        $currentTerm .= $char;
                         $escaped = false;
-                        continue;
-                    }
-                    
-                    if ($char === '\\') {
+                    } elseif ($char === '\\') {
+                        $currentTerm .= $char;
                         $escaped = true;
-                        continue;
-                    }
-                    
-                    if ($char === '"') {
-                        if (!$inQuotes) {
-                            // Opening quote - start of a new card
-                            $cardCount++;
-                        }
+                    } elseif ($char === '"') {
                         $inQuotes = !$inQuotes;
+                        $currentTerm .= $char;
+                    } elseif ($char === ',' && !$inQuotes) {
+                        // Found separator
+                        $terms[] = trim($currentTerm, '"');
+                        $currentTerm = '';
+                    } else {
+                        $currentTerm .= $char;
                     }
                 }
-                $termCount = $cardCount;
+                if (!empty($currentTerm)) {
+                    $terms[] = trim($currentTerm, '"');
+                }
+                
+                // Unescape the content
+                $terms = array_map(function($term) {
+                    return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $term);
+                }, $terms);
             }
             
             if (!empty($definitionString)) {
-                // Count cards by counting opening quotes (each opening quote = one card)
-                // Format: "def1","def2","def3"
+                // Split by comma, but handle escaped commas and quoted strings
+                $currentDef = '';
                 $inQuotes = false;
                 $escaped = false;
-                $cardCount = 0;
                 
                 for ($i = 0; $i < strlen($definitionString); $i++) {
                     $char = $definitionString[$i];
                     
                     if ($escaped) {
+                        $currentDef .= $char;
                         $escaped = false;
-                        continue;
-                    }
-                    
-                    if ($char === '\\') {
+                    } elseif ($char === '\\') {
+                        $currentDef .= $char;
                         $escaped = true;
-                        continue;
-                    }
-                    
-                    if ($char === '"') {
-                        if (!$inQuotes) {
-                            // Opening quote - start of a new card
-                            $cardCount++;
-                        }
+                    } elseif ($char === '"') {
                         $inQuotes = !$inQuotes;
+                        $currentDef .= $char;
+                    } elseif ($char === ',' && !$inQuotes) {
+                        // Found separator
+                        $definitions[] = trim($currentDef, '"');
+                        $currentDef = '';
+                    } else {
+                        $currentDef .= $char;
                     }
                 }
-                $defCount = $cardCount;
+                if (!empty($currentDef)) {
+                    $definitions[] = trim($currentDef, '"');
+                }
+                
+                // Unescape the content
+                $definitions = array_map(function($def) {
+                    return str_replace(['\\"', '\\,', '\\\\'], ['"', ',', '\\'], $def);
+                }, $definitions);
             }
             
-            $result['cardCount'] = max($termCount, $defCount, 1);
+            // Handle backward compatibility: if empty or single value, treat as single card
+            if (empty($terms) && !empty($termString)) {
+                $terms = [$termString];
+            }
+            if (empty($definitions) && !empty($definitionString)) {
+                $definitions = [$definitionString];
+            }
+            
+            // Filter out empty items
+            $terms = array_filter($terms, function($term) { return !empty(trim($term)); });
+            $definitions = array_filter($definitions, function($def) { return !empty(trim($def)); });
+            
+            // Re-index arrays
+            $terms = array_values($terms);
+            $definitions = array_values($definitions);
+            
+            $result['cardCount'] = max(count($terms), count($definitions), 1);
             
             // Remove term and definition from result (not needed in list)
             unset($result['term'], $result['definition']);

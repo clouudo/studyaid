@@ -2333,27 +2333,16 @@ class LmController
         }
 
         try {
-            // Get the flashcard to find its title
+            // Get the specific flashcard by ID (not by title)
             $flashcard = $this->lmModel->getFlashcardWithOwner($flashcardId, $userId);
             if (!$flashcard) {
                 $this->sendJsonError('Flashcard not found.');
             }
 
-            // Get the flashcard (stored as comma-separated strings with "," separator in one row per title)
+            // Use the specific flashcard row data directly
             $title = $flashcard['title'];
-            $flashcardFileId = $flashcard['fileID'];
-            
-            // Get the flashcard set (should be one row with comma-separated strings)
-            $flashcardSet = $this->lmModel->getFlashcardsByTitle($title, $flashcardFileId);
-            
-            if (empty($flashcardSet)) {
-                $this->sendJsonError('No flashcards found.');
-            }
-            
-            // Get the first (and should be only) flashcard row
-            $cardData = $flashcardSet[0];
-            $termString = $cardData['term'] ?? '';
-            $definitionString = $cardData['definition'] ?? '';
+            $termString = $flashcard['term'] ?? '';
+            $definitionString = $flashcard['definition'] ?? '';
             
             // Parse comma-separated strings (format: "term1","term2","term3")
             $terms = [];
