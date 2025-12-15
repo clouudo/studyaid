@@ -547,28 +547,16 @@
         const saveMindmapBtn = document.getElementById('saveMindmapBtn');
         const mindmapToolbar = document.getElementById('mindmapToolbar');
 
-        // Function to update export button states
+        // Function to update export button states (kept for compatibility but no longer disables buttons)
         function updateExportButtonStates(viewedMindmapId) {
-            // Disable all export buttons
-            document.querySelectorAll('.export-mindmap-image-btn, .export-mindmap-pdf-btn').forEach(btn => {
-                btn.style.pointerEvents = 'none';
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
-            });
-
-            // Enable export buttons only for the currently viewed mindmap
-            if (viewedMindmapId) {
-                document.querySelectorAll(`.export-mindmap-image-btn[data-id="${viewedMindmapId}"], .export-mindmap-pdf-btn[data-id="${viewedMindmapId}"]`).forEach(btn => {
-                    btn.style.pointerEvents = 'auto';
-                    btn.style.opacity = '1';
-                    btn.style.cursor = 'pointer';
-                });
-            }
+            // All export buttons are now enabled by default
+            // This function is kept for compatibility but doesn't disable anything
+            // Export functionality works without viewing the mindmap first
         }
 
-        // Initialize: disable all export buttons on page load
+        // Initialize: export buttons are enabled by default
         document.addEventListener('DOMContentLoaded', function() {
-            updateExportButtonStates(null);
+            // No need to disable buttons - they're enabled by default
             
             const selectedMindmap = document.getElementById('mindmap-container');
             if (selectedMindmap.innerHTML) {
@@ -800,46 +788,19 @@
                 }
 
                 if (json.success && json.markdown) {
-                    // Show split container and toolbar
-                    if (mindmapSplitContainer) {
-                        mindmapSplitContainer.style.display = 'grid';
-                    }
-                    if (mindmapToolbar) {
-                        mindmapToolbar.style.display = 'flex';
-                    }
+                    const mindmapId = json.mindmapId;
                     
-                    // Enable split view by default
-                    isSplitView = true;
-                    if (mindmapSplitContainer) {
-                        mindmapSplitContainer.style.gridTemplateColumns = '1fr 1fr';
-                    }
-                    if (markdownEditorPanel) {
-                        markdownEditorPanel.style.display = 'flex';
-                    }
-                    if (toggleViewBtn) {
-                        toggleViewBtn.textContent = 'Visual Only';
-                        toggleViewBtn.classList.add('view-toggle-active');
-                    }
-
-                    // Populate markdown editor
-                    if (markdownEditor) {
-                        markdownEditor.value = json.markdown;
-                        currentMarkdown = json.markdown;
-                    }
-
-                    // Render visual mindmap
-                    container.style.display = 'block';
-                    renderAutoloadMindmap(json.markdown);
+                    // Reload the mindmap list first
+                    await reloadMindmapList();
+                    
+                    // Then view the newly generated mindmap
+                    await loadAndShowMindmap(mindmapId);
+                    
                     showSnackbar('Mindmap generated successfully!', 'success');
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
-
-                    // Set current viewed mindmap
-                    currentViewedMindmapId = json.mindmapId;
-                    hasUnsavedChanges = false;
-                    updateSaveButtonState();
-                    updateExportButtonStates(json.mindmapId);
+                    
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitButton.textContent = originalButtonText;
                 } else {
                     showSnackbar(json.message || 'Failed to generate mindmap. Please try again.', 'error');
                     container.innerHTML = '<p class="text-center p-3 text-muted">Failed to generate mindmap</p>';
@@ -861,18 +822,104 @@
         });
 
 
-        // Handle viewing saved mindmaps
-        document.addEventListener('click', async (e) => {
-            const btn = e.target.closest('.view-btn');
-            if (!btn) return;
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-            const id = btn.dataset.id;
+        // Function to reload mindmap list
+        async function reloadMindmapList() {
+            const mindmapList = document.getElementById('mindmapList');
+            if (!mindmapList) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+
+                const response = await fetch('<?= BASE_PATH ?>index.php?url=lm/getMindmapsForFile', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success && Array.isArray(data.mindmaps)) {
+                    // Clear existing list
+                    mindmapList.innerHTML = '';
+
+                    if (data.mindmaps.length === 0) {
+                        mindmapList.innerHTML = '<div class="list-group-item text-muted text-center">No generated mindmaps</div>';
+                        return;
+                    }
+
+                    // Rebuild the list from server data
+                    data.mindmaps.forEach(mindmap => {
+                        const listItem = document.createElement('div');
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        
+                        const createdAt = mindmap.createdAt || '';
+                        const formattedDate = createdAt ? new Date(createdAt).toLocaleString() : '';
+                        
+                        const dropdownId = `dropdownFileActions_${mindmap.mindmapID}_${Date.now()}`;
+                        listItem.innerHTML = `
+                            <div class="flex-grow-1">
+                                <strong>${escapeHtml(mindmap.title)}</strong><br>
+                                <small class="text-muted">Updated: ${escapeHtml(formattedDate)}</small>
+                            </div>
+                            <div class="dropdown">
+                                <button class="action-btn"
+                                    type="button"
+                                    id="${dropdownId}"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-display="static"
+                                    aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="${dropdownId}">
+                                    <li><a class="dropdown-item view-btn" href="#" data-id="${mindmap.mindmapID}">View</a></li>
+                                    <li><a class="dropdown-item export-mindmap-image-btn" href="#" data-id="${mindmap.mindmapID}">Export as Image</a></li>
+                                    <li><a class="dropdown-item export-mindmap-pdf-btn" href="#" data-id="${mindmap.mindmapID}">Export as PDF</a></li>
+                                    <li><a class="dropdown-item rename-mindmap-btn" href="#" data-bs-toggle="modal" data-bs-target="#renameMindmapModal" data-mindmap-id="${mindmap.mindmapID}" data-mindmap-title="${escapeHtml(mindmap.title)}">Rename</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="<?= DELETE_MINDMAP ?>" style="display: inline;" class="delete-mindmap-form" data-mindmap-id="${mindmap.mindmapID}" data-file-id="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
+                                            <input type="hidden" name="mindmap_id" value="${mindmap.mindmapID}">
+                                            <input type="hidden" name="file_id" value="<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>">
+                                            <button type="button" class="dropdown-item delete-mindmap-btn" style="border: none; background: none; width: 100%; text-align: left;">Delete</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        `;
+
+                        mindmapList.appendChild(listItem);
+                    });
+
+                    // Re-initialize Bootstrap dropdowns for new items
+                    const newDropdowns = mindmapList.querySelectorAll('[data-bs-toggle="dropdown"]');
+                    newDropdowns.forEach(dropdown => {
+                        new bootstrap.Dropdown(dropdown);
+                    });
+                } else {
+                    console.error('Failed to reload mindmap list:', data.message);
+                }
+            } catch (error) {
+                console.error('Error reloading mindmap list:', error);
+            }
+        }
+
+        // Function to load and show a mindmap
+        async function loadAndShowMindmap(mindmapId) {
+            if (!mindmapId) return;
+
             const container = document.getElementById('mindmap-container');
             container.innerHTML = '<p class="text-center p-3">Loading mindmap...</p>';
 
             try {
                 const formData = new FormData();
-                formData.append('mindmap_id', id);
+                formData.append('mindmap_id', mindmapId);
                 formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
 
                 const res = await fetch('<?= VIEW_MINDMAP_ROUTE ?>', {
@@ -910,15 +957,14 @@
                     }
 
                     // Render visual mindmap
-                    const container = document.getElementById('mindmap-container');
                     container.style.display = 'block';
                     renderAutoloadMindmap(json.markdown);
 
                     // Set current viewed mindmap and update button states
-                    currentViewedMindmapId = id;
+                    currentViewedMindmapId = mindmapId;
                     hasUnsavedChanges = false;
                     updateSaveButtonState();
-                    updateExportButtonStates(id);
+                    updateExportButtonStates(mindmapId);
                 } else {
                     showSnackbar(json.message || 'Failed to load mindmap. Please try again.', 'error');
                     container.innerHTML = '<p class="text-center p-3 text-muted">Failed to load mindmap</p>';
@@ -936,6 +982,15 @@
                 updateSaveButtonState();
                 updateExportButtonStates(null);
             }
+        }
+
+        // Handle viewing saved mindmaps
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.view-btn');
+            if (!btn) return;
+
+            const id = btn.dataset.id;
+            await loadAndShowMindmap(id);
         });
 
         // Handle exporting mindmap as image
@@ -944,24 +999,7 @@
             if (!btn) return;
 
             const id = btn.dataset.id;
-
-            // Check if this mindmap is currently being viewed
-            if (currentViewedMindmapId !== id) {
-                showSnackbar('Please view this mindmap first before exporting.', 'error');
-                return;
-            }
-
-            const container = document.getElementById('mindmap-container');
-            const markmapDiv = container.querySelector('.markmap');
-
-            // Verify mindmap is displayed
-            if (!markmapDiv || markmapDiv.children.length === 0) {
-                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
-                return;
-            }
-
-            // Export the currently displayed mindmap
-            exportMindmapAsImage(id);
+            await exportMindmapAsImage(id);
         });
 
         // Handle exporting mindmap as PDF
@@ -970,24 +1008,7 @@
             if (!btn) return;
 
             const id = btn.dataset.id;
-
-            // Check if this mindmap is currently being viewed
-            if (currentViewedMindmapId !== id) {
-                showSnackbar('Please view this mindmap first before exporting.', 'error');
-                return;
-            }
-
-            const container = document.getElementById('mindmap-container');
-            const markmapDiv = container.querySelector('.markmap');
-
-            // Verify mindmap is displayed
-            if (!markmapDiv || markmapDiv.children.length === 0) {
-                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
-                return;
-            }
-
-            // Export the currently displayed mindmap
-            exportMindmapAsPdf(id);
+            await exportMindmapAsPdf(id);
         });
 
         // Helper function to download canvas as image using data URL
@@ -1012,112 +1033,248 @@
             }
         }
 
-        // Function to export mindmap as image
-        function exportMindmapAsImage(mindmapId) {
-            const container = document.getElementById('mindmap-container');
-            const markmapDiv = container.querySelector('.markmap');
+        // Function to render mindmap fully expanded for export
+        async function renderFullyExpandedMindmap(markdown) {
+            return new Promise((resolve, reject) => {
+                // Create a temporary hidden container for export
+                const tempContainer = document.createElement('div');
+                tempContainer.style.position = 'absolute';
+                tempContainer.style.left = '-9999px';
+                tempContainer.style.top = '-9999px';
+                tempContainer.style.width = '2000px';
+                tempContainer.style.height = '2000px';
+                tempContainer.style.overflow = 'visible';
+                tempContainer.style.backgroundColor = '#ffffff';
+                document.body.appendChild(tempContainer);
 
-            if (!markmapDiv) {
-                showSnackbar('Please view the mindmap first before exporting.', 'error');
-                return;
-            }
-
-            // Check if mindmap has content
-            if (!markmapDiv.children || markmapDiv.children.length === 0) {
-                showSnackbar('Mindmap is not fully loaded. Please wait and try again.', 'error');
-                return;
-            }
-
-            // Show loading indicator
-            const originalDisplay = container.style.display;
-            container.style.display = 'block';
-
-            // Use html2canvas to capture the mindmap
-            html2canvas(markmapDiv, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                logging: false,
-                useCORS: true,
-                allowTaint: true,
-                width: markmapDiv.scrollWidth,
-                height: markmapDiv.scrollHeight
-            }).then(canvas => {
-                try {
-                    // Convert canvas to blob and download
-                    if (canvas.toBlob) {
-                        canvas.toBlob(function(blob) {
-                            if (!blob) {
-                                // Fallback to data URL method
-                                downloadCanvasAsImage(canvas, mindmapId);
-                                return;
-                            }
-                            
-                            try {
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `mindmap_${mindmapId}_${new Date().getTime()}.png`;
-                                link.style.display = 'none';
-                                link.setAttribute('download', link.download);
-                                
-                                document.body.appendChild(link);
-                                
-                                // Trigger download
-                                link.click();
-                                
-                                // Cleanup after a short delay
-                                setTimeout(() => {
-                                    if (document.body.contains(link)) {
-                                        document.body.removeChild(link);
-                                    }
-                                    URL.revokeObjectURL(url);
-                                }, 200);
-                            } catch (err) {
-                                console.error('Download link error:', err);
-                                // Fallback to data URL method
-                                downloadCanvasAsImage(canvas, mindmapId);
-                            }
-                        }, 'image/png', 1.0);
-                    } else {
-                        // Fallback if toBlob is not supported
-                        downloadCanvasAsImage(canvas, mindmapId);
+                // Process markdown to ensure all nodes are expanded
+                let processedMarkdown = markdown;
+                if (markdown && !markdown.trim().startsWith('---')) {
+                    // Set initialExpandLevel to a very high number to expand all nodes
+                    processedMarkdown = "---\nmarkmap:\n  initialExpandLevel: 999\n---\n" + markdown;
+                } else if (markdown && markdown.trim().startsWith('---')) {
+                    // If frontmatter exists, update initialExpandLevel
+                    const frontmatterEnd = markdown.indexOf('---', 3);
+                    if (frontmatterEnd !== -1) {
+                        const frontmatter = markdown.substring(0, frontmatterEnd + 3);
+                        const content = markdown.substring(frontmatterEnd + 3);
+                        // Replace or add initialExpandLevel
+                        if (frontmatter.includes('initialExpandLevel')) {
+                            processedMarkdown = frontmatter.replace(/initialExpandLevel:\s*\d+/g, 'initialExpandLevel: 999') + content;
+                        } else if (frontmatter.includes('markmap:')) {
+                            // Add initialExpandLevel to existing markmap section
+                            processedMarkdown = frontmatter.replace(/markmap:\s*\n/g, 'markmap:\n  initialExpandLevel: 999\n') + content;
+                        } else {
+                            // Add markmap section with initialExpandLevel
+                            processedMarkdown = frontmatter.replace(/---\s*$/, 'markmap:\n  initialExpandLevel: 999\n---') + content;
+                        }
                     }
-                } catch (err) {
-                    console.error('Export error:', err);
-                    showSnackbar('Failed to create download. Please try again.', 'error');
                 }
-            }).catch(err => {
-                console.error('html2canvas error:', err);
-                showSnackbar('Failed to export mindmap. Please try again.', 'error');
-                console.error('Error exporting mindmap:', err);
+
+                // Create markmap div
+                const markmapDiv = document.createElement('div');
+                markmapDiv.className = 'markmap';
+                markmapDiv.style.width = '100%';
+                markmapDiv.style.height = '100%';
+
+                // Create script element for template
+                const scriptEl = document.createElement('script');
+                scriptEl.type = 'text/template';
+                scriptEl.textContent = processedMarkdown;
+
+                markmapDiv.appendChild(scriptEl);
+                tempContainer.appendChild(markmapDiv);
+
+                // Wait for markmap to render
+                if (window.markmap && window.markmap.autoLoader) {
+                    window.markmap.autoLoader.renderAll();
+                    
+                    // Wait for rendering to complete
+                    setTimeout(() => {
+                        // Wait a bit more for SVG to be fully rendered
+                        const svg = markmapDiv.querySelector('svg');
+                        if (svg) {
+                            resolve({ container: tempContainer, markmapDiv: markmapDiv });
+                        } else {
+                            // Retry after a longer delay
+                            setTimeout(() => {
+                                const svg = markmapDiv.querySelector('svg');
+                                if (svg) {
+                                    resolve({ container: tempContainer, markmapDiv: markmapDiv });
+                                } else {
+                                    document.body.removeChild(tempContainer);
+                                    reject(new Error('Failed to render mindmap'));
+                                }
+                            }, 1000);
+                        }
+                    }, 500);
+                } else {
+                    document.body.removeChild(tempContainer);
+                    reject(new Error('Markmap library not loaded'));
+                }
             });
         }
 
+        // Function to export mindmap as image
+        async function exportMindmapAsImage(mindmapId) {
+            try {
+                showSnackbar('Loading mindmap for export...', 'info');
+
+                // Load mindmap data
+                const formData = new FormData();
+                formData.append('mindmap_id', mindmapId);
+                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
+
+                const res = await fetch('<?= VIEW_MINDMAP_ROUTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+                const json = await res.json();
+
+                if (!json.success || !json.markdown) {
+                    showSnackbar(json.message || 'Failed to load mindmap for export.', 'error');
+                    return;
+                }
+
+                // Render fully expanded mindmap
+                const { container: tempContainer, markmapDiv } = await renderFullyExpandedMindmap(json.markdown);
+
+                // Wait a bit more to ensure SVG is fully rendered
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Use html2canvas to capture the mindmap
+                html2canvas(markmapDiv, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true,
+                    width: markmapDiv.scrollWidth || markmapDiv.offsetWidth,
+                    height: markmapDiv.scrollHeight || markmapDiv.offsetHeight
+                }).then(canvas => {
+                    try {
+                        // Convert canvas to blob and download
+                        if (canvas.toBlob) {
+                            canvas.toBlob(function(blob) {
+                                if (!blob) {
+                                    // Fallback to data URL method
+                                    downloadCanvasAsImage(canvas, mindmapId);
+                                    // Cleanup temp container
+                                    if (tempContainer && tempContainer.parentNode) {
+                                        document.body.removeChild(tempContainer);
+                                    }
+                                    return;
+                                }
+                                
+                                try {
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `mindmap_${mindmapId}_${new Date().getTime()}.png`;
+                                    link.style.display = 'none';
+                                    link.setAttribute('download', link.download);
+                                    
+                                    document.body.appendChild(link);
+                                    
+                                    // Trigger download
+                                    link.click();
+                                    
+                                    // Cleanup after a short delay
+                                    setTimeout(() => {
+                                        if (document.body.contains(link)) {
+                                            document.body.removeChild(link);
+                                        }
+                                        URL.revokeObjectURL(url);
+                                        // Cleanup temp container
+                                        if (tempContainer && tempContainer.parentNode) {
+                                            document.body.removeChild(tempContainer);
+                                        }
+                                    }, 200);
+                                    
+                                    showSnackbar('Mindmap exported successfully!', 'success');
+                                } catch (err) {
+                                    console.error('Download link error:', err);
+                                    // Fallback to data URL method
+                                    downloadCanvasAsImage(canvas, mindmapId);
+                                    // Cleanup temp container
+                                    if (tempContainer && tempContainer.parentNode) {
+                                        document.body.removeChild(tempContainer);
+                                    }
+                                }
+                            }, 'image/png', 1.0);
+                        } else {
+                            // Fallback if toBlob is not supported
+                            downloadCanvasAsImage(canvas, mindmapId);
+                            // Cleanup temp container
+                            if (tempContainer && tempContainer.parentNode) {
+                                document.body.removeChild(tempContainer);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Export error:', err);
+                        showSnackbar('Failed to create download. Please try again.', 'error');
+                        // Cleanup temp container
+                        if (tempContainer && tempContainer.parentNode) {
+                            document.body.removeChild(tempContainer);
+                        }
+                    }
+                }).catch(err => {
+                    console.error('html2canvas error:', err);
+                    showSnackbar('Failed to export mindmap. Please try again.', 'error');
+                    console.error('Error exporting mindmap:', err);
+                    // Cleanup temp container
+                    if (tempContainer && tempContainer.parentNode) {
+                        document.body.removeChild(tempContainer);
+                    }
+                });
+            } catch (err) {
+                console.error('Error in exportMindmapAsImage:', err);
+                showSnackbar('Failed to export mindmap. Please try again.', 'error');
+            }
+        }
+
         // Function to export mindmap as PDF
-        function exportMindmapAsPdf(mindmapId) {
-            const container = document.getElementById('mindmap-container');
-            const markmapDiv = container.querySelector('.markmap');
+        async function exportMindmapAsPdf(mindmapId) {
+            try {
+                // Check if jsPDF is available
+                if (typeof window.jspdf === 'undefined') {
+                    showSnackbar('PDF library not loaded. Please refresh the page and try again.', 'error');
+                    return;
+                }
 
-            if (!markmapDiv) {
-                showSnackbar('Please view the mindmap first before exporting.', 'error');
-                return;
-            }
+                showSnackbar('Loading mindmap for export...', 'info');
 
-            // Check if jsPDF is available
-            if (typeof window.jspdf === 'undefined') {
-                showSnackbar('PDF library not loaded. Please refresh the page and try again.', 'error');
-                return;
-            }
+                // Load mindmap data
+                const formData = new FormData();
+                formData.append('mindmap_id', mindmapId);
+                formData.append('file_id', '<?php echo isset($file['fileID']) ? htmlspecialchars($file['fileID']) : ''; ?>');
 
-            // Use html2canvas to capture the mindmap with higher quality
-            html2canvas(markmapDiv, {
-                backgroundColor: '#ffffff',
-                scale: 3, // Higher scale for better quality
-                logging: false,
-                useCORS: true,
-                width: markmapDiv.scrollWidth,
-                height: markmapDiv.scrollHeight
-            }).then(canvas => {
+                const res = await fetch('<?= VIEW_MINDMAP_ROUTE ?>', {
+                    method: 'POST',
+                    body: formData
+                });
+                const json = await res.json();
+
+                if (!json.success || !json.markdown) {
+                    showSnackbar(json.message || 'Failed to load mindmap for export.', 'error');
+                    return;
+                }
+
+                // Render fully expanded mindmap
+                const { container: tempContainer, markmapDiv } = await renderFullyExpandedMindmap(json.markdown);
+
+                // Wait a bit more to ensure SVG is fully rendered
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Use html2canvas to capture the mindmap with higher quality
+                html2canvas(markmapDiv, {
+                    backgroundColor: '#ffffff',
+                    scale: 3, // Higher scale for better quality
+                    logging: false,
+                    useCORS: true,
+                    width: markmapDiv.scrollWidth || markmapDiv.offsetWidth,
+                    height: markmapDiv.scrollHeight || markmapDiv.offsetHeight
+                }).then(canvas => {
                 try {
                     const {
                         jsPDF
@@ -1183,14 +1340,33 @@
 
                     // Save PDF
                     pdf.save(`mindmap_${mindmapId}_${new Date().getTime()}.pdf`);
+                    
+                    // Cleanup temp container
+                    if (tempContainer && tempContainer.parentNode) {
+                        document.body.removeChild(tempContainer);
+                    }
+                    
+                    showSnackbar('Mindmap exported successfully!', 'success');
                 } catch (err) {
                     showSnackbar('Failed to export mindmap as PDF. Please try again.', 'error');
                     console.error('Error exporting mindmap as PDF:', err);
+                    // Cleanup temp container
+                    if (tempContainer && tempContainer.parentNode) {
+                        document.body.removeChild(tempContainer);
+                    }
                 }
             }).catch(err => {
                 showSnackbar('Failed to capture mindmap. Please try again.', 'error');
                 console.error('Error capturing mindmap:', err);
+                // Cleanup temp container
+                if (tempContainer && tempContainer.parentNode) {
+                    document.body.removeChild(tempContainer);
+                }
             });
+            } catch (err) {
+                console.error('Error in exportMindmapAsPdf:', err);
+                showSnackbar('Failed to export mindmap. Please try again.', 'error');
+            }
         }
 
         //Render using autoloader 

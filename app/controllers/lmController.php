@@ -1582,6 +1582,35 @@ class LmController
     }
 
     /**
+     * Get all mindmaps for file (AJAX)
+     */
+    public function getMindmapsForFile()
+    {
+        header('Content-Type: application/json');
+        $this->checkSession(true);
+
+        $userId = (int)$_SESSION['user_id'];
+        $fileId = $this->resolveFileId();
+
+        if ($fileId === 0) {
+            $this->sendJsonError('File ID not provided.');
+        }
+
+        try {
+            // Verify file ownership
+            $file = $this->lmModel->getFile($userId, $fileId);
+            if (!$file) {
+                $this->sendJsonError('File not found.');
+            }
+
+            $mindmaps = $this->lmModel->getMindmapByFile($fileId);
+            $this->sendJsonSuccess(['mindmaps' => $mindmaps ?? []]);
+        } catch (\Throwable $e) {
+            $this->sendJsonError($e->getMessage());
+        }
+    }
+
+    /**
      * Get mindmap by ID and return data
      */
     public function viewMindmap()
