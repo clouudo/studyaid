@@ -784,84 +784,87 @@ if (!isset($homeworkEntries)) {
         // Delete homework handler - attach directly to buttons
         function initDeleteHandlers() {
             document.querySelectorAll('.delete-homework-btn').forEach(deleteBtn => {
-                deleteBtn.addEventListener('click', async (event) => {
+                deleteBtn.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     
                     const homeworkId = deleteBtn.dataset.homeworkId;
                     const homeworkName = deleteBtn.dataset.homeworkName;
                     
-                    // Confirmation dialog
-                    const confirmed = confirm(`Are you sure you want to delete "${homeworkName}"?\n\nThis action cannot be undone.`);
-                    
-                    if (!confirmed) {
-                        return;
-                    }
-                    
-                    // Disable button during deletion
-                    deleteBtn.disabled = true;
-                    const originalText = deleteBtn.innerHTML;
-                    deleteBtn.innerHTML = '<span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> Deleting...';
-                    
-                    try {
-                        const formData = new FormData();
-                        formData.append('homework_id', homeworkId);
-                        
-                        const response = await fetch('<?= DELETE_HOMEWORK ?>', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        let data;
-                        try {
-                            const responseText = await response.text();
-                            if (!responseText) {
-                                throw new Error('Empty response from server');
-                            }
-                            data = JSON.parse(responseText);
-                        } catch (parseError) {
-                            console.error('JSON Parse Error:', parseError);
-                            throw new Error('Invalid response format from server');
-                        }
-                        
-                        if (data.success) {
-                            showSnackbar(data.message || 'Homework entry deleted successfully!', 'success');
+                    // Show confirmation modal
+                    showConfirmModal({
+                        title: 'Delete Homework Entry',
+                        message: `Are you sure you want to delete "${homeworkName}"? This action cannot be undone.`,
+                        confirmText: 'Delete',
+                        cancelText: 'Cancel',
+                        danger: true,
+                        onConfirm: async () => {
+                            // Disable button during deletion
+                            deleteBtn.disabled = true;
+                            const originalText = deleteBtn.innerHTML;
+                            deleteBtn.innerHTML = '<span class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></span> Deleting...';
                             
-                            // Remove the list item from DOM with animation
-                            const listItem = deleteBtn.closest('.list-group-item');
-                            if (listItem) {
-                                listItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                                listItem.style.opacity = '0';
-                                listItem.style.transform = 'translateX(-20px)';
+                            try {
+                                const formData = new FormData();
+                                formData.append('homework_id', homeworkId);
                                 
-                                setTimeout(() => {
-                                    listItem.remove();
-                                    
-                                    // Check if list is now empty
-                                    const remainingItems = document.querySelectorAll('#homeworkList .list-group-item');
-                                    if (remainingItems.length === 0) {
-                                        document.getElementById('homeworkList').innerHTML = `
-                                            <div class="text-center py-5">
-                                                <i class="bi bi-inbox" style="font-size: 3rem; color: var(--sa-muted);"></i>
-                                                <p class="text-muted mt-3">No homework processed yet. Upload a file to get started!</p>
-                                            </div>
-                                        `;
+                                const response = await fetch('<?= DELETE_HOMEWORK ?>', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                
+                                let data;
+                                try {
+                                    const responseText = await response.text();
+                                    if (!responseText) {
+                                        throw new Error('Empty response from server');
                                     }
-                                }, 300);
+                                    data = JSON.parse(responseText);
+                                } catch (parseError) {
+                                    console.error('JSON Parse Error:', parseError);
+                                    throw new Error('Invalid response format from server');
+                                }
+                                
+                                if (data.success) {
+                                    showSnackbar(data.message || 'Homework entry deleted successfully!', 'success');
+                                    
+                                    // Remove the list item from DOM with animation
+                                    const listItem = deleteBtn.closest('.list-group-item');
+                                    if (listItem) {
+                                        listItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                                        listItem.style.opacity = '0';
+                                        listItem.style.transform = 'translateX(-20px)';
+                                        
+                                        setTimeout(() => {
+                                            listItem.remove();
+                                            
+                                            // Check if list is now empty
+                                            const remainingItems = document.querySelectorAll('#homeworkList .list-group-item');
+                                            if (remainingItems.length === 0) {
+                                                document.getElementById('homeworkList').innerHTML = `
+                                                    <div class="text-center py-5">
+                                                        <i class="bi bi-inbox" style="font-size: 3rem; color: var(--sa-muted);"></i>
+                                                        <p class="text-muted mt-3">No homework processed yet. Upload a file to get started!</p>
+                                                    </div>
+                                                `;
+                                            }
+                                        }, 300);
+                                    }
+                                } else {
+                                    showSnackbar(data.message || 'Failed to delete homework entry.', 'error');
+                                    // Restore button
+                                    deleteBtn.disabled = false;
+                                    deleteBtn.innerHTML = originalText;
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                                showSnackbar('An error occurred while deleting. Please try again.', 'error');
+                                // Restore button
+                                deleteBtn.disabled = false;
+                                deleteBtn.innerHTML = originalText;
                             }
-                        } else {
-                            showSnackbar(data.message || 'Failed to delete homework entry.', 'error');
-                            // Restore button
-                            deleteBtn.disabled = false;
-                            deleteBtn.innerHTML = originalText;
                         }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        showSnackbar('An error occurred while deleting. Please try again.', 'error');
-                        // Restore button
-                        deleteBtn.disabled = false;
-                        deleteBtn.innerHTML = originalText;
-                    }
+                    });
                 });
             });
         }

@@ -2584,15 +2584,14 @@ class LmController
             }
 
             $fileId = $flashcard['fileID'];
-            $oldTitle = $flashcard['title'];
 
             $db = new Database();
             $conn = $db->connect();
             $conn->beginTransaction();
 
             try {
-                // Delete all flashcards with the old title
-                $this->lmModel->deleteFlashcardsByTitle($oldTitle, $fileId);
+                // Delete only this specific flashcard by ID (not by title)
+                $this->lmModel->deleteFlashcardById($flashcardId, $userId);
 
                 // Filter out empty pairs
                 $validTerms = [];

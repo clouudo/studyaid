@@ -52,14 +52,25 @@ class AuthController
             $user = $this->authModel->authenticate($email, $password);
 
             if ($user) {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['success_message'] = "Login successful! Welcome back.";
-                header('Location: ' . DASHBOARD);
-                exit;
-            } else {
-                $error = "Invalid email or password. Please check your credentials and try again.";
-                require_once 'app/views/authView/login.php';
+                // Check if account is deactivated
+                if (isset($user['status']) && $user['status'] === 'deactivated') {
+                    $error = "Your account has been deactivated. Please contact support for assistance.";
+                    require_once 'app/views/authView/login.php';
+                    return;
+                }
+                
+                // Successful login
+                if (isset($user['status']) && $user['status'] === 'success') {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['success_message'] = "Login successful! Welcome back.";
+                    header('Location: ' . DASHBOARD);
+                    exit;
+                }
             }
+            
+            // Invalid credentials
+            $error = "Invalid email or password. Please check your credentials and try again.";
+            require_once 'app/views/authView/login.php';
         } else {
             $this->showLoginForm();
         }

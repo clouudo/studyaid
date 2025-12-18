@@ -26,17 +26,24 @@ class AuthModel {
 
     public function authenticate($email, $password) {
         $user = $this->getUserByEmail($email);
-        if($user != null){
-            if(password_verify($password, $user['password'])) {
-            return [
-                'id' => $user['userID'],
-                'email' => $user['email']
-            ];
-        }else{
-            return false;
-        }
-        }
-        else{
+        if ($user != null) {
+            // Check if password is correct
+            if (password_verify($password, $user['password'])) {
+                // Check if account is active
+                $isActive = $user['isActive'] ?? 'TRUE';
+                if (strtoupper($isActive) === 'FALSE') {
+                    // Return special indicator for deactivated account
+                    return ['status' => 'deactivated'];
+                }
+                return [
+                    'status' => 'success',
+                    'id' => $user['userID'],
+                    'email' => $user['email']
+                ];
+            } else {
+                return false;
+            }
+        } else {
             return false;
         }
     }
